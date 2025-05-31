@@ -22,21 +22,27 @@ cp .env.example .env
 cp .env.example .env
 ```
 
-2. Inicie os containers do back-end:
+2. Instale as dependências do back-end:
+```bash
+# No diretório provus-backend-platform
+npm install
+```
+
+3. Inicie os containers do back-end:
 
 ```bash
 # No diretório provus-backend-platform
 docker-compose up -d
 ```
 
-3. Execute as migrations do banco de dados:
+4. Execute as migrations do banco de dados:
 
 ```bash
 # No diretório provus-backend-platform
 npm run migration:run
 ```
 
-4. Inicie a aplicação front-end:
+5. Inicie a aplicação front-end:
 
 ```bash
 # No diretório provus-frontend-platform

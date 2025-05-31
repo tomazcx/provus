@@ -25,6 +25,10 @@ export class Env {
     return process.env.DATABASE_URL || '';
   }
 
+  static get MIGRATE_DATABASE_URL(): string {
+    return process.env.MIGRATE_DATABASE_URL || '';
+  }
+
   static get HASH_SALT(): number {
     return Number(process.env.HASH_SALT) || 10;
   }
