@@ -54,6 +54,7 @@ Após seguir estes passos, a aplicação estará disponível em:
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8000
+- Documentação do Backend: http://localhost:8000/api-docs
 
 ### Estrutura do projeto
 
