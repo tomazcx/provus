@@ -14,7 +14,7 @@ export class AuthServiceImpl implements AuthService {
     const emailExists = await this.proctorRepository.findByEmail(dto.email);
 
     if (emailExists) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('Email já cadastrado');
     }
 
     const salt = await bcrypt.genSalt(Env.HASH_SALT);
