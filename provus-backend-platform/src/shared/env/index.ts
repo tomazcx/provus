@@ -32,4 +32,12 @@ export class Env {
   static get HASH_SALT(): number {
     return Number(process.env.HASH_SALT) || 10;
   }
+
+  static get OPENAI_API_KEY(): string {
+    return process.env.OPENAI_API_KEY || '';
+  }
+
+  static get DEFAULT_OPENAI_MODEL(): string {
+    return process.env.DEFAULT_OPENAI_MODEL || '';
+  }
 }
