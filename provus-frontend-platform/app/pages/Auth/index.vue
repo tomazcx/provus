@@ -15,11 +15,11 @@
 
       <UCard>
         <UTabs :items="tabItems" class="w-full">
-          <template #login="{ }">
+          <template #login="{}">
             <LoginForm />
           </template>
 
-          <template #cadastro="{ }">
+          <template #cadastro="{}">
             <RegisterForm />
           </template>
         </UTabs>
@@ -33,6 +33,10 @@
 <script setup lang="ts">
 import LoginForm from "~/components/Auth/LoginForm.vue";
 import RegisterForm from "~/components/Auth/RegisterForm.vue";
+
+definePageMeta({
+  layout: false,
+});
 
 const tabItems = [
   { key: "login", label: "Login", slot: "login" },
