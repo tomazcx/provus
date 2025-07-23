@@ -106,6 +106,8 @@ const prova = ref<IProva>({
     mostrarResultados: false,
     permitirRefazer: true,
     tentativasPermitidas: 2,
+    correcaoIA: false,
+    tempoLimite: "60 minutos",
   },
 });
 

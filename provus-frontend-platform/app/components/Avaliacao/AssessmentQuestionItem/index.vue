@@ -15,11 +15,11 @@ const tipos: TQuestionType[] = [
   { label: "Múltipla Escolha", value: "multipla-escolha" },
   { label: "Discursiva", value: "discursiva" },
   { label: "Verdadeiro ou Falso", value: "verdadeiro-falso" },
+  { label: "Objetiva", value: "objective" },
 ];
 
 const dificuldades: TDifficulty[] = ["Fácil", "Médio", "Difícil"];
 
-// A lógica do script permanece a mesma
 const opcoes = computed(() => {
   if (model.value && "opcoes" in model.value) {
     return model.value.opcoes;
@@ -92,6 +92,12 @@ const tipoWritable = computed({
           tipo: { label: "Verdadeiro ou Falso", value: "verdadeiro-falso" },
           opcoes: [],
         };
+      } else if (newValue.value === "objective") {
+        model.value = {
+          ...baseData,
+          tipo: { label: "Objetiva", value: "objective" },
+          opcoes: [],
+        };
       }
     }
   },
@@ -105,10 +111,8 @@ function removeAlternative(id: number) {
 
 function toggleCorrect(alt: IQuestionAlternative) {
   if (model.value && "opcoes" in model.value) {
-    // Para múltipla escolha, podemos querer desmarcar outras opções
-    if (model.value.tipo.value === "multipla-escolha") {
-      // Se você quiser comportamento de 'single-choice', descomente a linha abaixo
-      // model.value.opcoes.forEach(o => o.isCorreta = false);
+    if (model.value.tipo.value === "objective") {
+      model.value.opcoes.forEach((o) => (o.isCorreta = false));
     }
     alt.isCorreta = !alt.isCorreta;
   }
@@ -157,10 +161,19 @@ function toggleCorrect(alt: IQuestionAlternative) {
     </div>
 
     <div class="space-y-4">
-      <UFormField label="Enunciado da Questão">
-        <UTextarea
+      <UFormField label="Título da Questão">
+        <UInput
           v-model="model.titulo"
           placeholder="Digite o enunciado da questão aqui..."
+          class="w-full"
+          autoresize
+        />
+      </UFormField>
+
+      <UFormField label="Descrição da Questão (opcional)">
+        <UTextarea
+          v-model="model.descricao"
+          placeholder="Digite uma breve descrição da questão aqui..."
           class="w-full"
           autoresize
         />
@@ -209,7 +222,7 @@ function toggleCorrect(alt: IQuestionAlternative) {
       </template>
 
       <template v-else-if="model.tipo.value === 'discursiva'">
-        <UFormField label="Modelo de Resposta">
+        <UFormField label="Modelo de Resposta para I.A">
           <UTextarea
             v-model="modeloDeRespostaWritable"
             placeholder="Digite a resposta esperada para esta questão..."

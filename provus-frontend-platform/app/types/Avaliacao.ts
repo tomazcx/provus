@@ -3,7 +3,7 @@ export type TDifficulty = "Fácil" | "Médio" | "Difícil";
 interface IQuestionBase {
   id: number;
   titulo: string;
-  materia?: string; 
+  materia?: string;
   pontuacao?: number;
   dificuldade?: TDifficulty;
   explicacao?: string;
@@ -18,6 +18,11 @@ export interface IQuestionAlternative {
   id: number;
   texto: string;
   isCorreta: boolean;
+}
+
+export interface IQuestionObjective extends IQuestionBase {
+  tipo: { label: "Objetiva"; value: "objective" };
+  opcoes: IQuestionAlternative[];
 }
 
 export interface IQuestionMultipleChoice extends IQuestionBase {
@@ -38,6 +43,7 @@ export interface IQuestionDiscursive extends IQuestionBase {
 export type AnyQuestion =
   | IQuestionMultipleChoice
   | IQuestionTrueOrFalse
+  | IQuestionObjective
   | IQuestionDiscursive;
 
 export interface IProvaConfiguracoes {
@@ -45,6 +51,8 @@ export interface IProvaConfiguracoes {
   mostrarResultados: boolean;
   permitirRefazer: boolean;
   tentativasPermitidas: number | string;
+  correcaoIA: boolean;
+  tempoLimite: number | string;
 }
 
 export interface IProva {

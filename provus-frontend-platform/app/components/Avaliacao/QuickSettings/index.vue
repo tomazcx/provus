@@ -24,6 +24,13 @@ const tentativas = [1, 2, 3, "Ilimitado"];
         <span class="text-sm text-gray-700">Permitir Refazer</span>
         <USwitch v-model="model.permitirRefazer" />
       </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-700"
+          >Correção de questões discursivas via I.A</span
+        >
+        <USwitch v-model="model.correcaoIA" />
+      </div>
+
       <UFormField
         v-if="model.permitirRefazer"
         label="Tentativas Permitidas"
