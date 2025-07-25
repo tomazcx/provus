@@ -46,14 +46,21 @@ const emit = defineEmits(["adicionar", "remover", "adicionarDoBanco"]);
     </div>
 
     <template v-else>
-      <template v-for="(questao, index) in questoes" :key="questao.id || index">
-        <AssessmentQuestionItem
-          v-if="questao"
-          v-model="questoes[index]!"
-          :numero="index + 1"
-          @remover="emit('remover', questao.id)"
-        />
-      </template>
+      <draggable
+        v-model="questoes"
+        item-key="id"
+        handle=".drag-handle"
+        class="space-y-4"
+      >
+        <template #item="{ element, index }">
+          <AssessmentQuestionItem
+            :model-value="element"
+            :numero="index + 1"
+            @update:model-value="questoes[index] = $event"
+            @remover="emit('remover', element.id)"
+          />
+        </template>
+      </draggable>
 
       <div class="flex flex-col sm:flex-row gap-3">
         <UButton

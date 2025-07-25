@@ -83,7 +83,7 @@ const tipos = [
           color="primary"
           variant="ghost"
           icon="i-heroicons-arrows-up-down"
-          class="cursor-grab"
+          class="cursor-grab drag-handle"
         />
         <UButton
           color="error"
