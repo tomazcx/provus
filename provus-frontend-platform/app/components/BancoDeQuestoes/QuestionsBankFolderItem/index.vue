@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { IFolder } from "@/types/QuestionBank";
-import Item from "@/components/BancoDeQuestoes/QuestionsBankItem/index.vue"; 
+import Item from "@/components/BancoDeQuestoes/QuestionsBankItem/index.vue";
+import type { IFolder } from "~/types/IBank";
 
 defineProps<{
   item: IFolder;
@@ -8,7 +8,7 @@ defineProps<{
 </script>
 
 <template>
-  <Item :id="item.id">
+  <Item :id="String(item.id)">
     <div
       class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center"
     >
@@ -18,7 +18,8 @@ defineProps<{
     <div>
       <h3 class="font-medium text-gray-900">{{ item.titulo }}</h3>
       <p class="text-sm text-gray-600">
-        {{ item.contagem }} questions • Modified {{ item.modificadoEm }}
+        {{ item.filhos.length }} itens • Modificado
+        {{ formatDate(item.atualizadoEm) }}
       </p>
     </div>
   </Item>

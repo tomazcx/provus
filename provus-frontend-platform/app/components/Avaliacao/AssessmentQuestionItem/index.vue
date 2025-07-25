@@ -1,122 +1,52 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type {
-  AnyQuestion,
-  TQuestionType,
-  TDifficulty,
-  IQuestionAlternative,
-} from "@/types/Avaliacao";
+import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type { IAlternativa, IQuestao } from "~/types/IQuestao";
 
-const model = defineModel<AnyQuestion>({ required: true });
+const model = defineModel<IQuestao>({ required: true });
+
 defineProps<{ numero: number }>();
+
 const emit = defineEmits(["remover"]);
 
-const tipos: TQuestionType[] = [
-  { label: "Múltipla Escolha", value: "multipla-escolha" },
-  { label: "Discursiva", value: "discursiva" },
-  { label: "Verdadeiro ou Falso", value: "verdadeiro-falso" },
-  { label: "Objetiva", value: "objective" },
-];
-
-const dificuldades: TDifficulty[] = ["Fácil", "Médio", "Difícil"];
-
-const opcoes = computed(() => {
-  if (model.value && "opcoes" in model.value) {
-    return model.value.opcoes;
-  }
-  return null;
-});
-
-const modeloDeRespostaWritable = computed({
-  get() {
-    if (model.value && "modeloDeResposta" in model.value) {
-      return model.value.modeloDeResposta;
-    }
-    return "";
-  },
-  set(newValue) {
-    if (model.value && "modeloDeResposta" in model.value) {
-      model.value.modeloDeResposta = newValue;
-    }
-  },
-});
-
-const nextAltId = computed(() => {
-  if (opcoes.value) {
-    return Math.max(0, ...opcoes.value.map((o) => o.id)) + 1;
-  }
-  return 1;
-});
-
 function addAlternative() {
-  if (model.value && "opcoes" in model.value) {
-    model.value.opcoes.push({
-      id: nextAltId.value,
-      texto: "",
-      isCorreta: false,
+  if (model.value && "alternativas" in model.value) {
+    model.value.alternativas?.push({
+      descricao: "",
+      isCorreto: false,
     });
   }
 }
 
-const tipoWritable = computed({
-  get() {
-    return model.value.tipo;
-  },
-  set(newValue) {
-    if (model.value.tipo.value !== newValue.value) {
-      const baseData = {
-        id: model.value.id,
-        titulo: model.value.titulo,
-        materia: model.value.materia,
-        pontuacao: model.value.pontuacao,
-        dificuldade: model.value.dificuldade,
-        explicacao: model.value.explicacao,
-        descricao: model.value.descricao,
-      };
-
-      if (newValue.value === "discursiva") {
-        model.value = {
-          ...baseData,
-          tipo: { label: "Discursiva", value: "discursiva" },
-          modeloDeResposta: "",
-        };
-      } else if (newValue.value === "multipla-escolha") {
-        model.value = {
-          ...baseData,
-          tipo: { label: "Múltipla Escolha", value: "multipla-escolha" },
-          opcoes: [],
-        };
-      } else if (newValue.value === "verdadeiro-falso") {
-        model.value = {
-          ...baseData,
-          tipo: { label: "Verdadeiro ou Falso", value: "verdadeiro-falso" },
-          opcoes: [],
-        };
-      } else if (newValue.value === "objective") {
-        model.value = {
-          ...baseData,
-          tipo: { label: "Objetiva", value: "objective" },
-          opcoes: [],
-        };
-      }
-    }
-  },
-});
-
-function removeAlternative(id: number) {
-  if (model.value && "opcoes" in model.value) {
-    model.value.opcoes = model.value.opcoes.filter((o) => o.id !== id);
+function removeAlternative(descricao: string) {
+  if (model.value && "alternativas" in model.value) {
+    model.value.alternativas = model.value.alternativas?.filter(
+      (o) => o.descricao !== descricao
+    );
   }
 }
 
-function toggleCorrect(alt: IQuestionAlternative) {
-  if (model.value && "opcoes" in model.value) {
-    if (model.value.tipo.value === "objective") {
-      model.value.opcoes.forEach((o) => (o.isCorreta = false));
+function toggleCorrect(alt: IAlternativa) {
+  if (model.value && "alternativas" in model.value) {
+    if (model.value.tipo === TipoQuestaoEnum.OBJETIVA) {
+      model.value.alternativas?.forEach((o) => (o.isCorreto = false));
     }
-    alt.isCorreta = !alt.isCorreta;
+    alt.isCorreto = !alt.isCorreto;
   }
 }
+
+const dificuldade = [
+  DificuldadeQuestaoEnum.DIFICIL,
+  DificuldadeQuestaoEnum.FACIL,
+  DificuldadeQuestaoEnum.MEDIO,
+];
+
+const tipos = [
+  TipoQuestaoEnum.DISCURSIVA,
+  TipoQuestaoEnum.MULTIPLA_ESCOLHA,
+  TipoQuestaoEnum.OBJETIVA,
+  TipoQuestaoEnum.VERDADEIRO_FALSO,
+];
 </script>
 
 <template>
@@ -130,14 +60,14 @@ function toggleCorrect(alt: IQuestionAlternative) {
         </div>
         <UFormField label="Tipo" size="sm">
           <USelectMenu
-            v-model="tipoWritable"
+            v-model="model.tipo"
             :items="tipos"
             by="value"
             option-attribute="label"
           />
         </UFormField>
         <UFormField label="Dificuldade" size="sm">
-          <USelect v-model="model.dificuldade" :items="dificuldades" />
+          <USelect v-model="model.dificuldade" :items="dificuldade" />
         </UFormField>
         <UFormField label="Pontos" size="sm">
           <UInputNumber v-model.number="model.pontuacao" class="w-20" />
@@ -179,36 +109,47 @@ function toggleCorrect(alt: IQuestionAlternative) {
         />
       </UFormField>
 
-      <template v-if="opcoes">
+      <template v-if="model.tipo === TipoQuestaoEnum.DISCURSIVA">
+        <UFormField label="Modelo de Resposta para I.A">
+          <UTextarea
+            v-model="model.exemploDeResposta"
+            placeholder="Digite a resposta esperada para esta questão..."
+            class="w-full"
+            autoresize
+          />
+        </UFormField>
+      </template>
+
+      <template v-else-if="model.alternativas">
         <UFormField label="Alternativas">
           <div class="space-y-3">
             <div
-              v-for="alt in opcoes"
-              :key="alt.id"
+              v-for="alt in model.alternativas"
+              :key="alt.descricao"
               class="flex items-center space-x-3 p-3 border rounded-lg transition-colors duration-200"
               :class="{
                 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
-                  alt.isCorreta,
-                'border-gray-200 dark:border-gray-700': !alt.isCorreta,
+                  alt.isCorreto,
+                'border-gray-200 dark:border-gray-700': !alt.isCorreto,
               }"
             >
               <UInput
-                v-model="alt.texto"
+                v-model="alt.descricao"
                 class="flex-1"
                 placeholder="Texto da alternativa..."
               />
               <UButton
                 icon="i-heroicons-check-circle-20-solid"
-                :color="alt.isCorreta ? 'primary' : 'neutral'"
-                :variant="alt.isCorreta ? 'solid' : 'ghost'"
+                :color="alt.isCorreto ? 'primary' : 'neutral'"
+                :variant="alt.isCorreto ? 'solid' : 'ghost'"
                 @click="toggleCorrect(alt)"
               />
               <UButton
                 color="error"
                 variant="ghost"
                 icon="i-lucide-trash-2"
-                :disabled="opcoes.length <= 1"
-                @click="removeAlternative(alt.id)"
+                :disabled="model.alternativas.length <= 1"
+                @click="removeAlternative(alt.descricao)"
               />
             </div>
             <UButton
@@ -221,20 +162,9 @@ function toggleCorrect(alt: IQuestionAlternative) {
         </UFormField>
       </template>
 
-      <template v-else-if="model.tipo.value === 'discursiva'">
-        <UFormField label="Modelo de Resposta para I.A">
-          <UTextarea
-            v-model="modeloDeRespostaWritable"
-            placeholder="Digite a resposta esperada para esta questão..."
-            class="w-full"
-            autoresize
-          />
-        </UFormField>
-      </template>
-
       <UFormField label="Explicação da Resposta (Opcional)">
         <UTextarea
-          v-model="model.explicacao"
+          v-model="model.textoRevisao"
           :rows="2"
           class="w-full"
           placeholder="Explique por que a resposta correta é essa. Será exibido ao aluno após a correção."

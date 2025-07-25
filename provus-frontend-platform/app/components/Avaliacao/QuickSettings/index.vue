@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { IProvaConfiguracoes } from "@/types/Avaliacao";
+import type { IConfiguracoes } from "~/types/IConfiguracoesAvaliacoes";
 
-const model = defineModel<IProvaConfiguracoes>({ required: true });
+const model = defineModel<IConfiguracoes>({ required: true });
 const tentativas = [1, 2, 3, "Ilimitado"];
 </script>
 <template>
@@ -18,27 +18,24 @@ const tentativas = [1, 2, 3, "Ilimitado"];
         <span class="text-sm text-gray-700"
           >Mostrar Resultados Imediatamente</span
         >
-        <USwitch v-model="model.mostrarResultados" />
+        <USwitch v-model="model.mostrarPontuacao" />
       </div>
-      <div class="flex items-center justify-between">
-        <span class="text-sm text-gray-700">Permitir Refazer</span>
-        <USwitch v-model="model.permitirRefazer" />
-      </div>
+
       <div class="flex items-center justify-between">
         <span class="text-sm text-gray-700"
           >Correção de questões discursivas via I.A</span
         >
-        <USwitch v-model="model.correcaoIA" />
+        <USwitch v-model="model.autocorrecaoIa" />
       </div>
 
       <UFormField
-        v-if="model.permitirRefazer"
+        v-if="model.permitirMultiplosEnvios"
         label="Tentativas Permitidas"
         size="md"
         class="w-full"
       >
         <USelect
-          v-model="model.tentativasPermitidas"
+          v-model="model.numeroMaximoDeEnvios"
           :items="tentativas"
           class="w-full"
         />

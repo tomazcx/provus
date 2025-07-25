@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import type { IQuestionListItem } from "@/types/QuestionBank";
 import Item from "@/components/BancoDeQuestoes/QuestionsBankItem/index.vue";
+import type { IQuestao } from "~/types/IQuestao";
+import formatDate from "~/utils/formatDate";
 
 defineProps<{
-  item: IQuestionListItem;
+  item: IQuestao;
 }>();
-
-function formatarData(data: Date | undefined): string {
-  if (!data) return "sem data";
-  return data.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
 </script>
 
 <template>
-  <Item :id="String(item.data.id)">
+  <Item :id="String(item.id)">
     <div
       class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"
     >
@@ -25,13 +17,13 @@ function formatarData(data: Date | undefined): string {
     </div>
 
     <div class="flex-1">
-      <h3 class="font-medium text-gray-900">{{ item.data.titulo }}</h3>
-      <p class="text-sm text-gray-600 mt-1">{{ item.data.descricao }}</p>
+      <h3 class="font-medium text-gray-900">{{ item.titulo }}</h3>
+      <p class="text-sm text-gray-600 mt-1">{{ item.descricao }}</p>
 
       <div class="flex items-center space-x-4 mt-2">
-        <UBadge size="sm">{{ item.data.tipo.label }}</UBadge>
+        <UBadge size="sm">{{ item.tipo }}</UBadge>
         <span class="text-xs text-gray-500"
-          >Modified {{ formatarData(item.data.atualizadoEm) }}</span
+          >Modificado {{ formatDate(item.atualizadoEm) }}</span
         >
       </div>
     </div>

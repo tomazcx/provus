@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import ProvaEditorItemQuestao from "@/components/Avaliacao/AssessmentQuestionItem/index.vue";
-import type { AnyQuestion } from "@/types/Avaliacao";
+import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionItem/index.vue";
+import type { IQuestao } from "~/types/IQuestao";
 
-const questoes = defineModel<AnyQuestion[]>("questoes", { required: true });
+const questoes = defineModel<IQuestao[]>("questoes", { required: true });
 const emit = defineEmits(["adicionar", "remover"]);
 </script>
 
@@ -45,12 +45,12 @@ const emit = defineEmits(["adicionar", "remover"]);
     </div>
 
     <template v-else>
-      <template v-for="(questao, index) in questoes" :key="questao.id">
-        <ProvaEditorItemQuestao
+      <template v-for="(questao, index) in questoes" :key="questao.descricao">
+        <AssessmentQuestionItem
           v-if="questao"
           v-model="questoes[index]!"
           :numero="index + 1"
-          @remover="emit('remover', questao.id)"
+          @remover="emit('remover', questao.descricao)"
         />
       </template>
 

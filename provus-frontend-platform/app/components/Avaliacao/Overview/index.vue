@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { IProva, AnyQuestion } from "@/types/Avaliacao";
+import type { AvaliacaoImpl } from '~/types/IAvaliacao';
+import type { IQuestao } from '~/types/IQuestao';
+
 
 const props = defineProps<{
-  prova: IProva;
+  prova: AvaliacaoImpl;
 }>();
 
 const totalPontos = computed(() => {
   if (!props.prova || !props.prova.questoes) return 0;
   return props.prova.questoes.reduce(
-    (soma: number, q: AnyQuestion) => soma + (Number(q.pontuacao) || 0),
+    (soma: number, q: IQuestao) => soma + (Number(q.pontuacao) || 0),
     0
   );
 });
@@ -17,7 +19,7 @@ const contagemTipos = computed(() => {
   if (!props.prova || !props.prova.questoes) return {};
   const contagem: { [key: string]: number } = {};
   for (const questao of props.prova.questoes) {
-    const tipoLabel = questao.tipo.label;
+    const tipoLabel = questao.tipo;
     contagem[tipoLabel] = (contagem[tipoLabel] || 0) + 1;
   }
   return contagem;

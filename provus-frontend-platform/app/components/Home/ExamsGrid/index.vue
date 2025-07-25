@@ -1,51 +1,53 @@
 <script setup lang="ts">
+import EstadoAvaliacaoEnum from "~/enums/EstadoAvaliacaoEnum";
 import ExamCard from "../ExamCard/index.vue";
-const cards = [
-  {
-    icon: "i-lucide-file-text",
-    iconBg: "bg-primary/10 text-primary",
-    title: "Advanced Mathematics Final",
-    description: "Calculus…",
-    status: "Finished",
-    statusBg: "bg-green-100 text-green-800",
-    timestamp: "2 hours ago",
-    eventInfo: "Exam completed by 45 students",
+import { mockDashboardResponse } from "~/mock/mockDashboardResponse";
+
+const style = {
+  Finalizado: {
+    icone: "i-lucide-check-circle",
+    iconeBg: "bg-green-100 text-green-800",
   },
-  {
-    icon: "i-lucide-file-text",
-    iconBg: "bg-secondary/10 text-secondary",
-    title: "Physics Midterm",
-    description: "Thermodynamics…",
-    status: "In Progress",
-    statusBg: "bg-yellow-100 text-yellow-800",
-    timestamp: "Started 45 min ago",
-    eventInfo: "23 of 30 students…",
+  "Em andamento": {
+    icone: "i-lucide-clock",
+    iconeBg: "bg-yellow-100 text-yellow-800",
   },
-  {
-    icon: "i-lucide-calendar",
-    iconBg: "bg-purple-100 text-purple-600",
-    title: "Chemistry Quiz",
-    description: "Organic chemistry…",
-    status: "Scheduled",
-    statusBg: "bg-purple-100 text-purple-800",
-    timestamp: "Tomorrow 2:00 PM",
-    eventInfo: "Scheduled for 32 students",
+  Agendado: {
+    icone: "i-lucide-calendar",
+    iconeBg: "bg-purple-100 text-purple-800",
   },
-  {
-    icon: "i-lucide-play",
-    iconBg: "bg-orange-100 text-orange-600",
-    title: "Biology Assessment",
-    description: "Cell biology…",
-    status: "Administered",
-    statusBg: "bg-orange-100 text-orange-800",
-    timestamp: "1 day ago",
-    eventInfo: "Administered to 28 students",
-  },
-];
+};
+
+const cardsResponse = mockDashboardResponse.ultimosEventos || [];
+
+const cards = cardsResponse.map((card) => {
+  if (card.estado === EstadoAvaliacaoEnum.FINALIZADA) {
+    return {
+      ...card,
+      icone: style.Finalizado.icone,
+      iconeBg: style.Finalizado.iconeBg,
+      estadoBg: "bg-green-100 text-green-800",
+    };
+  } else if (card.estado === EstadoAvaliacaoEnum.EM_ANDAMENTO) {
+    return {
+      ...card,
+      icone: style["Em andamento"].icone,
+      iconeBg: style["Em andamento"].iconeBg,
+      estadoBg: "bg-yellow-100 text-yellow-800",
+    };
+  } else if (card.estado === EstadoAvaliacaoEnum.AGENDADA) {
+    return {
+      ...card,
+      icone: style.Agendado.icone,
+      iconeBg: style.Agendado.iconeBg,
+      estadoBg: "bg-purple-100 text-purple-800",
+    };
+  }
+});
 </script>
 
 <template>
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <ExamCard v-for="(c, i) in cards" :key="i" v-bind="c" />
+    <ExamCard v-for="c in cards" :key="c?.id" v-bind="c" />
   </div>
 </template>

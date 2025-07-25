@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { IProva } from "@/types/Avaliacao";
+import type { AvaliacaoImpl } from "~/types/IAvaliacao";
 
-const model = defineModel<IProva>({ required: true });
+const model = defineModel<AvaliacaoImpl>({ required: true });
 </script>
 
 <template>
@@ -26,7 +26,7 @@ const model = defineModel<IProva>({ required: true });
         </UFormField>
         <UFormField label="Pontos Totais" class="w-full">
           <UInput
-            v-model.number="model.pontos"
+            v-model.number="model.pontuacao"
             class="w-full"
             placeholder="Ex: 100"
           />
@@ -34,7 +34,7 @@ const model = defineModel<IProva>({ required: true });
       </div>
       <UFormField label="Instruções" class="w-full">
         <UTextarea
-          v-model="model.instrucoes"
+          v-model="model.descricao"
           :rows="3"
           class="w-full"
           placeholder="Digite as instruções para os alunos..."

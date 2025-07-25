@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import ProvaEditorDetalhes from "@/components/Avaliacao/Details/index.vue";
-import ProvaEditorListaQuestoes from "@/components/Avaliacao/AssessmentQuestionList/index.vue";
-import ProvaEditorVisaoGeral from "@/components/Avaliacao/Overview/index.vue";
-import ProvaEditorConfiguracoesRapidas from "@/components/Avaliacao/QuickSettings/index.vue";
-import type { IProva, IQuestionMultipleChoice } from "@/types/Avaliacao";
+import Details from "@/components/Avaliacao/Details/index.vue";
+import AssessmentQuestionList from "@/components/Avaliacao/AssessmentQuestionList/index.vue";
+import Overview from "@/components/Avaliacao/Overview/index.vue";
+import QuickSettings from "@/components/Avaliacao/QuickSettings/index.vue";
+import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type { IQuestao } from "~/types/IQuestao";
+import type { AvaliacaoImpl } from "~/types/IAvaliacao";
 
-const route = useRoute();
-const examId = computed(() => route.params.id as string | null);
+// const route = useRoute();
+// const examId = computed(() => route.params.id as string | null);
 // const isEditing = computed(() => !!examId.value);
 
 definePageMeta({
@@ -80,61 +83,58 @@ definePageMeta({
 //   { watch: [examId] }
 // );
 
-const prova = ref<IProva>({
-  id: examId.value,
-  titulo: "Prova Existente de Biologia",
-  duracao: "90 minutos",
-  pontos: 100,
-  materia: "Biologia",
-  instrucoes: "Instruções da prova carregada.",
-  questoes: [
-    {
-      id: 1,
-      titulo: "Qual organela é responsável pela respiração celular?",
-      pontuacao: 10,
-      dificuldade: "Médio",
-      tipo: { label: "Múltipla Escolha", value: "multipla-escolha" },
-      opcoes: [
-        { id: 1, texto: "Ribossomo", isCorreta: false },
-        { id: 2, texto: "Mitocôndria", isCorreta: true },
-        { id: 3, texto: "Lisossomo", isCorreta: false },
-      ],
-    },
-  ],
+const prova = ref<AvaliacaoImpl>({
+  titulo: "",
+  duracao: "120",
+  pontuacao: 100,
+  descricao: "",
+  isModelo: false,
+  dataAgendamento: "",
+  questoes: [],
   configuracoes: {
+    dataDeAplicacao: "",
+    dataDeEncerramento: "",
+    mostrarPontuacao: true,
+    mostrarRespostas: true,
+    permitirMultiplosEnvios: false,
+    autocorrecaoIa: true,
+    numeroMaximoDeEnvios: 1,
     embaralharQuestoes: true,
-    mostrarResultados: false,
-    permitirRefazer: true,
-    tentativasPermitidas: 2,
-    correcaoIA: false,
-    tempoLimite: "60 minutos",
+    embaralharAlternativas: true,
+    tempoMaximo: 120,
+    tempoMinimo: 30,
   },
 });
 
 function adicionarQuestao() {
   if (!prova.value) return;
 
-  const novaQuestao: IQuestionMultipleChoice = {
-    id: Date.now(),
+  const novaQuestao: IQuestao = {
     titulo: "",
-    pontuacao: 5,
-    dificuldade: "Fácil",
-    tipo: { label: "Múltipla Escolha", value: "multipla-escolha" },
-    opcoes: [
-      { id: 1, texto: "", isCorreta: false },
-      { id: 2, texto: "", isCorreta: false },
+    descricao: "",
+    pontuacao: 1,
+    dificuldade: DificuldadeQuestaoEnum.FACIL,
+    tipo: TipoQuestaoEnum.OBJETIVA,
+    alternativas: [
+      {
+        descricao: "",
+        isCorreto: true,
+      },
     ],
+    exemploDeResposta: "",
+    textoRevisao: "",
   };
 
   prova.value.questoes.push(novaQuestao);
 }
 
-function removerQuestao(id: number) {
+function removerQuestao(descricao: string) {
   if (!prova.value) return;
-  prova.value.questoes = prova.value.questoes.filter((q) => q.id !== id);
+  prova.value.questoes = prova.value.questoes.filter(
+    (q) => q.descricao !== descricao
+  );
 }
 
-// 5. Reativamos a lógica de salvar com o toast
 // const toast = useToast();
 // function salvarProva() {
 //   if (isEditing.value) {
@@ -164,16 +164,16 @@ function removerQuestao(id: number) {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div class="lg:col-span-3 space-y-6">
-          <ProvaEditorDetalhes v-model="prova" />
-          <ProvaEditorListaQuestoes
+          <Details v-model="prova" />
+          <AssessmentQuestionList
             v-model:questoes="prova.questoes"
             @adicionar="adicionarQuestao"
             @remover="removerQuestao"
           />
         </div>
         <div class="sticky top-24 space-y-6">
-          <ProvaEditorVisaoGeral :prova="prova" />
-          <ProvaEditorConfiguracoesRapidas v-model="prova.configuracoes" />
+          <Overview :prova="prova" />
+          <QuickSettings v-model="prova.configuracoes" />
         </div>
       </div>
     </div>

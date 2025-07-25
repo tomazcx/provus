@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import type { RadioGroupItem } from "@nuxt/ui";
-import type {
-  AnyQuestion,
-  TDifficulty,
-  TQuestionType,
-  IQuestionAlternative,
-} from "@/types/Avaliacao";
+import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type { IAlternativa } from "~/types/IQuestao";
 
 defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
@@ -13,10 +10,16 @@ const emit = defineEmits<{
 }>();
 
 const questionTypeItems: RadioGroupItem[] = [
-  { label: "Resposta Única (Múltipla Escolha)", value: "single-correct" },
-  { label: "Múltiplas Respostas (Múltipla Escolha)", value: "multiple-choice" },
-  { label: "Verdadeiro ou Falso", value: "true-false" },
-  { label: "Texto Livre (Discursiva)", value: "free-text" },
+  {
+    label: "Objetiva",
+    value: TipoQuestaoEnum.OBJETIVA,
+  },
+  {
+    label: "Múltipla Escolha",
+    value: TipoQuestaoEnum.MULTIPLA_ESCOLHA,
+  },
+  { label: "Verdadeiro ou Falso", value: TipoQuestaoEnum.VERDADEIRO_FALSO },
+  { label: "Discursiva", value: TipoQuestaoEnum.DISCURSIVA },
 ];
 
 const questionDifficultyItems: RadioGroupItem[] = [
@@ -25,149 +28,81 @@ const questionDifficultyItems: RadioGroupItem[] = [
   { label: "Difícil", value: "Difícil" },
 ];
 
-const form = reactive({
+const form = reactive<{
+  titulo: string;
+  descricao?: string;
+  type: TipoQuestaoEnum;
+  difficulty: DificuldadeQuestaoEnum;
+  pontuacao: number;
+  alternativas: IAlternativa[];
+  exemploDeResposta?: string;
+  explicacao?: string;
+}>({
   titulo: "",
   descricao: "",
-  type: "single-correct" as
-    | "single-correct"
-    | "multiple-choice"
-    | "true-false"
-    | "free-text",
-  difficulty: "Fácil" as TDifficulty,
+  type: TipoQuestaoEnum.OBJETIVA,
+  difficulty: DificuldadeQuestaoEnum.FACIL,
   pontuacao: 5,
-  alternatives: [
-    { id: 1, texto: "", isCorreta: false },
-    { id: 2, texto: "", isCorreta: false },
+  alternativas: [
+    {
+      descricao: "",
+      isCorreto: true,
+    },
   ],
-  correctAlternativeId: null as number | null,
-  modeloDeResposta: "",
+  exemploDeResposta: "",
   explicacao: "",
 });
 
-const isFreeText = computed(() => form.type === "free-text");
-const isTrueFalse = computed(() => form.type === "true-false");
-const isSingleCorrect = computed(() => form.type === "single-correct");
-
-let nextAltId = 3;
+const isFreeText = computed(() => form.type === TipoQuestaoEnum.DISCURSIVA);
+const isTrueFalse = computed(
+  () => form.type === TipoQuestaoEnum.VERDADEIRO_FALSO
+);
+const isSingleCorrect = computed(() => form.type === TipoQuestaoEnum.OBJETIVA);
 
 watch(
   () => form.type,
   (newType) => {
-    nextAltId = 1;
-    form.correctAlternativeId = null;
-
-    if (newType === "single-correct" || newType === "multiple-choice") {
-      form.alternatives = [
-        { id: nextAltId++, texto: "", isCorreta: false },
-        { id: nextAltId++, texto: "", isCorreta: false },
-      ];
-    } else if (newType === "true-false") {
-      form.alternatives = [
-        { id: nextAltId++, texto: "Verdadeiro", isCorreta: false },
-        { id: nextAltId++, texto: "Falso", isCorreta: false },
-      ];
-    } else if (newType === "free-text") {
-      form.alternatives = [];
+    if (
+      newType === TipoQuestaoEnum.OBJETIVA ||
+      newType === TipoQuestaoEnum.MULTIPLA_ESCOLHA
+    ) {
+      form.alternativas = [];
+    } else if (newType === TipoQuestaoEnum.VERDADEIRO_FALSO) {
+      form.alternativas = [];
+    } else if (newType === TipoQuestaoEnum.DISCURSIVA) {
+      form.alternativas = [];
     }
   }
 );
 
 function addAlternative() {
-  form.alternatives.push({ id: nextAltId++, texto: "", isCorreta: false });
+  form.alternativas.push({
+    descricao: "",
+    isCorreto: false,
+    criadoEm: new Date().toISOString(),
+    atualizadoEm: new Date().toISOString(),
+  });
 }
 
-function removeAlternative(id: number) {
-  form.alternatives = form.alternatives.filter((a) => a.id !== id);
-  if (form.correctAlternativeId === id) {
-    form.correctAlternativeId = null;
-  }
+function removeAlternative(descricao: string) {
+  form.alternativas = form.alternativas.filter(
+    (a) => a.descricao !== descricao
+  );
 }
 
-function isCorrect(alternative: { id: number; isCorreta: boolean }): boolean {
+function toggleCorrect(alternative: IAlternativa) {
   if (isSingleCorrect.value) {
-    return form.correctAlternativeId === alternative.id;
-  }
-  return alternative.isCorreta;
-}
-
-function toggleCorrect(alternative: { id: number; isCorreta: boolean }) {
-  if (isSingleCorrect.value) {
-    form.correctAlternativeId =
-      form.correctAlternativeId === alternative.id ? null : alternative.id;
+    form.alternativas.forEach((alt) => {
+      alt.isCorreto = false;
+    });
+    alternative.isCorreto = true;
   } else {
-    alternative.isCorreta = !alternative.isCorreta;
+    alternative.isCorreto = !alternative.isCorreto;
   }
 }
 
 async function onSubmit() {
-  const typeMap: { [key: string]: TQuestionType } = {
-    "single-correct": { label: "Múltipla Escolha", value: "multipla-escolha" },
-    "multiple-choice": { label: "Múltipla Escolha", value: "multipla-escolha" },
-    "true-false": { label: "Verdadeiro ou Falso", value: "verdadeiro-falso" },
-    "free-text": { label: "Discursiva", value: "discursiva" },
-  };
-
-  const finalType = typeMap[form.type];
-
-  if (!finalType) {
-    console.error("Erro: Tipo de questão desconhecido ou inválido:", form.type);
-    return;
-  }
-
-  const baseQuestionData = {
-    id: Date.now(),
-    titulo: form.titulo,
-    descricao: form.descricao,
-    dificuldade: form.difficulty,
-    pontuacao: form.pontuacao,
-    explicacao: form.explicacao,
-  };
-
-  let questaoPayload: AnyQuestion;
-
-  if (finalType.value === "discursiva") {
-    questaoPayload = {
-      ...baseQuestionData,
-      tipo: finalType,
-      modeloDeResposta: form.modeloDeResposta,
-    };
-  } else {
-    const finalAlternatives: IQuestionAlternative[] = form.alternatives.map(
-      (alt) => {
-        let correta = alt.isCorreta;
-        if (isSingleCorrect.value) {
-          correta = form.correctAlternativeId === alt.id;
-        }
-        return {
-          id: typeof alt.id === "number" ? alt.id : Date.now(),
-          texto: alt.texto,
-          isCorreta: correta,
-        };
-      }
-    );
-
-    if (finalType.value === "multipla-escolha") {
-      questaoPayload = {
-        ...baseQuestionData,
-        tipo: { label: "Múltipla Escolha", value: "multipla-escolha" },
-        opcoes: finalAlternatives,
-      };
-    } else if (finalType.value === "verdadeiro-falso") {
-      questaoPayload = {
-        ...baseQuestionData,
-        tipo: { label: "Verdadeiro ou Falso", value: "verdadeiro-falso" },
-        opcoes: finalAlternatives,
-      };
-    } else {
-      console.error(
-        "Tipo de questão não suportado na lógica de criação:",
-        finalType
-      );
-      return;
-    }
-  }
-
-  console.log("Saving question (typed payload):", questaoPayload);
+  console.log("Saving question (typed payload):", form);
   emit("update:modelValue", false);
 }
 </script>
@@ -247,21 +182,21 @@ async function onSubmit() {
               v-if="!isFreeText"
               class="w-full"
               label="Alternativas de Resposta"
-              name="alternatives"
+              name="alternativas"
             >
               <div class="space-y-3">
                 <div
-                  v-for="(alt, index) in form.alternatives"
+                  v-for="(alt, index) in form.alternativas"
                   :key="alt.id"
                   class="flex items-center space-x-3 p-3 border rounded-lg transition-colors duration-200"
                   :class="{
                     'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
-                      isCorrect(alt),
-                    'border-gray-200 dark:border-gray-700': !isCorrect(alt),
+                      alt.isCorreto,
+                    'border-gray-200 dark:border-gray-700': !alt.isCorreto,
                   }"
                 >
                   <UInput
-                    v-model="alt.texto"
+                    v-model="alt.descricao"
                     :placeholder="
                       isTrueFalse
                         ? `Afirmativa ${index + 1}...`
@@ -271,8 +206,8 @@ async function onSubmit() {
                   />
                   <UButton
                     icon="i-heroicons-check-circle-20-solid"
-                    :color="isCorrect(alt) ? 'primary' : 'neutral'"
-                    :variant="isCorrect(alt) ? 'solid' : 'ghost'"
+                    :color="alt.isCorreto ? 'primary' : 'neutral'"
+                    :variant="alt.isCorreto ? 'solid' : 'ghost'"
                     @click="toggleCorrect(alt)"
                   />
                   <UButton
@@ -281,9 +216,9 @@ async function onSubmit() {
                     size="xl"
                     color="error"
                     :disabled="
-                      form.alternatives.length <= (isTrueFalse ? 1 : 2)
+                      form.alternativas.length <= (isTrueFalse ? 1 : 2)
                     "
-                    @click="removeAlternative(alt.id)"
+                    @click="removeAlternative(alt.descricao)"
                   />
                 </div>
                 <UButton
@@ -304,10 +239,10 @@ async function onSubmit() {
               <UFormField
                 class="w-full"
                 label="Resposta Modelo para I.A"
-                name="modeloDeResposta"
+                name="exemploDeResposta"
               >
                 <UTextarea
-                  v-model="form.modeloDeResposta"
+                  v-model="form.exemploDeResposta"
                   class="w-full"
                   :rows="3"
                   placeholder="Digite a resposta ideal..."
@@ -350,32 +285,32 @@ async function onSubmit() {
                   disabled
                 />
               </div>
-              <div v-else-if="form.alternatives.length > 0" class="space-y-2">
+              <div v-else-if="form.alternativas.length > 0" class="space-y-2">
                 <label
-                  v-for="alt in form.alternatives"
+                  v-for="alt in form.alternativas"
                   :key="alt.id"
                   class="flex items-center space-x-3 p-3 border rounded-lg cursor-not-allowed opacity-75"
                   :class="{
                     'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
-                      isCorrect(alt),
-                    'border-gray-200 dark:border-gray-700': !isCorrect(alt),
+                      alt.isCorreto,
+                    'border-gray-200 dark:border-gray-700': !alt.isCorreto,
                   }"
                 >
                   <div
                     class="w-5 h-5 rounded-full flex items-center justify-center"
                     :class="
-                      isCorrect(alt)
+                      alt.isCorreto
                         ? 'bg-green-500'
                         : 'bg-gray-300 dark:bg-gray-600'
                     "
                   >
                     <UIcon
-                      v-if="isCorrect(alt)"
+                      v-if="alt.isCorreto"
                       name="i-heroicons-check-20-solid"
                       class="w-4 h-4 text-white"
                     />
                   </div>
-                  <span>{{ alt.texto || `Alternativa ${alt.id}` }}</span>
+                  <span>{{ alt.descricao }}</span>
                 </label>
               </div>
               <UCard
