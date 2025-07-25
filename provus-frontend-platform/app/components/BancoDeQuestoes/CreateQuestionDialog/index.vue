@@ -2,11 +2,12 @@
 import type { RadioGroupItem } from "@nuxt/ui";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { IAlternativa } from "~/types/IQuestao";
+import type { IAlternativa, TQuestionForm } from "~/types/IQuestao";
 
 defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
   (e: "update:modelValue", v: boolean): void;
+  (e: "create", payload: TQuestionForm): void;
 }>();
 
 const questionTypeItems: RadioGroupItem[] = [
@@ -28,20 +29,11 @@ const questionDifficultyItems: RadioGroupItem[] = [
   { label: "Difícil", value: "Difícil" },
 ];
 
-const form = reactive<{
-  titulo: string;
-  descricao?: string;
-  type: TipoQuestaoEnum;
-  difficulty: DificuldadeQuestaoEnum;
-  pontuacao: number;
-  alternativas: IAlternativa[];
-  exemploDeResposta?: string;
-  explicacao?: string;
-}>({
+const form = reactive<TQuestionForm>({
   titulo: "",
   descricao: "",
-  type: TipoQuestaoEnum.OBJETIVA,
-  difficulty: DificuldadeQuestaoEnum.FACIL,
+  tipo: TipoQuestaoEnum.OBJETIVA,
+  dificuldade: DificuldadeQuestaoEnum.FACIL,
   pontuacao: 5,
   alternativas: [
     {
@@ -53,14 +45,14 @@ const form = reactive<{
   explicacao: "",
 });
 
-const isFreeText = computed(() => form.type === TipoQuestaoEnum.DISCURSIVA);
+const isFreeText = computed(() => form.tipo === TipoQuestaoEnum.DISCURSIVA);
 const isTrueFalse = computed(
-  () => form.type === TipoQuestaoEnum.VERDADEIRO_FALSO
+  () => form.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO
 );
-const isSingleCorrect = computed(() => form.type === TipoQuestaoEnum.OBJETIVA);
+const isSingleCorrect = computed(() => form.tipo === TipoQuestaoEnum.OBJETIVA);
 
 watch(
-  () => form.type,
+  () => form.tipo,
   (newType) => {
     if (
       newType === TipoQuestaoEnum.OBJETIVA ||
@@ -102,7 +94,7 @@ function toggleCorrect(alternative: IAlternativa) {
 }
 
 async function onSubmit() {
-  console.log("Saving question (typed payload):", form);
+  emit("create", form);
   emit("update:modelValue", false);
 }
 </script>
@@ -158,7 +150,7 @@ async function onSubmit() {
 
             <UFormField class="w-full" label="Tipo da Questão" name="type">
               <URadioGroup
-                v-model="form.type"
+                v-model="form.tipo"
                 :items="questionTypeItems"
                 color="primary"
                 variant="table"
@@ -171,7 +163,7 @@ async function onSubmit() {
               name="difficulty"
             >
               <URadioGroup
-                v-model="form.difficulty"
+                v-model="form.dificuldade"
                 :items="questionDifficultyItems"
                 color="primary"
                 variant="table"

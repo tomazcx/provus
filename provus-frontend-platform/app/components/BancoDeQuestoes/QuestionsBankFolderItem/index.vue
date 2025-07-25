@@ -4,6 +4,7 @@ import type { IFolder } from "~/types/IBank";
 
 defineProps<{
   item: IFolder;
+  childCount: number;
 }>();
 </script>
 
@@ -18,7 +19,7 @@ defineProps<{
     <div>
       <h3 class="font-medium text-gray-900">{{ item.titulo }}</h3>
       <p class="text-sm text-gray-600">
-        {{ item.filhos.length }} itens • Modificado
+        {{ childCount }} itens • Modificado
         {{ formatDate(item.atualizadoEm) }}
       </p>
     </div>

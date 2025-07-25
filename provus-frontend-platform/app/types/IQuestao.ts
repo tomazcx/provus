@@ -38,6 +38,17 @@ export interface IResposta {
   atualizadoEm?: string;
 }
 
+export type TQuestionForm = {
+  titulo: string;
+  descricao?: string;
+  tipo: TipoQuestaoEnum;
+  dificuldade: DificuldadeQuestaoEnum;
+  pontuacao: number;
+  alternativas: IAlternativa[];
+  exemploDeResposta?: string;
+  explicacao?: string;
+};
+
 // interface IQuestionBase {
 //   id: number;
 //   titulo: string;

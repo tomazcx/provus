@@ -5,6 +5,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: boolean): void;
+  (e: "create", payload: { titulo: string }): void;
 }>();
 
 const form = reactive({
@@ -12,9 +13,9 @@ const form = reactive({
 });
 
 function confirmCreate() {
-  console.log("Criar pasta", form);
-
-  emit("update:modelValue", false);
+  if (form.titulo.trim() === "") return;
+  emit("create", { titulo: form.titulo });
+  emit("update:modelValue", false); // Fecha o modal
 }
 
 watch(
