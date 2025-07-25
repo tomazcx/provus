@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   modelValue: boolean;
+  currentPathLabel: string;
 }>();
 
 const emit = defineEmits<{
@@ -15,7 +16,7 @@ const form = reactive({
 function confirmCreate() {
   if (form.titulo.trim() === "") return;
   emit("create", { titulo: form.titulo });
-  emit("update:modelValue", false); // Fecha o modal
+  emit("update:modelValue", false);
 }
 
 watch(
@@ -60,8 +61,8 @@ watch(
             <Icon name="i-lucide-info" class="text-blue-500 mt-0.5" />
             <div>
               <p class="text-sm text-blue-700">
-                <span class="font-medium">Localização atual:</span> Banco de
-                Questões &gt; Matemática &gt; Ensino Médio
+                <span class="font-medium">Localização atual:</span>
+                {{ currentPathLabel }}
               </p>
               <p class="text-xs text-blue-600 mt-1">
                 A nova pasta será criada neste local

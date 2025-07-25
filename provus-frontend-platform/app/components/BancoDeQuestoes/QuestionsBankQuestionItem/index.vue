@@ -5,11 +5,12 @@ import formatDate from "~/utils/formatDate";
 
 defineProps<{
   item: IQuestao;
+  isSelected?: boolean;
 }>();
 </script>
 
 <template>
-  <Item :id="String(item.id)">
+  <Item :id="String(item.id)" :class="{ '!bg-primary/10': isSelected }">
     <div
       class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"
     >

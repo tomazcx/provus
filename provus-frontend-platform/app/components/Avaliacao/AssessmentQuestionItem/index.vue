@@ -10,18 +10,22 @@ defineProps<{ numero: number }>();
 const emit = defineEmits(["remover"]);
 
 function addAlternative() {
-  if (model.value && "alternativas" in model.value) {
-    model.value.alternativas?.push({
+  if (model.value) {
+    if (!model.value.alternativas) {
+      model.value.alternativas = [];
+    }
+    model.value.alternativas.push({
+      id: Date.now(),
       descricao: "",
       isCorreto: false,
     });
   }
 }
 
-function removeAlternative(descricao: string) {
+function removeAlternative(id: number) {
   if (model.value && "alternativas" in model.value) {
     model.value.alternativas = model.value.alternativas?.filter(
-      (o) => o.descricao !== descricao
+      (o) => o.id !== id
     );
   }
 }
@@ -120,12 +124,18 @@ const tipos = [
         </UFormField>
       </template>
 
-      <template v-else-if="model.alternativas">
+      <template
+        v-else-if="
+          model.tipo === TipoQuestaoEnum.OBJETIVA ||
+          model.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA ||
+          model.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO
+        "
+      >
         <UFormField label="Alternativas">
           <div class="space-y-3">
             <div
               v-for="alt in model.alternativas"
-              :key="alt.descricao"
+              :key="alt.id"
               class="flex items-center space-x-3 p-3 border rounded-lg transition-colors duration-200"
               :class="{
                 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
@@ -148,8 +158,8 @@ const tipos = [
                 color="error"
                 variant="ghost"
                 icon="i-lucide-trash-2"
-                :disabled="model.alternativas.length <= 1"
-                @click="removeAlternative(alt.descricao)"
+                :disabled="(model.alternativas?.length ?? 0) <= 1"
+                @click="removeAlternative(alt.id!)"
               />
             </div>
             <UButton

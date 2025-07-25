@@ -3,7 +3,7 @@ import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionIte
 import type { IQuestao } from "~/types/IQuestao";
 
 const questoes = defineModel<IQuestao[]>("questoes", { required: true });
-const emit = defineEmits(["adicionar", "remover"]);
+const emit = defineEmits(["adicionar", "remover", "adicionarDoBanco"]);
 </script>
 
 <template>
@@ -40,17 +40,18 @@ const emit = defineEmits(["adicionar", "remover"]);
           label="Adicionar do Banco de Questões"
           size="lg"
           icon="i-heroicons-circle-stack"
+          @click="emit('adicionarDoBanco')"
         />
       </div>
     </div>
 
     <template v-else>
-      <template v-for="(questao, index) in questoes" :key="questao.descricao">
+      <template v-for="(questao, index) in questoes" :key="questao.id || index">
         <AssessmentQuestionItem
           v-if="questao"
           v-model="questoes[index]!"
           :numero="index + 1"
-          @remover="emit('remover', questao.descricao)"
+          @remover="emit('remover', questao.id)"
         />
       </template>
 
@@ -69,6 +70,7 @@ const emit = defineEmits(["adicionar", "remover"]);
           size="lg"
           icon="i-heroicons-circle-stack"
           color="secondary"
+          @click="emit('adicionarDoBanco')"
         />
       </div>
     </template>

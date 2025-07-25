@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import type { ContextMenuItem } from "@nuxt/ui";
 
-defineProps<{
-  id: string;
-}>();
+const emit = defineEmits(["edit", "delete"]);
 
 const items = ref<ContextMenuItem[]>([
   {
     label: "Editar",
 
     icon: "i-lucide-pencil",
+    onSelect: () => emit("edit"),
   },
 
   {
     label: "Deletar",
 
     icon: "i-lucide-trash",
+    onSelect: () => emit("delete"),
   },
 ]);
 </script>
@@ -37,7 +37,19 @@ const items = ref<ContextMenuItem[]>([
           icon="i-lucide-ellipsis-vertical"
           color="neutral"
           variant="ghost"
+          @click.stop
         />
+        <template #item="{ item }">
+          <span
+            :class="
+              item.label === 'Deletar'
+                ? 'text-red-500 group-hover:text-red-600'
+                : ''
+            "
+          >
+            {{ item.label }}
+          </span>
+        </template>
       </UDropdownMenu>
     </div>
   </UCard>

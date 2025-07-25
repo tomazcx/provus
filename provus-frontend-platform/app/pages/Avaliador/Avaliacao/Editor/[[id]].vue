@@ -5,7 +5,7 @@ import Overview from "@/components/Avaliacao/Overview/index.vue";
 import QuickSettings from "@/components/Avaliacao/QuickSettings/index.vue";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { IQuestao } from "~/types/IQuestao";
+import type { IAlternativa, IQuestao } from "~/types/IQuestao";
 import type { AvaliacaoImpl } from "~/types/IAvaliacao";
 
 // const route = useRoute();
@@ -110,6 +110,7 @@ function adicionarQuestao() {
   if (!prova.value) return;
 
   const novaQuestao: IQuestao = {
+    id: Date.now(),
     titulo: "",
     descricao: "",
     pontuacao: 1,
@@ -117,6 +118,7 @@ function adicionarQuestao() {
     tipo: TipoQuestaoEnum.OBJETIVA,
     alternativas: [
       {
+        id: Date.now() + 1,
         descricao: "",
         isCorreto: true,
       },
@@ -128,11 +130,9 @@ function adicionarQuestao() {
   prova.value.questoes.push(novaQuestao);
 }
 
-function removerQuestao(descricao: string) {
+function removerQuestao(id: number) {
   if (!prova.value) return;
-  prova.value.questoes = prova.value.questoes.filter(
-    (q) => q.descricao !== descricao
-  );
+  prova.value.questoes = prova.value.questoes.filter((q) => q.id !== id);
 }
 
 // const toast = useToast();
@@ -145,10 +145,35 @@ function removerQuestao(descricao: string) {
 //     toast.add({ title: "Prova criada com sucesso!", color: "secondary" });
 //   }
 // }
+
+const bancoDeQuestoesDialog = ref(false);
+
+function handleAddQuestionsFromBank(questions: IQuestao[]) {
+  const questionCopies = questions.map((originalQuestion, index) => {
+    const newQuestion = JSON.parse(JSON.stringify(originalQuestion));
+
+    newQuestion.id = Date.now() + index;
+
+    if (newQuestion.alternativas) {
+      newQuestion.alternativas.forEach(
+        (alt: IAlternativa, altIndex: number) => {
+          alt.id = Date.now() + index + altIndex + 1;
+        }
+      );
+    }
+
+    return newQuestion;
+  });
+  prova.value.questoes.push(...questionCopies);
+}
 </script>
 
 <template>
   <div class="bg-gray-50 min-h-screen">
+    <OpenQuestionBankDialog
+      v-model="bancoDeQuestoesDialog"
+      @add-questions="handleAddQuestionsFromBank"
+    />
     <!-- <div v-if="pending" class="text-center p-10">
       <UIcon
         name="i-heroicons-arrow-path"
@@ -169,6 +194,7 @@ function removerQuestao(descricao: string) {
             v-model:questoes="prova.questoes"
             @adicionar="adicionarQuestao"
             @remover="removerQuestao"
+            @adicionar-do-banco="bancoDeQuestoesDialog = true"
           />
         </div>
         <div class="sticky top-24 space-y-6">
