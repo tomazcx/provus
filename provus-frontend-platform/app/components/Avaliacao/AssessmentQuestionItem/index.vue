@@ -7,7 +7,11 @@ const model = defineModel<IQuestao>({ required: true });
 
 defineProps<{ numero: number }>();
 
-const emit = defineEmits(["remover"]);
+const emit = defineEmits(["remover", "save-to-bank"]);
+
+const isQuestionValid = computed(() => {
+  return model.value?.titulo?.trim() !== "";
+});
 
 function addAlternative() {
   if (model.value) {
@@ -79,6 +83,16 @@ const tipos = [
       </div>
 
       <div class="flex items-center space-x-1">
+        <UTooltip text="Salvar no Banco de Questões">
+          <UButton
+            color="secondary"
+            variant="ghost"
+            icon="i-lucide-bookmark-plus"
+            :disabled="!isQuestionValid"
+            @click="emit('save-to-bank', model)"
+          />
+        </UTooltip>
+
         <UButton
           color="primary"
           variant="ghost"

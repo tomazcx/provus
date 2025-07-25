@@ -3,7 +3,12 @@ import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionIte
 import type { IQuestao } from "~/types/IQuestao";
 
 const questoes = defineModel<IQuestao[]>("questoes", { required: true });
-const emit = defineEmits(["adicionar", "remover", "adicionarDoBanco"]);
+const emit = defineEmits([
+  "adicionar",
+  "remover",
+  "adicionarDoBanco",
+  "save-to-bank",
+]);
 </script>
 
 <template>
@@ -58,6 +63,7 @@ const emit = defineEmits(["adicionar", "remover", "adicionarDoBanco"]);
             :numero="index + 1"
             @update:model-value="questoes[index] = $event"
             @remover="emit('remover', element.id)"
+            @save-to-bank="emit('save-to-bank', element)"
           />
         </template>
       </draggable>

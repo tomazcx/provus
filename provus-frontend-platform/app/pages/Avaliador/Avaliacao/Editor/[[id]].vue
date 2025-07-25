@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Details from "@/components/Avaliacao/Details/index.vue";
+import SaveToQuestionsBankDialog from "@/components/Avaliacao/SaveToQuestionsBankDialog/index.vue";
 import AssessmentQuestionList from "@/components/Avaliacao/AssessmentQuestionList/index.vue";
 import Overview from "@/components/Avaliacao/Overview/index.vue";
 import QuickSettings from "@/components/Avaliacao/QuickSettings/index.vue";
@@ -146,8 +147,6 @@ function removerQuestao(id: number) {
 //   }
 // }
 
-const bancoDeQuestoesDialog = ref(false);
-
 function handleAddQuestionsFromBank(questions: IQuestao[]) {
   const questionCopies = questions.map((originalQuestion, index) => {
     const newQuestion = JSON.parse(JSON.stringify(originalQuestion));
@@ -166,6 +165,15 @@ function handleAddQuestionsFromBank(questions: IQuestao[]) {
   });
   prova.value.questoes.push(...questionCopies);
 }
+
+const bancoDeQuestoesDialog = ref(false);
+const saveToBankDialog = ref(false);
+const questionToSave = ref<IQuestao | null>(null);
+
+function handleSaveQuestionToBank(question: IQuestao) {
+  questionToSave.value = JSON.parse(JSON.stringify(question));
+  saveToBankDialog.value = true;
+}
 </script>
 
 <template>
@@ -174,6 +182,12 @@ function handleAddQuestionsFromBank(questions: IQuestao[]) {
       v-model="bancoDeQuestoesDialog"
       @add-questions="handleAddQuestionsFromBank"
     />
+
+    <SaveToQuestionsBankDialog
+      v-model="saveToBankDialog"
+      :question-to-save="questionToSave"
+    />
+
     <!-- <div v-if="pending" class="text-center p-10">
       <UIcon
         name="i-heroicons-arrow-path"
@@ -195,6 +209,7 @@ function handleAddQuestionsFromBank(questions: IQuestao[]) {
             @adicionar="adicionarQuestao"
             @remover="removerQuestao"
             @adicionar-do-banco="bancoDeQuestoesDialog = true"
+            @save-to-bank="handleSaveQuestionToBank"
           />
         </div>
         <div class="sticky top-24 space-y-6">

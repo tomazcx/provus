@@ -1,36 +1,67 @@
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from "vue";
 import QuestionsBankFolderItem from "~/components/BancoDeQuestoes/QuestionsBankFolderItem/index.vue";
 import QuestionsBankQuestionItem from "~/components/BancoDeQuestoes/QuestionsBankQuestionItem/index.vue";
-import type { IFolder } from "~/types/IBank";
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import EditFolderDialog from "@/components/BancoDeQuestoes/EditFolderDialog/index.vue";
+import CreateFolderDialog from "@/components/BancoDeQuestoes/CreateFolderDialog/index.vue";
+import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
 import isFolder from "~/guards/isFolder";
+import { useQuestionBankStore } from "~/store/questionBankstore";
+import type { IFolder } from "~/types/IBank";
 
 const props = defineProps({
-  items: {
-    type: Array as () => (IFolder | IQuestao)[],
-    required: true,
-  },
   mode: {
     type: String as () => "browse" | "select",
     default: "browse",
   },
 });
+const emit = defineEmits(["path-changed"]);
 
-const emit = defineEmits(["path-changed", "update:item", "delete:item"]);
-
-const selectedQuestionIds = ref(new Set<number>());
-defineExpose({ selectedQuestionIds });
-
+const questionBankStore = useQuestionBankStore();
+const showCreateFolder = ref(false);
+const showCreateQuestion = ref(false);
 const editingQuestion = ref<IQuestao | null>(null);
 const editingFolder = ref<IFolder | null>(null);
 const internalCurrentPath = ref("/");
+const selectedQuestionIds = ref(new Set<number>());
+defineExpose({ selectedQuestionIds });
 
 watch(internalCurrentPath, (newPath) => {
   emit("path-changed", newPath);
 });
+
+function handleCreateFolder(data: { titulo: string }) {
+  questionBankStore.createFolder({
+    titulo: data.titulo,
+    path: internalCurrentPath.value,
+  });
+  showCreateFolder.value = false;
+}
+
+function handleCreateQuestion(formData: TQuestionForm) {
+  questionBankStore.createQuestion({
+    formData,
+    path: internalCurrentPath.value,
+  });
+  showCreateQuestion.value = false;
+}
+
+function handleUpdateFolder({ newTitle }: { newTitle: string }) {
+  if (!editingFolder.value) return;
+  questionBankStore.updateItem({ item: editingFolder.value, newTitle });
+  editingFolder.value = null;
+}
+
+function handleUpdateQuestion(updatedData: TQuestionForm) {
+  if (!editingQuestion.value) return;
+  questionBankStore.updateItem({ item: editingQuestion.value, updatedData });
+  editingQuestion.value = null;
+}
+
+function handleDelete(itemToDelete: IFolder | IQuestao) {
+  questionBankStore.deleteItem(itemToDelete);
+}
 
 const pathSegments = computed(() => {
   if (internalCurrentPath.value === "/") return [];
@@ -41,6 +72,54 @@ const currentPath = computed(() => {
   if (pathSegments.value.length === 0) return "/";
   return `/${pathSegments.value.join("/")}`;
 });
+
+const breadcrumbs = computed(() => {
+  const crumbs = [{ label: "Banco de Questões", to: "/banco-de-questoes" }];
+  const currentCrumbPath: string[] = [];
+  for (const segment of pathSegments.value) {
+    currentCrumbPath.push(segment);
+    crumbs.push({
+      label: segment,
+      to: `/banco-de-questoes/${currentCrumbPath.join("/")}`,
+    });
+  }
+  return crumbs;
+});
+
+const currentPathLabel = computed(() => {
+  return breadcrumbs.value.map((crumb) => crumb.label).join(" > ");
+});
+
+const itemsInCurrentFolder = computed(() =>
+  questionBankStore.items
+    .filter((item) => item.path === currentPath.value)
+    .sort((a, b) => {
+      const aIsFolder = isFolder(a);
+      const bIsFolder = isFolder(b);
+      if (aIsFolder && !bIsFolder) return -1;
+      if (!aIsFolder && bIsFolder) return 1;
+      const dateA = new Date(a.atualizadoEm ?? 0).getTime();
+      const dateB = new Date(b.atualizadoEm ?? 0).getTime();
+      return dateB - dateA;
+    })
+);
+
+function getChildCount(folder: IFolder): number {
+  const childPath =
+    folder.path === "/"
+      ? `/${folder.titulo}`
+      : `${folder.path}/${folder.titulo}`;
+  return questionBankStore.items.filter((item) => item.path === childPath)
+    .length;
+}
+
+function navigateFromBreadcrumb(path: string) {
+  if (path === "/banco-de-questoes") {
+    internalCurrentPath.value = "/";
+  } else {
+    internalCurrentPath.value = path.replace("/banco-de-questoes", "");
+  }
+}
 
 function onItemClick(item: IFolder | IQuestao) {
   if (isFolder(item)) {
@@ -66,65 +145,6 @@ function handleEdit(item: IFolder | IQuestao) {
   }
 }
 
-function handleUpdateFolder({ newTitle }: { newTitle: string }) {
-  if (!editingFolder.value) return;
-  emit("update:item", { item: editingFolder.value, newTitle });
-  editingFolder.value = null;
-}
-
-function handleUpdateQuestion(updatedData: TQuestionForm) {
-  if (!editingQuestion.value) return;
-  emit("update:item", { item: editingQuestion.value, updatedData });
-  editingQuestion.value = null;
-}
-
-function handleDelete(itemToDelete: IFolder | IQuestao) {
-  emit("delete:item", itemToDelete);
-}
-
-const itemsInCurrentFolder = computed(() =>
-  props.items
-    .filter((item) => item.path === currentPath.value)
-    .sort((a, b) => {
-      const aIsFolder = isFolder(a);
-      const bIsFolder = isFolder(b);
-      if (aIsFolder && !bIsFolder) return -1;
-      if (!aIsFolder && bIsFolder) return 1;
-      const dateA = new Date(a.atualizadoEm ?? 0).getTime();
-      const dateB = new Date(b.atualizadoEm ?? 0).getTime();
-      return dateB - dateA;
-    })
-);
-
-function getChildCount(folder: IFolder): number {
-  const childPath =
-    folder.path === "/"
-      ? `/${folder.titulo}`
-      : `${folder.path}/${folder.titulo}`;
-  return props.items.filter((item) => item.path === childPath).length;
-}
-
-function navigateFromBreadcrumb(path: string) {
-  if (path === "/banco-de-questoes") {
-    internalCurrentPath.value = "/";
-  } else {
-    internalCurrentPath.value = path.replace("/banco-de-questoes", "");
-  }
-}
-
-const breadcrumbs = computed(() => {
-  const crumbs = [{ label: "Banco de Questões", to: "/banco-de-questoes" }];
-  const currentCrumbPath: string[] = [];
-  for (const segment of pathSegments.value) {
-    currentCrumbPath.push(segment);
-    crumbs.push({
-      label: segment,
-      to: `/banco-de-questoes/${currentCrumbPath.join("/")}`,
-    });
-  }
-  return crumbs;
-});
-
 const filters = reactive({
   search: "",
   type: "Todos os tipos",
@@ -134,6 +154,15 @@ const filters = reactive({
 
 <template>
   <div>
+    <CreateFolderDialog
+      v-model="showCreateFolder"
+      :current-path-label="currentPathLabel"
+      @create="handleCreateFolder"
+    />
+    <CreateQuestionDialog
+      v-model="showCreateQuestion"
+      @create="handleCreateQuestion"
+    />
     <EditQuestionDialog
       :model-value="!!editingQuestion"
       :question="editingQuestion"
@@ -146,6 +175,21 @@ const filters = reactive({
       @update:model-value="editingFolder = null"
       @update="handleUpdateFolder"
     />
+
+    <div class="flex justify-end mb-8">
+      <div class="mt-4 sm:mt-0 space-x-3">
+        <UButton icon="i-lucide-folder-plus" @click="showCreateFolder = true">
+          Nova pasta
+        </UButton>
+        <UButton
+          color="secondary"
+          icon="i-lucide-plus"
+          @click="showCreateQuestion = true"
+        >
+          Nova questão
+        </UButton>
+      </div>
+    </div>
 
     <div v-if="pathSegments.length > 0" class="mb-6">
       <UBreadcrumb :items="breadcrumbs">
