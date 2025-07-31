@@ -2,6 +2,7 @@
 import ViewSelectionDialog from "~/components/Avaliacao/ViewSelectionDialog/index.vue";
 import OpenQuestionBankDialog from "~/components/Avaliacao/OpenQuestionBankDialog/index.vue";
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
+import DateTimePicker from "@/components/ui/DateTimePicker/index.vue";
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import type { AvaliacaoImpl } from "~/types/IAvaliacao";
@@ -334,7 +335,7 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
                         <USelect
                           v-model="rule.dificuldade"
                           :items="['Qualquer', 'Fácil', 'Médio', 'Difícil']"
-                          class="w-32"
+                          class="w-28"
                         />
                         <UButton
                           color="error"
@@ -354,6 +355,59 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
                       />
                     </div>
                   </div>
+                </div>
+              </UCard>
+              <UCard variant="subtle">
+                <template #header
+                  ><h2 class="font-bold">Aplicação</h2></template
+                >
+                <div class="flex flex-col gap-6">
+                  <USwitch
+                    v-model="formState.configuracoes.aplicacaoManual"
+                    label="Aplicação manual"
+                    description="A avaliação será aplicada apenas quando você, manualmente, realizar a ação."
+                  />
+
+                  <USwitch
+                    v-model="formState.configuracoes.aplicacaoAgendada"
+                    label="Aplicação agendada"
+                    description="A avaliação será aplicada automaticamente em uma data e hora definidas."
+                  />
+                  <div
+                    v-if="formState.configuracoes.aplicacaoAgendada"
+                    class="pl-8 flex flex-col gap-4 item"
+                  >
+                    <DateTimePicker
+                      v-model="formState.configuracoes.dataAgendada"
+                      :enable-date="true"
+                      :enable-time="true"
+                    />
+                  </div>
+                </div>
+              </UCard>
+
+              <UCard variant="subtle">
+                <template #header
+                  ><h2 class="font-bold">Feedbacks e Reviews</h2></template
+                >
+                <div class="flex flex-col gap-6">
+                  <USwitch
+                    v-model="formState.configuracoes.exibirPontuacaDaSubmissao"
+                    label="Exibir pontuação"
+                    description="Após a avaliação ser submetida, o estudante poderá ver sua pontuação e apenas ela."
+                  />
+
+                  <USwitch
+                    v-model="formState.configuracoes.permitirRevisao"
+                    label="Permitir revisão"
+                    description="O estudante poderá não apenas ver sua pontuação, mas também ver sua prova corrigida."
+                  />
+
+                  <USwitch
+                    v-model="formState.configuracoes.exibirPontuacaoQuestoes"
+                    label="Exibir pontuação das questões"
+                    description="O estudante poderá ver o quanto vale cada questão."
+                  />
                 </div>
               </UCard>
             </div>

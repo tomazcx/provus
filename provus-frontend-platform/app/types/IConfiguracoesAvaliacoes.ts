@@ -27,12 +27,19 @@ export interface IConfiguracoes {
   criadoEm?: string;
   atualizadoEm?: string;
 
-  randomizacaoSimples: false;
-  randomizacaoBancoSimples: false;
-    poolSelecaoBanco: {
+  randomizacaoSimples: boolean;
+  randomizacaoBancoSimples: boolean;
+  poolSelecaoBanco: {
     pastas: [];
     questoes: [];
   };
-  randomizacaoBancoConfiguravel: false;
+  randomizacaoBancoConfiguravel: boolean;
   regrasRandomizacaoConfiguravel: IRandomizationRule[];
+  aplicacaoManual: boolean;
+  aplicacaoAgendada: boolean;
+  dataAgendada: Date | null;
+
+  exibirPontuacaDaSubmissao: boolean;
+  permitirRevisao: boolean;
+  exibirPontuacaoQuestoes: boolean;
 }

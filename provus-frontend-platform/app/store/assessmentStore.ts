@@ -32,6 +32,13 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
       questoes: [],
     },
     regrasRandomizacaoConfiguravel: [],
+    aplicacaoManual: false,
+    aplicacaoAgendada: false,
+    dataAgendada: null,
+
+    exibirPontuacaDaSubmissao: false,
+    permitirRevisao: false,
+    exibirPontuacaoQuestoes: false,
   },
 });
 
