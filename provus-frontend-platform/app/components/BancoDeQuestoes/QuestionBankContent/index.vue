@@ -24,8 +24,35 @@ const showCreateQuestion = ref(false);
 const editingQuestion = ref<IQuestao | null>(null);
 const editingFolder = ref<IFolder | null>(null);
 const internalCurrentPath = ref("/");
-const selectedQuestionIds = ref(new Set<number>());
-defineExpose({ selectedQuestionIds });
+const selectedItems = ref({
+  folders: new Set<number>(),
+  questions: new Set<number>(),
+});
+
+function handleItemClick(item: IFolder | IQuestao) {
+  if (isFolder(item)) {
+    const newPath =
+      internalCurrentPath.value === "/"
+        ? `/${item.titulo}`
+        : `${internalCurrentPath.value}/${item.titulo}`;
+    internalCurrentPath.value = newPath;
+  } else if (props.mode === "select" && item.id) {
+    handleSelectItem(item);
+  }
+}
+
+function handleSelectItem(item: IFolder | IQuestao) {
+  const targetSet = isFolder(item)
+    ? selectedItems.value.folders
+    : selectedItems.value.questions;
+  const isSelected = targetSet.has(item.id!);
+
+  if (isSelected) {
+    targetSet.delete(item.id!);
+  } else {
+    targetSet.add(item.id!);
+  }
+}
 
 watch(internalCurrentPath, (newPath) => {
   emit("path-changed", newPath);
@@ -121,22 +148,6 @@ function navigateFromBreadcrumb(path: string) {
   }
 }
 
-function onItemClick(item: IFolder | IQuestao) {
-  if (isFolder(item)) {
-    const newPath =
-      internalCurrentPath.value === "/"
-        ? `/${item.titulo}`
-        : `${internalCurrentPath.value}/${item.titulo}`;
-    internalCurrentPath.value = newPath;
-  } else if (props.mode === "select" && item.id) {
-    if (selectedQuestionIds.value.has(item.id)) {
-      selectedQuestionIds.value.delete(item.id);
-    } else {
-      selectedQuestionIds.value.add(item.id);
-    }
-  }
-}
-
 function handleEdit(item: IFolder | IQuestao) {
   if (isFolder(item)) {
     editingFolder.value = item;
@@ -149,6 +160,10 @@ const filters = reactive({
   search: "",
   type: "Todos os tipos",
   sort: "Última modificação",
+});
+
+defineExpose({
+  selectedItems,
 });
 </script>
 
@@ -255,21 +270,26 @@ const filters = reactive({
         v-else
         :key="item.id"
         :class="{
-          'cursor-pointer hover:bg-gray-50 rounded-lg': isFolder(item),
+          'cursor-pointer hover:bg-gray-50':
+            isFolder(item) || mode === 'select',
         }"
-        @click.prevent="onItemClick(item)"
+        @click.prevent="handleItemClick(item)"
       >
         <QuestionsBankFolderItem
           v-if="isFolder(item)"
-          :item="item as IFolder"
-          :child-count="getChildCount(item as IFolder)"
+          :item="item"
+          :selectable="mode === 'select'"
+          :is-selected="selectedItems.folders.has(item.id!)"
+          :child-count="getChildCount(item)"
+          @select="handleSelectItem(item)"
           @edit="handleEdit(item)"
           @delete="handleDelete(item)"
         />
         <QuestionsBankQuestionItem
           v-else
-          :item="item as IQuestao"
-          :is-selected="selectedQuestionIds.has(item.id!)"
+          :item="item"
+          :is-selected="selectedItems.questions.has(item.id!)"
+          @select="handleSelectItem(item)"
           @edit="handleEdit(item)"
           @delete="handleDelete(item)"
         />

@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { useAssessmentSettingsStore } from "~/store/assessmentSettingsStore";
+
 const route = useRoute();
 const examId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!examId.value);
+
+const settingsStore = useAssessmentSettingsStore();
 </script>
 
 <template>
@@ -29,6 +33,7 @@ const isEditing = computed(() => !!examId.value);
             color="primary"
             variant="ghost"
             icon="i-heroicons-cog-6-tooth"
+            @click="settingsStore.openSettingsDialog()"
             >Configurações</UButton
           >
           <UButton

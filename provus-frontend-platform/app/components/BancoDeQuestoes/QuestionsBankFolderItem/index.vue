@@ -5,11 +5,27 @@ import type { IFolder } from "~/types/IBank";
 defineProps<{
   item: IFolder;
   childCount: number;
+  isSelected?: boolean;
+  selectable?: boolean;
 }>();
+
+const emit = defineEmits(["edit", "delete", "select"]);
 </script>
 
 <template>
-  <Item :id="String(item.id)">
+  <Item
+    :id="String(item.id)"
+    :class="{ '!bg-primary/10': isSelected }"
+    @edit="emit('edit')"
+    @delete="emit('delete')"
+  >
+    <div v-if="selectable" class="flex items-center pr-2" @click.stop>
+      <UCheckbox
+        :model-value="isSelected"
+        @update:model-value="emit('select', item)"
+      />
+    </div>
+
     <div
       class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center"
     >

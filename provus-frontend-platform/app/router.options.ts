@@ -19,9 +19,11 @@ export default {
       name: "avaliador-avaliacao-editor",
       path: "/avaliacao/editor/:id?",
       component: () => import("~/pages/Avaliador/Avaliacao/Editor/[[id]].vue"),
+      meta: {
+        layout: "assessment-editor",
+      },
     },
 
-    // Rota Raiz do Banco de Questões
     {
       name: "banco-de-questoes",
       path: "/banco-de-questoes",
@@ -36,7 +38,7 @@ export default {
 
     {
       path: "/",
-      redirect: "/auth",
+      redirect: "/avaliacao/editor/",
     },
   ],
 } satisfies RouterConfig;
