@@ -1,3 +1,6 @@
+import type TipoAplicacao from "~/enums/TipoAplicacao";
+import type TipoRandomizacao from "~/enums/TipoRandomizacao";
+
 export interface IRandomizationRule {
   id?: number;
   quantidade: number;
@@ -27,18 +30,14 @@ export interface IConfiguracoes {
   criadoEm?: string;
   atualizadoEm?: string;
 
-  randomizacaoSimples: boolean;
-  randomizacaoBancoSimples: boolean;
+  tipoRandomizacao: TipoRandomizacao | null;
+  tipoAplicacao: TipoAplicacao | null;
   poolSelecaoBanco: {
     pastas: [];
     questoes: [];
   };
-  randomizacaoBancoConfiguravel: boolean;
   regrasRandomizacaoConfiguravel: IRandomizationRule[];
-  aplicacaoManual: boolean;
-  aplicacaoAgendada: boolean;
   dataAgendada: Date | null;
-
   exibirPontuacaDaSubmissao: boolean;
   permitirRevisao: boolean;
   exibirPontuacaoQuestoes: boolean;

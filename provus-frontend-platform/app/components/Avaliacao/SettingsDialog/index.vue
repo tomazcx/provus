@@ -2,13 +2,13 @@
 import ViewSelectionDialog from "~/components/Avaliacao/ViewSelectionDialog/index.vue";
 import OpenQuestionBankDialog from "~/components/Avaliacao/OpenQuestionBankDialog/index.vue";
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
-import DateTimePicker from "@/components/ui/DateTimePicker/index.vue";
+import GeneralSettings from "./GeneralSettings.vue";
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import type { AvaliacaoImpl } from "~/types/IAvaliacao";
-import isFolder from "~/guards/isFolder";
 import { useQuestionBankStore } from "~/store/questionBankstore";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
+import isFolder from "~/guards/isFolder";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -16,8 +16,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(["update:modelValue", "save"]);
-const questionBankStore = useQuestionBankStore();
 
+const questionBankStore = useQuestionBankStore();
 const isViewSelectionDialogOpen = ref(false);
 const isBankDialogOpen = ref(false);
 
@@ -29,6 +29,8 @@ const questionsToView = ref<IQuestao[]>([]);
 
 const formState = reactive<Partial<AvaliacaoImpl>>({});
 
+const activeSection = ref("geral");
+
 watch(
   () => props.initialData,
   (newData) => {
@@ -38,23 +40,6 @@ watch(
     }
   },
   { immediate: true, deep: true }
-);
-
-watch(
-  () => formState.configuracoes?.randomizacaoBancoSimples,
-  (newValue) => {
-    if (newValue && formState.configuracoes) {
-      formState.configuracoes.randomizacaoBancoConfiguravel = false;
-    }
-  }
-);
-watch(
-  () => formState.configuracoes?.randomizacaoBancoConfiguravel,
-  (newValue) => {
-    if (newValue && formState.configuracoes) {
-      formState.configuracoes.randomizacaoBancoSimples = false;
-    }
-  }
 );
 
 const menuItems = computed(() => [
@@ -81,16 +66,55 @@ const menuItems = computed(() => [
   },
 ]);
 
-const activeSection = ref("geral");
-
 function handleSave() {
   emit("save", formState);
   emit("update:modelValue", false);
 }
 
-function openBankForRule(ruleId: number) {
-  configuringRuleId.value = ruleId;
+function handleOpenBankDialog({
+  context,
+  ruleId,
+}: {
+  context: string;
+  ruleId?: number;
+}) {
+  if (context === "configurable" && ruleId) {
+    configuringRuleId.value = ruleId;
+  } else {
+    configuringRuleId.value = null;
+  }
   isBankDialogOpen.value = true;
+}
+
+function handleViewSelection({
+  context,
+  rule,
+}: {
+  context: string;
+  rule?: IRandomizationRule;
+}) {
+  if (context === "simple") {
+    questionsToView.value = poolQuestoes.value;
+  } else if (context === "configurable" && rule) {
+    const finalQuestionIds = new Set<number>(rule.grupo.questoes);
+    rule.grupo.pastas.forEach((folderId: number) => {
+      const folder = questionBankStore.items.find((i) => i.id === folderId);
+      if (folder && isFolder(folder)) {
+        const pathPrefix =
+          folder.path === "/"
+            ? `/${folder.titulo}`
+            : `${folder.path}/${folder.titulo}`;
+        questionBankStore.items.forEach((item) => {
+          if (item.path?.startsWith(pathPrefix) && !isFolder(item))
+            finalQuestionIds.add(item.id!);
+        });
+      }
+    });
+    questionsToView.value = questionBankStore.items.filter(
+      (item) => item.id && finalQuestionIds.has(item.id)
+    ) as IQuestao[];
+  }
+  isViewSelectionDialogOpen.value = true;
 }
 
 function handleBankSelection(selection: {
@@ -134,53 +158,6 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
     poolQuestoes.value[index] = updatedQuestion;
   }
   editingPoolQuestion.value = null;
-}
-function addRule() {
-  formState.configuracoes?.regrasRandomizacaoConfiguravel?.push({
-    id: Date.now(),
-    quantidade: 1,
-    dificuldade: "Qualquer",
-    grupo: { pastas: [], questoes: [] },
-  });
-}
-
-function removeRule(ruleId: number) {
-  if (!formState.configuracoes?.regrasRandomizacaoConfiguravel) return;
-
-  formState.configuracoes.regrasRandomizacaoConfiguravel =
-    formState.configuracoes.regrasRandomizacaoConfiguravel.filter(
-      (rule) => rule.id !== ruleId
-    );
-}
-
-function viewSimplePool() {
-  questionsToView.value = poolQuestoes.value;
-  isViewSelectionDialogOpen.value = true;
-}
-
-function viewConfigurableGroup(rule: IRandomizationRule) {
-  const finalQuestionIds = new Set<number>(rule.grupo.questoes);
-
-  rule.grupo.pastas.forEach((folderId: number) => {
-    const folder = questionBankStore.items.find((i) => i.id === folderId);
-    if (folder && isFolder(folder)) {
-      const pathPrefix =
-        folder.path === "/"
-          ? `/${folder.titulo}`
-          : `${folder.path}/${folder.titulo}`;
-      questionBankStore.items.forEach((item) => {
-        if (item.path?.startsWith(pathPrefix) && !isFolder(item)) {
-          finalQuestionIds.add(item.id!);
-        }
-      });
-    }
-  });
-
-  questionsToView.value = questionBankStore.items.filter(
-    (item) => item.id && finalQuestionIds.has(item.id)
-  ) as IQuestao[];
-
-  isViewSelectionDialogOpen.value = true;
 }
 </script>
 
@@ -227,190 +204,13 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
           </button>
         </nav>
         <div class="flex-1 border-l border-gray-200 pl-8">
-          <div v-if="activeSection === 'geral' && formState.configuracoes">
-            <div class="w-full flex flex-col gap-6">
-              <UCard variant="subtle">
-                <template #header
-                  ><h2 class="font-bold">Gerenciamento de tempo</h2></template
-                >
-                <div class="flex justify-between gap-4">
-                  <UFormField label="Tempo mínimo (minutos)">
-                    <UInput
-                      v-model.number="formState.configuracoes.tempoMinimo"
-                      type="number"
-                    />
-                  </UFormField>
-                  <UFormField label="Duração da avaliação (minutos)">
-                    <UInput
-                      v-model.number="formState.configuracoes.tempoMaximo"
-                      type="number"
-                    />
-                  </UFormField>
-                </div>
-              </UCard>
-              <UCard variant="subtle">
-                <template #header
-                  ><h2 class="font-bold">Questões randômicas</h2></template
-                >
-                <div class="flex flex-col gap-6">
-                  <USwitch
-                    v-model="formState.configuracoes.randomizacaoSimples"
-                    label="Randomização simples"
-                    description="Apenas embaralha as questões e alternativas que você adicionou na prova. Cada estudante terá a mesma prova, mas com questões e alternativas em ordem aleatória."
-                  />
-                  <div class="flex flex-col gap-3">
-                    <USwitch
-                      v-model="formState.configuracoes.randomizacaoBancoSimples"
-                      label="Randomização simples do banco de questões"
-                      description="Selecione um grupo de questões ou pastas que contenham as questões que serão aleatoriamente escolhidas para cada aluno. Quanto maior o número de questões, maior a diversidade."
-                    />
-                    <div
-                      v-if="formState.configuracoes.randomizacaoBancoSimples"
-                      class="pl-8 flex items-center gap-3"
-                    >
-                      <UButton
-                        label="Selecionar do Banco"
-                        variant="outline"
-                        icon="i-lucide-database"
-                        @click="isBankDialogOpen = true"
-                      />
-                      <UButton
-                        v-if="poolQuestoes.length > 0"
-                        :label="`${poolQuestoes.length} questões selecionadas`"
-                        variant="link"
-                        color="primary"
-                        trailing-icon="i-lucide-eye"
-                        @click="viewSimplePool"
-                      />
-                    </div>
-                  </div>
-                  <div class="flex flex-col gap-3">
-                    <USwitch
-                      v-model="
-                        formState.configuracoes.randomizacaoBancoConfiguravel
-                      "
-                      label="Randomização configurável do banco de questões"
-                      description="Controle a quantidade de questões de um determinado grupo e dificuldade."
-                    />
-
-                    <div
-                      v-if="
-                        formState.configuracoes.randomizacaoBancoConfiguravel
-                      "
-                      class="pl-8 flex flex-col gap-4"
-                    >
-                      <div
-                        v-for="rule in formState.configuracoes
-                          .regrasRandomizacaoConfiguravel"
-                        :key="rule.id"
-                        class="flex items-center gap-1 text-sm"
-                      >
-                        Gerar
-                        <UInputNumber v-model="rule.quantidade" class="w-20" />
-                        Questões do grupo
-
-                        <UButton
-                          v-if="
-                            rule.grupo.pastas.length > 0 ||
-                            rule.grupo.questoes.length > 0
-                          "
-                          label="Ver Seleção"
-                          variant="outline"
-                          size="xs"
-                          class="flex-shrink-0"
-                          @click="viewConfigurableGroup(rule)"
-                        />
-
-                        <UButton
-                          v-else
-                          label="Selecionar"
-                          variant="outline"
-                          size="xs"
-                          icon="i-lucide-database"
-                          class="flex-shrink-0"
-                          @click="openBankForRule(rule.id!)"
-                        />
-
-                        de dificuldade
-                        <USelect
-                          v-model="rule.dificuldade"
-                          :items="['Qualquer', 'Fácil', 'Médio', 'Difícil']"
-                          class="w-28"
-                        />
-                        <UButton
-                          color="error"
-                          variant="ghost"
-                          icon="i-lucide-x"
-                          class="-mr-2"
-                          @click="removeRule(rule.id!)"
-                        />
-                      </div>
-
-                      <UButton
-                        label="Adicionar Configuração"
-                        variant="outline"
-                        icon="i-lucide-plus"
-                        class="w-fit"
-                        @click="addRule"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </UCard>
-              <UCard variant="subtle">
-                <template #header
-                  ><h2 class="font-bold">Aplicação</h2></template
-                >
-                <div class="flex flex-col gap-6">
-                  <USwitch
-                    v-model="formState.configuracoes.aplicacaoManual"
-                    label="Aplicação manual"
-                    description="A avaliação será aplicada apenas quando você, manualmente, realizar a ação."
-                  />
-
-                  <USwitch
-                    v-model="formState.configuracoes.aplicacaoAgendada"
-                    label="Aplicação agendada"
-                    description="A avaliação será aplicada automaticamente em uma data e hora definidas."
-                  />
-                  <div
-                    v-if="formState.configuracoes.aplicacaoAgendada"
-                    class="pl-8 flex flex-col gap-4 item"
-                  >
-                    <DateTimePicker
-                      v-model="formState.configuracoes.dataAgendada"
-                      :enable-date="true"
-                      :enable-time="true"
-                    />
-                  </div>
-                </div>
-              </UCard>
-
-              <UCard variant="subtle">
-                <template #header
-                  ><h2 class="font-bold">Feedbacks e Reviews</h2></template
-                >
-                <div class="flex flex-col gap-6">
-                  <USwitch
-                    v-model="formState.configuracoes.exibirPontuacaDaSubmissao"
-                    label="Exibir pontuação"
-                    description="Após a avaliação ser submetida, o estudante poderá ver sua pontuação e apenas ela."
-                  />
-
-                  <USwitch
-                    v-model="formState.configuracoes.permitirRevisao"
-                    label="Permitir revisão"
-                    description="O estudante poderá não apenas ver sua pontuação, mas também ver sua prova corrigida."
-                  />
-
-                  <USwitch
-                    v-model="formState.configuracoes.exibirPontuacaoQuestoes"
-                    label="Exibir pontuação das questões"
-                    description="O estudante poderá ver o quanto vale cada questão."
-                  />
-                </div>
-              </UCard>
-            </div>
+          <div v-if="activeSection === 'geral'">
+            <GeneralSettings
+              v-model:form="formState"
+              :pool-questoes-count="poolQuestoes.length"
+              @open-bank-dialog="handleOpenBankDialog"
+              @view-selection="handleViewSelection"
+            />
           </div>
         </div>
       </div>

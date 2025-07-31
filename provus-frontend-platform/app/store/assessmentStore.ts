@@ -23,17 +23,13 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
     embaralharAlternativas: true,
     tempoMaximo: 120,
     tempoMinimo: 30,
-
-    randomizacaoSimples: false,
-    randomizacaoBancoSimples: false,
-    randomizacaoBancoConfiguravel: false,
+    tipoRandomizacao: null,
     poolSelecaoBanco: {
       pastas: [],
       questoes: [],
     },
     regrasRandomizacaoConfiguravel: [],
-    aplicacaoManual: false,
-    aplicacaoAgendada: false,
+    tipoAplicacao: null,
     dataAgendada: null,
 
     exibirPontuacaDaSubmissao: false,
