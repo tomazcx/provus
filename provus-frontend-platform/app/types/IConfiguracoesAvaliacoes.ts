@@ -1,5 +1,8 @@
-import type TipoAplicacao from "~/enums/TipoAplicacao";
-import type TipoRandomizacao from "~/enums/TipoRandomizacao";
+import type TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
+import type TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
+import type TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
+import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
+import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 
 export interface IRandomizationRule {
   id?: number;
@@ -9,6 +12,24 @@ export interface IRandomizationRule {
     pastas: number[];
     questoes: number[];
   };
+}
+
+export interface IPunicao {
+  id: number;
+  tipo: TipoPenalidadeEnum | null;
+  valor?: number;
+}
+
+export interface IRegraDeOcorrencia {
+  id: number;
+  ocorrencias: number;
+  punicoes: IPunicao[];
+}
+
+export interface IRegraSeguranca {
+  ativo: boolean;
+  descricao: string;
+  regrasDeOcorrencia: IRegraDeOcorrencia[];
 }
 
 export interface IConfiguracoes {
@@ -30,8 +51,8 @@ export interface IConfiguracoes {
   criadoEm?: string;
   atualizadoEm?: string;
 
-  tipoRandomizacao: TipoRandomizacao | null;
-  tipoAplicacao: TipoAplicacao | null;
+  tipoRandomizacao: TipoRandomizacaoEnum | null;
+  tipoAplicacao: TipoAplicacaoEnum | null;
   poolSelecaoBanco: {
     pastas: [];
     questoes: [];
@@ -41,4 +62,16 @@ export interface IConfiguracoes {
   exibirPontuacaDaSubmissao: boolean;
   permitirRevisao: boolean;
   exibirPontuacaoQuestoes: boolean;
+  ativarAlertas: boolean;
+  quantidadeDeAlertas: number;
+  duracaoDoAlerta: number;
+  permitirFecharAlerta: boolean;
+  ativarNotificacoes: boolean;
+  tipoNotificacao: TipoNotificacaoEnum[] | null;
+
+  quantidadeAcessosSimultaneos: number;
+  ativarControleIp: boolean;
+  ipsPermitidos: string[];
+
+  regrasDeSeguranca: Record<TipoInfracaoEnum, IRegraSeguranca>;
 }

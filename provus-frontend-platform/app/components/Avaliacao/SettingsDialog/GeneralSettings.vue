@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import DateTimePicker from "@/components/ui/DateTimePicker/index.vue";
-import TipoAplicacao from "~/enums/TipoAplicacao";
-import TipoRandomizacao from "~/enums/TipoRandomizacao";
+import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
+import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 import type { AvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
 
@@ -22,11 +22,11 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
 const isRandomizacaoSimplesActive = computed({
   get: () =>
     formState.value.configuracoes?.tipoRandomizacao ===
-    TipoRandomizacao.SIMPLES,
+    TipoRandomizacaoEnum.SIMPLES,
   set: (value) => {
     if (formState.value.configuracoes) {
       formState.value.configuracoes.tipoRandomizacao = value
-        ? TipoRandomizacao.SIMPLES
+        ? TipoRandomizacaoEnum.SIMPLES
         : null;
     }
   },
@@ -35,11 +35,11 @@ const isRandomizacaoSimplesActive = computed({
 const isBancoSimplesActive = computed({
   get: () =>
     formState.value.configuracoes?.tipoRandomizacao ===
-    TipoRandomizacao.BANCO_SIMPLES,
+    TipoRandomizacaoEnum.BANCO_SIMPLES,
   set: (value) => {
     if (formState.value.configuracoes) {
       formState.value.configuracoes.tipoRandomizacao = value
-        ? TipoRandomizacao.BANCO_SIMPLES
+        ? TipoRandomizacaoEnum.BANCO_SIMPLES
         : null;
     }
   },
@@ -48,11 +48,11 @@ const isBancoSimplesActive = computed({
 const isBancoConfiguravelActive = computed({
   get: () =>
     formState.value.configuracoes?.tipoRandomizacao ===
-    TipoRandomizacao.BANCO_CONFIGURAVEL,
+    TipoRandomizacaoEnum.BANCO_CONFIGURAVEL,
   set: (value) => {
     if (formState.value.configuracoes) {
       formState.value.configuracoes.tipoRandomizacao = value
-        ? TipoRandomizacao.BANCO_CONFIGURAVEL
+        ? TipoRandomizacaoEnum.BANCO_CONFIGURAVEL
         : null;
     }
   },
@@ -60,11 +60,11 @@ const isBancoConfiguravelActive = computed({
 
 const isAplicacaoManual = computed({
   get: () =>
-    formState.value.configuracoes?.tipoAplicacao === TipoAplicacao.MANUAL,
+    formState.value.configuracoes?.tipoAplicacao === TipoAplicacaoEnum.MANUAL,
   set: (value) => {
     if (formState.value.configuracoes) {
       formState.value.configuracoes.tipoAplicacao = value
-        ? TipoAplicacao.MANUAL
+        ? TipoAplicacaoEnum.MANUAL
         : null;
     }
   },
@@ -72,11 +72,11 @@ const isAplicacaoManual = computed({
 
 const isAplicacaoAgendada = computed({
   get: () =>
-    formState.value.configuracoes?.tipoAplicacao === TipoAplicacao.AGENDADA,
+    formState.value.configuracoes?.tipoAplicacao === TipoAplicacaoEnum.AGENDADA,
   set: (value) => {
     if (formState.value.configuracoes) {
       formState.value.configuracoes.tipoAplicacao = value
-        ? TipoAplicacao.AGENDADA
+        ? TipoAplicacaoEnum.AGENDADA
         : null;
     }
   },
@@ -184,7 +184,7 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
               v-for="rule in formState.configuracoes
                 .regrasRandomizacaoConfiguravel"
               :key="rule.id"
-              class="flex items-center gap-1 text-sm"
+              class="flex items-center gap-3 text-sm"
             >
               Gerar
               <UInputNumber v-model="rule.quantidade" class="w-20" />
@@ -219,9 +219,8 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
               />
               <UButton
                 color="error"
-                variant="ghost"
-                icon="i-lucide-x"
-                class="-mr-2"
+                variant="solid"
+                icon="i-lucide-trash-2"
                 @click="removeRule(rule.id!)"
               />
             </div>

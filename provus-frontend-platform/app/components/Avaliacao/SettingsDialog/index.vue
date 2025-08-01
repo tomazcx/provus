@@ -3,6 +3,7 @@ import ViewSelectionDialog from "~/components/Avaliacao/ViewSelectionDialog/inde
 import OpenQuestionBankDialog from "~/components/Avaliacao/OpenQuestionBankDialog/index.vue";
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import GeneralSettings from "./GeneralSettings.vue";
+import SecuritySettings from "./SecuritySettings.vue";
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import type { AvaliacaoImpl } from "~/types/IAvaliacao";
@@ -51,18 +52,11 @@ const menuItems = computed(() => [
     click: () => (activeSection.value = "geral"),
   },
   {
-    key: "regras",
-    label: "Regras",
+    key: "seguranca",
+    label: "Segurança",
     icon: "i-lucide-gavel",
-    active: activeSection.value === "regras",
-    click: () => (activeSection.value = "regras"),
-  },
-  {
-    key: "agendamento",
-    label: "Agendamento",
-    icon: "i-lucide-calendar-clock",
-    active: activeSection.value === "agendamento",
-    click: () => (activeSection.value = "agendamento"),
+    active: activeSection.value === "seguranca",
+    click: () => (activeSection.value = "seguranca"),
   },
 ]);
 
@@ -165,7 +159,7 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
   <UModal
     title="Configurações da Avaliação"
     description="Ajuste os detalhes e regras da sua prova"
-    class="min-w-5xl min-h-[900px]"
+    class="min-w-[1080px] min-h-[900px]"
     :open="modelValue"
     @update:open="$emit('update:modelValue', $event)"
   >
@@ -206,6 +200,14 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
         <div class="flex-1 border-l border-gray-200 pl-8">
           <div v-if="activeSection === 'geral'">
             <GeneralSettings
+              v-model:form="formState"
+              :pool-questoes-count="poolQuestoes.length"
+              @open-bank-dialog="handleOpenBankDialog"
+              @view-selection="handleViewSelection"
+            />
+          </div>
+          <div v-else-if="activeSection === 'seguranca'">
+            <SecuritySettings
               v-model:form="formState"
               :pool-questoes-count="poolQuestoes.length"
               @open-bank-dialog="handleOpenBankDialog"

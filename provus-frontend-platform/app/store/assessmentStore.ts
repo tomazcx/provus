@@ -2,6 +2,7 @@ import type { AvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IQuestao, IAlternativa } from "~/types/IQuestao";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
 const getBlankAssessment = (): AvaliacaoImpl => ({
   titulo: "Nova Avaliação",
@@ -35,6 +36,41 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
     exibirPontuacaDaSubmissao: false,
     permitirRevisao: false,
     exibirPontuacaoQuestoes: false,
+    ativarAlertas: false,
+    quantidadeDeAlertas: 0,
+    duracaoDoAlerta: 0,
+    permitirFecharAlerta: false,
+    ativarNotificacoes: false,
+    tipoNotificacao: null,
+
+    regrasDeSeguranca: {
+      [TipoInfracaoEnum.TROCA_ABAS]: {
+        ativo: false,
+        descricao: "Detecte se o estudante sair da aba da avaliação.",
+        regrasDeOcorrencia: [],
+      },
+      [TipoInfracaoEnum.PRINT_SCREEN]: {
+        ativo: false,
+        descricao: "Detecte se o estudante tirar um print da tela.",
+        regrasDeOcorrencia: [],
+      },
+      [TipoInfracaoEnum.COPIAR_COLAR]: {
+        ativo: false,
+        descricao:
+          "Detecte se o estudante tentar copiar ou colar algum conteúdo.",
+        regrasDeOcorrencia: [],
+      },
+      [TipoInfracaoEnum.DEV_TOOLS]: {
+        ativo: false,
+        descricao:
+          "Detecte se o estudante abrir as ferramentas de desenvolvedor da página.",
+        regrasDeOcorrencia: [],
+      },
+    },
+
+    quantidadeAcessosSimultaneos: 1,
+    ativarControleIp: false,
+    ipsPermitidos: [],
   },
 });
 
