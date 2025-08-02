@@ -43,13 +43,6 @@ const settingsStore = useAssessmentSettingsStore();
           >
             {{ isEditing ? "Salvar Alterações" : "Salvar Prova" }}
           </UButton>
-          <UButton
-            color="primary"
-            icon="i-heroicons-calendar"
-            @click="$emit('salvar')"
-          >
-            Agendar Prova
-          </UButton>
         </div>
       </div>
     </div>

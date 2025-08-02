@@ -6,7 +6,6 @@ import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
 const getBlankAssessment = (): AvaliacaoImpl => ({
   titulo: "Nova Avaliação",
-  duracao: "120",
   pontuacao: 100,
   descricao: "",
   isModelo: false,
@@ -75,18 +74,26 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
 });
 
 export const useAssessmentStore = defineStore("assessment", () => {
-  const assessment = ref<AvaliacaoImpl | null>(null);
+  const assessmentState = ref<AvaliacaoImpl | null>(null);
 
-  const totalPoints = computed(() => {
-    if (!assessment.value) return 0;
-    return assessment.value.questoes.reduce(
+  const assessment = computed(() => {
+    if (!assessmentState.value) {
+      return null;
+    }
+
+    const calculatedPoints = assessmentState.value.questoes.reduce(
       (sum, q) => sum + (Number(q.pontuacao) || 0),
       0
     );
+
+    return {
+      ...assessmentState.value,
+      pontuacao: calculatedPoints,
+    };
   });
 
   function createNew() {
-    assessment.value = getBlankAssessment();
+    assessmentState.value = getBlankAssessment();
   }
 
   async function load(assessmentId: string | number) {
@@ -95,7 +102,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
   }
 
   function addQuestion() {
-    if (!assessment.value) return;
+    if (!assessmentState.value) return;
     const newQuestion: IQuestao = {
       id: Date.now(),
       titulo: "",
@@ -107,21 +114,21 @@ export const useAssessmentStore = defineStore("assessment", () => {
       exemploDeResposta: "",
       textoRevisao: "",
     };
-    assessment.value.questoes.push(newQuestion);
+    assessmentState.value.questoes.push(newQuestion);
   }
 
   function removeQuestion(questionId: number) {
-    if (!assessment.value) return;
-    const index = assessment.value.questoes.findIndex(
+    if (!assessmentState.value) return;
+    const index = assessmentState.value.questoes.findIndex(
       (q) => q.id === questionId
     );
     if (index !== -1) {
-      assessment.value.questoes.splice(index, 1);
+      assessmentState.value.questoes.splice(index, 1);
     }
   }
 
   function addQuestionsFromBank(questions: IQuestao[]) {
-    if (!assessment.value) return;
+    if (!assessmentState.value) return;
 
     const questionCopies = questions.map((originalQuestion, index) => {
       const newQuestion = JSON.parse(JSON.stringify(originalQuestion));
@@ -136,26 +143,27 @@ export const useAssessmentStore = defineStore("assessment", () => {
       return newQuestion;
     });
 
-    assessment.value.questoes.push(...questionCopies);
+    assessmentState.value.questoes.push(...questionCopies);
   }
 
   function updateSettings(newSettings: Partial<AvaliacaoImpl>) {
-    if (!assessment.value) return;
+    if (!assessmentState.value) return;
 
-    assessment.value.titulo = newSettings.titulo ?? assessment.value.titulo;
-    assessment.value.descricao =
-      newSettings.descricao ?? assessment.value.descricao;
-    assessment.value.duracao = newSettings.duracao ?? assessment.value.duracao;
-    assessment.value.pontuacao =
-      newSettings.pontuacao ?? assessment.value.pontuacao;
+    assessmentState.value.titulo =
+      newSettings.titulo ?? assessmentState.value.titulo;
+    assessmentState.value.descricao =
+      newSettings.descricao ?? assessmentState.value.descricao;
+
     if (newSettings.configuracoes) {
-      Object.assign(assessment.value.configuracoes, newSettings.configuracoes);
+      Object.assign(
+        assessmentState.value.configuracoes,
+        newSettings.configuracoes
+      );
     }
   }
 
   return {
     assessment,
-    totalPoints,
     createNew,
     load,
     addQuestion,

@@ -123,16 +123,10 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
       >
       <div class="flex justify-between gap-4">
         <UFormField label="Tempo mínimo (minutos)">
-          <UInput
-            v-model.number="formState.configuracoes.tempoMinimo"
-            type="number"
-          />
+          <UInputNumber v-model="formState.configuracoes.tempoMinimo" />
         </UFormField>
         <UFormField label="Duração da avaliação (minutos)">
-          <UInput
-            v-model.number="formState.configuracoes.tempoMaximo"
-            type="number"
-          />
+          <UInputNumber v-model="formState.configuracoes.tempoMaximo" />
         </UFormField>
       </div>
     </UCard>

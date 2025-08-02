@@ -19,7 +19,6 @@ export interface IAvaliacao {
 
 export type AvaliacaoImpl = {
   titulo: string;
-  duracao: string;
   pontuacao: number;
   descricao: string;
   isModelo: boolean;

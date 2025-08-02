@@ -42,7 +42,7 @@ const contagemTipos = computed(() => {
       </div>
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Duração</span>
-        <span class="font-medium">{{ prova.duracao }}</span>
+        <span class="font-medium">{{ prova.configuracoes.tempoMaximo }} minutos</span>
       </div>
 
       <div class="space-y-2">
@@ -54,25 +54,6 @@ const contagemTipos = computed(() => {
           <span class="text-gray-600">{{ tipo }}</span>
           <span>{{ cont }}</span>
         </div>
-      </div>
-
-      <div class="space-y-2">
-        <UButton
-          label="Pré-visualizar Prova"
-          block
-          variant="link"
-          color="secondary"
-          icon="i-heroicons-eye"
-          class="justify-start px-0"
-        />
-        <UButton
-          label="Exportar PDF"
-          block
-          variant="link"
-          color="secondary"
-          icon="i-heroicons-arrow-down-tray"
-          class="justify-start px-0"
-        />
       </div>
     </div>
   </UCard>

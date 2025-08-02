@@ -18,10 +18,9 @@ const model = defineModel<AvaliacaoImpl>({ required: true });
       </UFormField>
       <div class="flex flex-col lg:flex-row gap-4">
         <UFormField label="Duração" class="w-full">
-          <UInput
-            v-model="model.duracao"
+          <UInputNumber
+            v-model="model.configuracoes.tempoMaximo"
             class="w-full"
-            placeholder="Ex: 120 minutos"
           />
         </UFormField>
         <UFormField label="Pontos Totais" class="w-full">
@@ -29,6 +28,8 @@ const model = defineModel<AvaliacaoImpl>({ required: true });
             v-model.number="model.pontuacao"
             class="w-full"
             placeholder="Ex: 100"
+            readonly
+            variant="soft"
           />
         </UFormField>
       </div>
