@@ -48,7 +48,7 @@ function handleEdit(question: IQuestao) {
     </template>
 
     <template #footer>
-      <div class="flex justify-end">
+      <div class="w-full flex justify-end gap-3">
         <UButton
           color="primary"
           variant="ghost"

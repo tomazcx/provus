@@ -11,7 +11,7 @@ const emit = defineEmits(["update:modelValue", "update:question"]);
 
 function handleFormSubmit(payload: TQuestionForm) {
   emit("update:question", payload);
-  emit("update:modelValue", false); 
+  emit("update:modelValue", false);
 }
 </script>
 <template>
@@ -30,12 +30,14 @@ function handleFormSubmit(payload: TQuestionForm) {
       <QuestionForm :initial-data="props.question" @submit="handleFormSubmit" />
     </template>
     <template #footer>
-      <UButton type="submit" form="question-form" color="primary"
-        >Atualizar Questão</UButton
-      >
-      <UButton variant="ghost" @click="$emit('update:modelValue', false)"
-        >Cancelar</UButton
-      >
+      <div class="w-full flex flex-row-reverse justify-start gap-4">
+        <UButton type="submit" form="question-form" color="primary"
+          >Atualizar Questão</UButton
+        >
+        <UButton variant="ghost" @click="$emit('update:modelValue', false)"
+          >Cancelar</UButton
+        >
+      </div>
     </template>
   </UModal>
 </template>

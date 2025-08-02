@@ -22,7 +22,6 @@ export type AvaliacaoImpl = {
   pontuacao: number;
   descricao: string;
   isModelo: boolean;
-  dataAgendamento: string;
   questoes: IQuestao[];
   configuracoes: IConfiguracoes;
 }

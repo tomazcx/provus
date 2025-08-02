@@ -217,6 +217,15 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
 
       <div class="space-y-5">
         <UFormField
+          label="Quantidade de tentativas"
+          description="Defina quantas vezes o aluno pode fazer a avaliação."
+        >
+          <UInputNumber
+            v-model="formState.configuracoes.numeroMaximoDeEnvios"
+          />
+        </UFormField>
+
+        <UFormField
           label="Quantidade de acessos simultâneos"
           description="Defina quantas pessoas podem acessar uma mesma prova ao mesmo tempo."
         >

@@ -5,32 +5,24 @@ import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
 const getBlankAssessment = (): AvaliacaoImpl => ({
-  titulo: "Nova Avaliação",
-  pontuacao: 100,
+  titulo: "",
+  pontuacao: 0,
   descricao: "",
   isModelo: false,
-  dataAgendamento: "",
   questoes: [],
   configuracoes: {
-    dataDeAplicacao: "",
-    dataDeEncerramento: "",
-    mostrarPontuacao: true,
-    mostrarRespostas: true,
-    permitirMultiplosEnvios: false,
-    autocorrecaoIa: true,
+    autocorrecaoIa: false,
     numeroMaximoDeEnvios: 1,
-    embaralharQuestoes: true,
-    embaralharAlternativas: true,
     tempoMaximo: 120,
     tempoMinimo: 30,
     tipoRandomizacao: null,
-    poolSelecaoBanco: {
-      pastas: [],
-      questoes: [],
-    },
     regrasRandomizacaoConfiguravel: [],
     tipoAplicacao: null,
     dataAgendada: null,
+    poolSelecaoBanco: {
+      pastas: [],
+      questoes: [], 
+    },
 
     exibirPontuacaDaSubmissao: false,
     permitirRevisao: false,

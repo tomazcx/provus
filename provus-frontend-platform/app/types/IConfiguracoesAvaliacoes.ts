@@ -3,6 +3,7 @@ import type TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 import type TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
+import type { IQuestao } from "./IQuestao";
 
 export interface IRandomizationRule {
   id?: number;
@@ -10,7 +11,7 @@ export interface IRandomizationRule {
   dificuldade: "Qualquer" | "Fácil" | "Médio" | "Difícil";
   grupo: {
     pastas: number[];
-    questoes: number[];
+    questoes: IQuestao[];
   };
 }
 
@@ -35,28 +36,19 @@ export interface IRegraSeguranca {
 export interface IConfiguracoes {
   id?: number;
   avaliacaoId?: number;
-  hasPontuacaoFixa?: boolean;
-  pontuacaoTotalFixa?: number;
-  dataDeAplicacao?: string;
-  dataDeEncerramento?: string;
-  mostrarPontuacao?: boolean;
-  mostrarRespostas?: boolean;
-  permitirMultiplosEnvios?: boolean;
   autocorrecaoIa?: boolean;
   numeroMaximoDeEnvios?: number;
-  embaralharQuestoes?: boolean;
-  embaralharAlternativas?: boolean;
   tempoMaximo?: number;
   tempoMinimo?: number;
   criadoEm?: string;
   atualizadoEm?: string;
+  poolSelecaoBanco: {
+    pastas: number[];
+    questoes: IQuestao[];
+  };
 
   tipoRandomizacao: TipoRandomizacaoEnum | null;
   tipoAplicacao: TipoAplicacaoEnum | null;
-  poolSelecaoBanco: {
-    pastas: [];
-    questoes: [];
-  };
   regrasRandomizacaoConfiguravel: IRandomizationRule[];
   dataAgendada: Date | null;
   exibirPontuacaDaSubmissao: boolean;

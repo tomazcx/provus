@@ -7,9 +7,7 @@ import SecuritySettings from "./SecuritySettings.vue";
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import type { AvaliacaoImpl } from "~/types/IAvaliacao";
-import { useQuestionBankStore } from "~/store/questionBankstore";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
-import isFolder from "~/guards/isFolder";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -18,12 +16,10 @@ const props = defineProps<{
 
 const emit = defineEmits(["update:modelValue", "save"]);
 
-const questionBankStore = useQuestionBankStore();
 const isViewSelectionDialogOpen = ref(false);
 const isBankDialogOpen = ref(false);
 
 const editingPoolQuestion = ref<IQuestao | null>(null);
-const poolQuestoes = ref<IQuestao[]>([]);
 const configuringRuleId = ref<number | null>(null);
 
 const questionsToView = ref<IQuestao[]>([]);
@@ -31,6 +27,10 @@ const questionsToView = ref<IQuestao[]>([]);
 const formState = reactive<Partial<AvaliacaoImpl>>({});
 
 const activeSection = ref("geral");
+
+const poolQuestoesCount = computed(() => {
+  return formState.configuracoes?.poolSelecaoBanco.questoes.length || 0;
+});
 
 watch(
   () => props.initialData,
@@ -88,53 +88,46 @@ function handleViewSelection({
   rule?: IRandomizationRule;
 }) {
   if (context === "simple") {
-    questionsToView.value = poolQuestoes.value;
+    questionsToView.value =
+      formState.configuracoes?.poolSelecaoBanco.questoes || [];
   } else if (context === "configurable" && rule) {
-    const finalQuestionIds = new Set<number>(rule.grupo.questoes);
-    rule.grupo.pastas.forEach((folderId: number) => {
-      const folder = questionBankStore.items.find((i) => i.id === folderId);
-      if (folder && isFolder(folder)) {
-        const pathPrefix =
-          folder.path === "/"
-            ? `/${folder.titulo}`
-            : `${folder.path}/${folder.titulo}`;
-        questionBankStore.items.forEach((item) => {
-          if (item.path?.startsWith(pathPrefix) && !isFolder(item))
-            finalQuestionIds.add(item.id!);
-        });
-      }
-    });
-    questionsToView.value = questionBankStore.items.filter(
-      (item) => item.id && finalQuestionIds.has(item.id)
-    ) as IQuestao[];
+    questionsToView.value = rule.grupo.questoes;
   }
   isViewSelectionDialogOpen.value = true;
+}
+
+function handleRemoveFromSelection(questionIdToRemove: number) {
+  const index = questionsToView.value.findIndex(
+    (q) => q.id === questionIdToRemove
+  );
+  if (index > -1) {
+    questionsToView.value.splice(index, 1);
+  }
 }
 
 function handleBankSelection(selection: {
   questions: IQuestao[];
   rawSelection: { folders: number[]; questions: number[] };
 }) {
+  const questionClones = selection.questions.map((q) =>
+    JSON.parse(JSON.stringify(q))
+  );
+
   if (configuringRuleId.value !== null) {
     const rule = formState.configuracoes?.regrasRandomizacaoConfiguravel?.find(
       (r) => r.id === configuringRuleId.value
     );
     if (rule) {
+      rule.grupo.questoes = questionClones;
       rule.grupo.pastas = selection.rawSelection.folders;
-      rule.grupo.questoes = selection.rawSelection.questions;
     }
     configuringRuleId.value = null;
   } else {
-    poolQuestoes.value = selection.questions.map((q) =>
-      JSON.parse(JSON.stringify(q))
-    );
-  }
-}
-
-function handleRemoveFromPool(questionId: number) {
-  const index = poolQuestoes.value.findIndex((q) => q.id === questionId);
-  if (index > -1) {
-    poolQuestoes.value.splice(index, 1);
+    if (formState.configuracoes) {
+      formState.configuracoes.poolSelecaoBanco.questoes = questionClones;
+      formState.configuracoes.poolSelecaoBanco.pastas =
+        selection.rawSelection.folders;
+    }
   }
 }
 
@@ -144,12 +137,11 @@ function handleEditFromPool(question: IQuestao) {
 
 function handleUpdateInPool(updatedData: TQuestionForm) {
   if (!editingPoolQuestion.value) return;
-  const index = poolQuestoes.value.findIndex(
+  const questionInView = questionsToView.value.find(
     (q) => q.id === editingPoolQuestion.value!.id
   );
-  if (index !== -1) {
-    const updatedQuestion = { ...poolQuestoes.value[index], ...updatedData };
-    poolQuestoes.value[index] = updatedQuestion;
+  if (questionInView) {
+    Object.assign(questionInView, updatedData);
   }
   editingPoolQuestion.value = null;
 }
@@ -201,7 +193,7 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
           <div v-if="activeSection === 'geral'">
             <GeneralSettings
               v-model:form="formState"
-              :pool-questoes-count="poolQuestoes.length"
+              :pool-questoes-count="poolQuestoesCount"
               @open-bank-dialog="handleOpenBankDialog"
               @view-selection="handleViewSelection"
             />
@@ -209,7 +201,7 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
           <div v-else-if="activeSection === 'seguranca'">
             <SecuritySettings
               v-model:form="formState"
-              :pool-questoes-count="poolQuestoes.length"
+              :pool-questoes-count="poolQuestoesCount"
               @open-bank-dialog="handleOpenBankDialog"
               @view-selection="handleViewSelection"
             />
@@ -241,7 +233,7 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
   <ViewSelectionDialog
     v-model="isViewSelectionDialogOpen"
     :selected-questions="questionsToView"
-    @remove-question="handleRemoveFromPool"
+    @remove-question="handleRemoveFromSelection"
     @edit-question="handleEditFromPool"
   />
 
