@@ -37,6 +37,18 @@ export default {
     },
 
     {
+      name: "banco-de-materiais",
+      path: "/banco-de-materiais",
+      component: () => import("~/pages/Avaliador/Banco-de-materiais/index.vue"),
+    },
+
+    {
+      name: "banco-de-materiais-folderPath",
+      path: "/banco-de-materiais/:folderPath(.*)*",
+      component: () => import("~/pages/Avaliador/Banco-de-materiais/index.vue"),
+    },
+
+    {
       path: "/",
       redirect: "/avaliacao/editor/",
     },

@@ -27,9 +27,11 @@
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
           >Exam Bank</span
         >
-        <span
+        <NuxtLink
+          active-class="border-b-2 border-primary text-primary"
+          to="/banco-de-materiais"
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
-          >Materials</span
+          >Banco de materiais</NuxtLink
         >
         <span
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"

@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import QuestionsBankFolderItem from "~/components/BancoDeQuestoes/QuestionsBankFolderItem/index.vue";
-import QuestionsBankQuestionItem from "~/components/BancoDeQuestoes/QuestionsBankQuestionItem/index.vue";
-import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
-import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
+import MaterialsBankFolderItem from "~/components/BancoDeMateriais/MaterialsBankFolderItem/index.vue";
+import CreateFileDialog from "@/components/BancoDeMateriais/CreateFileDialog/index.vue";
+import EditFileDialog from "@/components/BancoDeMateriais/EditFileDialog/index.vue";
+import MaterialsBankFileItem from "@/components/BancoDeMateriais/MaterialsBankFileItem/index.vue";
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
-import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
+
 import isFolder from "~/guards/isFolder";
-import { useQuestionBankStore } from "~/store/questionBankstore";
+import { useMaterialsBankStore } from "~/store/materialsBankStore";
 import type { IFolder } from "~/types/IBank";
+import type { IFile } from "~/types/IFile";
 
 const props = defineProps({
   mode: {
@@ -18,33 +19,46 @@ const props = defineProps({
 });
 const emit = defineEmits(["path-changed"]);
 
-const questionBankStore = useQuestionBankStore();
+const materialsBankStore = useMaterialsBankStore();
 const showCreateFolder = ref(false);
-const showCreateQuestion = ref(false);
-const editingQuestion = ref<IQuestao | null>(null);
+const showCreateFile = ref(false);
+const editingFile = ref<IFile | null>(null);
 const editingFolder = ref<IFolder | null>(null);
 const internalCurrentPath = ref("/");
 const selectedItems = ref({
   folders: new Set<number>(),
-  questions: new Set<number>(),
+  files: new Set<number>(),
+});
+const filters = reactive({
+  search: "",
+  type: "Todos os tipos",
+  sort: "Última modificação",
 });
 
-function handleItemClick(item: IFolder | IQuestao) {
+onMounted(() => {
+  materialsBankStore.fetchItems();
+});
+
+function handleItemClick(item: IFolder | IFile) {
   if (isFolder(item)) {
     const newPath =
       internalCurrentPath.value === "/"
         ? `/${item.titulo}`
         : `${internalCurrentPath.value}/${item.titulo}`;
     internalCurrentPath.value = newPath;
-  } else if (props.mode === "select" && item.id) {
-    handleSelectItem(item);
+  } else {
+    if (props.mode === "select") {
+      handleSelectItem(item);
+    } else {
+      window.open(item.url, "_blank");
+    }
   }
 }
 
-function handleSelectItem(item: IFolder | IQuestao) {
+function handleSelectItem(item: IFolder | IFile) {
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
-    : selectedItems.value.questions;
+    : selectedItems.value.files;
   const isSelected = targetSet.has(item.id!);
 
   if (isSelected) {
@@ -59,35 +73,45 @@ watch(internalCurrentPath, (newPath) => {
 });
 
 function handleCreateFolder(data: { titulo: string }) {
-  questionBankStore.createFolder({
+  materialsBankStore.createFolder({
     titulo: data.titulo,
     path: internalCurrentPath.value,
   });
   showCreateFolder.value = false;
 }
 
-function handleCreateQuestion(formData: TQuestionForm) {
-  questionBankStore.createQuestion({
-    formData,
+function handleCreateFile(data: {
+  formData: Omit<IFile, "id" | "path" | "criadoEm" | "atualizadoEm">;
+}) {
+  materialsBankStore.createFile({
+    formData: data.formData,
     path: internalCurrentPath.value,
   });
-  showCreateQuestion.value = false;
+  showCreateFile.value = false;
 }
 
 function handleUpdateFolder({ newTitle }: { newTitle: string }) {
   if (!editingFolder.value) return;
-  questionBankStore.updateItem({ item: editingFolder.value, newTitle });
+  materialsBankStore.updateItem({ item: editingFolder.value, newTitle });
   editingFolder.value = null;
 }
 
-function handleUpdateQuestion(updatedData: TQuestionForm) {
-  if (!editingQuestion.value) return;
-  questionBankStore.updateItem({ item: editingQuestion.value, updatedData });
-  editingQuestion.value = null;
+function handleUpdateFile(updatedData: Partial<IFile>) {
+  if (!editingFile.value) return;
+  materialsBankStore.updateItem({ item: editingFile.value, updatedData });
+  editingFile.value = null;
 }
 
-function handleDelete(itemToDelete: IFolder | IQuestao) {
-  questionBankStore.deleteItem(itemToDelete);
+function handleDelete(itemToDelete: IFolder | IFile) {
+  materialsBankStore.deleteItem(itemToDelete);
+}
+
+function handleEdit(item: IFolder | IFile) {
+  if (isFolder(item)) {
+    editingFolder.value = item;
+  } else {
+    editingFile.value = item;
+  }
 }
 
 const pathSegments = computed(() => {
@@ -101,13 +125,13 @@ const currentPath = computed(() => {
 });
 
 const breadcrumbs = computed(() => {
-  const crumbs = [{ label: "Banco de Questões", to: "/banco-de-questoes" }];
+  const crumbs = [{ label: "Banco de Materiais", to: "/banco-de-materiais" }];
   const currentCrumbPath: string[] = [];
   for (const segment of pathSegments.value) {
     currentCrumbPath.push(segment);
     crumbs.push({
       label: segment,
-      to: `/banco-de-questoes/${currentCrumbPath.join("/")}`,
+      to: `/banco-de-materiais/${currentCrumbPath.join("/")}`,
     });
   }
   return crumbs;
@@ -118,7 +142,7 @@ const currentPathLabel = computed(() => {
 });
 
 const itemsInCurrentFolder = computed(() =>
-  questionBankStore.items
+  materialsBankStore.items
     .filter((item) => item.path === currentPath.value)
     .sort((a, b) => {
       const aIsFolder = isFolder(a);
@@ -136,31 +160,17 @@ function getChildCount(folder: IFolder): number {
     folder.path === "/"
       ? `/${folder.titulo}`
       : `${folder.path}/${folder.titulo}`;
-  return questionBankStore.items.filter((item) => item.path === childPath)
+  return materialsBankStore.items.filter((item) => item.path === childPath)
     .length;
 }
 
 function navigateFromBreadcrumb(path: string) {
-  if (path === "/banco-de-questoes") {
+  if (path === "/banco-de-materiais") {
     internalCurrentPath.value = "/";
   } else {
-    internalCurrentPath.value = path.replace("/banco-de-questoes", "");
+    internalCurrentPath.value = path.replace("/banco-de-materiais", "");
   }
 }
-
-function handleEdit(item: IFolder | IQuestao) {
-  if (isFolder(item)) {
-    editingFolder.value = item;
-  } else {
-    editingQuestion.value = item;
-  }
-}
-
-const filters = reactive({
-  search: "",
-  type: "Todos os tipos",
-  sort: "Última modificação",
-});
 
 defineExpose({
   selectedItems,
@@ -174,15 +184,12 @@ defineExpose({
       :current-path-label="currentPathLabel"
       @create="handleCreateFolder"
     />
-    <CreateQuestionDialog
-      v-model="showCreateQuestion"
-      @create="handleCreateQuestion"
-    />
-    <EditQuestionDialog
-      :model-value="!!editingQuestion"
-      :question="editingQuestion"
-      @update:model-value="editingQuestion = null"
-      @update:question="handleUpdateQuestion"
+    <CreateFileDialog v-model="showCreateFile" @create="handleCreateFile" />
+    <EditFileDialog
+      :model-value="!!editingFile"
+      :file="editingFile"
+      @update:model-value="editingFile = null"
+      @update:file="handleUpdateFile"
     />
     <EditFolderDialog
       :model-value="!!editingFolder"
@@ -199,9 +206,9 @@ defineExpose({
         <UButton
           color="secondary"
           icon="i-lucide-plus"
-          @click="showCreateQuestion = true"
+          @click="showCreateFile = true"
         >
-          Nova questão
+          Novo arquivo
         </UButton>
       </div>
     </div>
@@ -229,15 +236,16 @@ defineExpose({
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Tipo de questão" class="w-full">
+        <UFormField label="Tipo de arquivo" class="w-full">
           <USelect
             v-model="filters.type"
             :items="[
               'Todos os tipos',
-              'Múltipla Escolha',
-              'Objetiva',
-              'Verdadeiro ou Falso',
-              'Discursiva',
+              'PDF',
+              'Documento Word',
+              'Apresentação',
+              'Texto',
+              'Outro',
             ]"
             class="w-full"
           />
@@ -247,10 +255,8 @@ defineExpose({
             v-model="filters.sort"
             :items="[
               'Última modificação',
-              'Alphabetical A-Z',
-              'Alphabetical Z-A',
-              'Oldest First',
-              'Newest First',
+              'Ordem alfabética A-Z',
+              'Ordem alfabética Z-A',
             ]"
             class="w-full"
           />
@@ -272,10 +278,12 @@ defineExpose({
         :class="{
           'cursor-pointer hover:bg-gray-50':
             isFolder(item) || mode === 'select',
+          'cursor-pointer hover:bg-blue-50/50':
+            !isFolder(item) && mode === 'browse',
         }"
         @click.prevent="handleItemClick(item)"
       >
-        <QuestionsBankFolderItem
+        <MaterialsBankFolderItem
           v-if="isFolder(item)"
           :item="item"
           :selectable="mode === 'select'"
@@ -285,10 +293,10 @@ defineExpose({
           @edit="handleEdit(item)"
           @delete="handleDelete(item)"
         />
-        <QuestionsBankQuestionItem
+        <MaterialsBankFileItem
           v-else
           :item="item"
-          :is-selected="selectedItems.questions.has(item.id!)"
+          :is-selected="selectedItems.files.has(item.id!)"
           @select="handleSelectItem(item)"
           @edit="handleEdit(item)"
           @delete="handleDelete(item)"

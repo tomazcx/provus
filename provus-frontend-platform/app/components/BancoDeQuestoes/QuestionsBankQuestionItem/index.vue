@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Item from "@/components/BancoDeQuestoes/QuestionsBankItem/index.vue";
+import Item from "@/components/ui/BankItem/index.vue";
 import type { IQuestao } from "~/types/IQuestao";
 
 defineProps<{

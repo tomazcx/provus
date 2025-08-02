@@ -58,6 +58,13 @@ const menuItems = computed(() => [
     active: activeSection.value === "seguranca",
     click: () => (activeSection.value = "seguranca"),
   },
+  {
+    key: "ia",
+    label: "I.A",
+    icon: "i-lucide-brain-circuit",
+    active: activeSection.value === "ia",
+    click: () => (activeSection.value = "ia"),
+  },
 ]);
 
 function handleSave() {
@@ -200,6 +207,14 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
           </div>
           <div v-else-if="activeSection === 'seguranca'">
             <SecuritySettings
+              v-model:form="formState"
+              :pool-questoes-count="poolQuestoesCount"
+              @open-bank-dialog="handleOpenBankDialog"
+              @view-selection="handleViewSelection"
+            />
+          </div>
+          <div v-else-if="activeSection === 'ia'">
+            <IaSettings
               v-model:form="formState"
               :pool-questoes-count="poolQuestoesCount"
               @open-bank-dialog="handleOpenBankDialog"

@@ -41,7 +41,7 @@ watch(
 
         <div class="ml-4">
           <h3 class="text-lg font-semibold text-gray-900">Criar Nova Pasta</h3>
-          <p class="text-sm text-gray-600">Organize suas questões em pastas</p>
+          <p class="text-sm text-gray-600">Organize seus itens em pastas</p>
         </div>
       </div>
     </template>
