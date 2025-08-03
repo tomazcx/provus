@@ -1,8 +1,8 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Proctor } from "src/domain/entities";
+import { ApiProperty } from '@nestjs/swagger';
+import { Avaliador } from 'src/domain/entities';
 
-export class ProctorResponse {
-  @ApiProperty({    
+export class AvaliadorResponse {
+  @ApiProperty({
     description: 'ID do inspetor',
     example: 1,
   })
@@ -12,7 +12,7 @@ export class ProctorResponse {
     description: 'Nome do inspetor',
     example: 'João da Silva',
   })
-  name: string;
+  nome: string;
 
   @ApiProperty({
     description: 'Email do inspetor',
@@ -24,21 +24,21 @@ export class ProctorResponse {
     description: 'Data de criação do inspetor',
     example: '2021-01-01',
   })
-  createdAt: Date;
+  criadoEm: Date;
 
   @ApiProperty({
     description: 'Data de atualização do inspetor',
     example: '2021-01-01',
   })
-  updatedAt: Date;
+  atualizadoEm: Date;
 
-  static fromEntity(entity: Proctor): ProctorResponse {
+  static fromEntity(entity: Avaliador): AvaliadorResponse {
     return {
       id: entity.id,
-      name: entity.name,
+      nome: entity.nome,
       email: entity.email,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      criadoEm: entity.criadoEm,
+      atualizadoEm: entity.atualizadoEm,
     };
   }
 }

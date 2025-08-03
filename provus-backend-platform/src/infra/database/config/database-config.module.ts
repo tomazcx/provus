@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProctorModel } from './models';
+import { AvaliadorModel, AvaliadorRecuperarSenhaModel } from './models';
 import { Env } from 'src/shared/env';
 
 @Module({
@@ -8,7 +8,7 @@ import { Env } from 'src/shared/env';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: Env.DATABASE_URL,
-      entities: [ProctorModel],
+      entities: [AvaliadorModel, AvaliadorRecuperarSenhaModel],
     }),
   ],
 })

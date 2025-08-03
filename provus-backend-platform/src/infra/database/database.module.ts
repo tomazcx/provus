@@ -1,17 +1,30 @@
 import { Module } from '@nestjs/common';
-import { ProctorRepository } from 'src/data/protocols/database';
-import { ProctorTypeORMRepository } from './repositories';
-import { ProctorModel } from './config/models';
+import {
+  AvaliadorRepository,
+  AvaliadorRecuperarSenhaRepository,
+} from 'src/data/protocols/database';
+import {
+  AvaliadorTypeORMRepository,
+  AvaliadorRecuperarSenhaTypeORMRepository,
+} from './repositories';
+import { AvaliadorModel } from './config/models';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AvaliadorRecuperarSenhaModel } from './config/models/avaliador-recuperar-senha';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProctorModel])],
+  imports: [
+    TypeOrmModule.forFeature([AvaliadorModel, AvaliadorRecuperarSenhaModel]),
+  ],
   providers: [
     {
-      provide: ProctorRepository,
-      useClass: ProctorTypeORMRepository,
+      provide: AvaliadorRepository,
+      useClass: AvaliadorTypeORMRepository,
+    },
+    {
+      provide: AvaliadorRecuperarSenhaRepository,
+      useClass: AvaliadorRecuperarSenhaTypeORMRepository,
     },
   ],
-  exports: [ProctorRepository],
+  exports: [AvaliadorRepository, AvaliadorRecuperarSenhaRepository],
 })
 export class DatabaseModule {}
