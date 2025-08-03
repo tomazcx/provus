@@ -9,7 +9,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class ResetPasswordController {
   constructor(private readonly authService: AuthService) {}
 
-  @Patch('reset-password')
+  @Patch('resetar-senha')
   @HttpCode(HttpStatus.OK)
   @ResetPasswordDecorators()
   async resetPassword(@Body() dto: ResetPasswordRequest): Promise<void> {
