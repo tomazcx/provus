@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
-import type { AvaliacaoImpl } from "~/types/IAvaliacao";
+import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type {
   IRegraDeOcorrencia,
   IRegraSeguranca,
 } from "~/types/IConfiguracoesAvaliacoes";
 
 const props = defineProps<{
-  form: Partial<AvaliacaoImpl>;
+  form: Partial<IAvaliacaoImpl>;
   poolQuestoesCount: number;
 }>();
 

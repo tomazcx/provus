@@ -49,6 +49,18 @@ export default {
     },
 
     {
+      name: "banco-de-avaliacoes",
+      path: "/banco-de-avaliacoes",
+      component: () => import("~/pages/Avaliador/Banco-de-avaliacoes/index.vue"),
+    },
+
+    {
+      name: "banco-de-avaliacoes-folderPath",
+      path: "/banco-de-avaliacoes/:folderPath(.*)*",
+      component: () => import("~/pages/Avaliador/Banco-de-avaliacoes/index.vue"),
+    },
+
+    {
       path: "/",
       redirect: "/avaliacao/editor/",
     },

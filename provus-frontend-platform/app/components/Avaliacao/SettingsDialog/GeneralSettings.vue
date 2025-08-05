@@ -2,11 +2,11 @@
 import DateTimePicker from "@/components/ui/DateTimePicker/index.vue";
 import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
-import type { AvaliacaoImpl } from "~/types/IAvaliacao";
+import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
 
 const props = defineProps<{
-  form: Partial<AvaliacaoImpl>;
+  form: Partial<IAvaliacaoImpl>;
   poolQuestoesCount: number;
 }>();
 

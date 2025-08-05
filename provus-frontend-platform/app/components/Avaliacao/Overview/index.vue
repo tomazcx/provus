@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { AvaliacaoImpl } from '~/types/IAvaliacao';
+import type { IAvaliacaoImpl } from '~/types/IAvaliacao';
 import type { IQuestao } from '~/types/IQuestao';
 
 
 const props = defineProps<{
-  prova: AvaliacaoImpl;
+  prova: IAvaliacaoImpl;
 }>();
 
 const totalPontos = computed(() => {

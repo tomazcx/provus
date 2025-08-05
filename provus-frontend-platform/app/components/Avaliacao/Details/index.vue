@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { AvaliacaoImpl } from "~/types/IAvaliacao";
+import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 
-const model = defineModel<AvaliacaoImpl>({ required: true });
+const model = defineModel<IAvaliacaoImpl>({ required: true });
 </script>
 
 <template>

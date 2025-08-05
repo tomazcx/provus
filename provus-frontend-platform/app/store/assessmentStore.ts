@@ -1,10 +1,12 @@
-import type { AvaliacaoImpl } from "~/types/IAvaliacao";
+import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IQuestao, IAlternativa } from "~/types/IQuestao";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
-const getBlankAssessment = (): AvaliacaoImpl => ({
+type SaveAction = { key: string; timestamp: number };
+
+const getBlankAssessment = (): IAvaliacaoImpl => ({
   titulo: "",
   pontuacao: 0,
   descricao: "",
@@ -16,14 +18,13 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
     tempoMaximo: 120,
     tempoMinimo: 30,
     tipoRandomizacao: null,
+    poolSelecaoBanco: {
+      pastas: [],
+      questoes: [],
+    },
     regrasRandomizacaoConfiguravel: [],
     tipoAplicacao: null,
     dataAgendada: null,
-    poolSelecaoBanco: {
-      pastas: [],
-      questoes: [], 
-    },
-
     exibirPontuacaDaSubmissao: false,
     permitirRevisao: false,
     exibirPontuacaoQuestoes: false,
@@ -33,7 +34,6 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
     permitirFecharAlerta: false,
     ativarNotificacoes: false,
     tipoNotificacao: null,
-
     regrasDeSeguranca: {
       [TipoInfracaoEnum.TROCA_ABAS]: {
         ativo: false,
@@ -58,7 +58,6 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
         regrasDeOcorrencia: [],
       },
     },
-
     quantidadeAcessosSimultaneos: 1,
     ativarControleIp: false,
     ipsPermitidos: [],
@@ -66,31 +65,23 @@ const getBlankAssessment = (): AvaliacaoImpl => ({
 });
 
 export const useAssessmentStore = defineStore("assessment", () => {
-  const assessmentState = ref<AvaliacaoImpl | null>(null);
+  const assessmentState = ref<IAvaliacaoImpl | null>(null);
 
   const assessment = computed(() => {
-    if (!assessmentState.value) {
-      return null;
-    }
-
+    if (!assessmentState.value) return null;
     const calculatedPoints = assessmentState.value.questoes.reduce(
       (sum, q) => sum + (Number(q.pontuacao) || 0),
       0
     );
-
-    return {
-      ...assessmentState.value,
-      pontuacao: calculatedPoints,
-    };
+    return { ...assessmentState.value, pontuacao: calculatedPoints };
   });
 
   function createNew() {
     assessmentState.value = getBlankAssessment();
   }
 
-  async function load(assessmentId: string | number) {
-    console.log(`Lógica para buscar a avaliação ${assessmentId} da API`);
-    createNew();
+  function loadFromModelo(modelo: IAvaliacaoImpl) {
+    assessmentState.value = JSON.parse(JSON.stringify(modelo));
   }
 
   function addQuestion() {
@@ -121,7 +112,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
 
   function addQuestionsFromBank(questions: IQuestao[]) {
     if (!assessmentState.value) return;
-
     const questionCopies = questions.map((originalQuestion, index) => {
       const newQuestion = JSON.parse(JSON.stringify(originalQuestion));
       newQuestion.id = Date.now() + index;
@@ -134,18 +124,15 @@ export const useAssessmentStore = defineStore("assessment", () => {
       }
       return newQuestion;
     });
-
     assessmentState.value.questoes.push(...questionCopies);
   }
 
-  function updateSettings(newSettings: Partial<AvaliacaoImpl>) {
+  function updateSettings(newSettings: Partial<IAvaliacaoImpl>) {
     if (!assessmentState.value) return;
-
     assessmentState.value.titulo =
       newSettings.titulo ?? assessmentState.value.titulo;
     assessmentState.value.descricao =
       newSettings.descricao ?? assessmentState.value.descricao;
-
     if (newSettings.configuracoes) {
       Object.assign(
         assessmentState.value.configuracoes,
@@ -154,13 +141,39 @@ export const useAssessmentStore = defineStore("assessment", () => {
     }
   }
 
+  const isSettingsDialogOpen = ref(false);
+
+  function openSettingsDialog() {
+    isSettingsDialogOpen.value = true;
+  }
+
+  function closeSettingsDialog() {
+    isSettingsDialogOpen.value = false;
+  }
+
+  const saveEvent = ref<SaveAction | null>(null);
+
+  function triggerSave(action: { key: string }) {
+    saveEvent.value = { ...action, timestamp: Date.now() };
+  }
+
+  function clearSaveEvent() {
+    saveEvent.value = null;
+  }
+
   return {
     assessment,
     createNew,
-    load,
     addQuestion,
     removeQuestion,
     addQuestionsFromBank,
     updateSettings,
+    isSettingsDialogOpen,
+    openSettingsDialog,
+    closeSettingsDialog,
+    saveEvent,
+    triggerSave,
+    clearSaveEvent,
+    loadFromModelo,
   };
 });

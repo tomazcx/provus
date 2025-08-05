@@ -6,12 +6,12 @@ import GeneralSettings from "./GeneralSettings.vue";
 import SecuritySettings from "./SecuritySettings.vue";
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
-import type { AvaliacaoImpl } from "~/types/IAvaliacao";
+import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
 
 const props = defineProps<{
   modelValue: boolean;
-  initialData: AvaliacaoImpl;
+  initialData: IAvaliacaoImpl;
 }>();
 
 const emit = defineEmits(["update:modelValue", "save"]);
@@ -24,7 +24,7 @@ const configuringRuleId = ref<number | null>(null);
 
 const questionsToView = ref<IQuestao[]>([]);
 
-const formState = reactive<Partial<AvaliacaoImpl>>({});
+const formState = reactive<Partial<IAvaliacaoImpl>>({});
 
 const activeSection = ref("geral");
 

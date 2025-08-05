@@ -1,6 +1,7 @@
 import type EstadoAvaliacaoEnum from "@/enums/EstadoAvaliacaoEnum";
 import type { IQuestao } from "./IQuestao";
 import type { IConfiguracoes } from "./IConfiguracoesAvaliacoes";
+import type { IFolder, ItemSistemaDeArquivos } from "./IBank";
 
 export interface IAvaliacao {
   id: number;
@@ -16,8 +17,7 @@ export interface IAvaliacao {
   dataAgendamento?: string;
 }
 
-
-export type AvaliacaoImpl = {
+export interface IAvaliacaoImpl extends ItemSistemaDeArquivos {
   titulo: string;
   pontuacao: number;
   descricao: string;
@@ -25,3 +25,5 @@ export type AvaliacaoImpl = {
   questoes: IQuestao[];
   configuracoes: IConfiguracoes;
 }
+
+export type TExamBankItem = IFolder | IAvaliacaoImpl;

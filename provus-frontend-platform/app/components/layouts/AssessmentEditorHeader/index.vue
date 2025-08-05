@@ -1,11 +1,42 @@
 <script setup lang="ts">
-import { useAssessmentSettingsStore } from "~/store/assessmentSettingsStore";
+import { useAssessmentStore } from "~/store/assessmentStore";
+import { useEditorBridgeStore } from "~/store/editorBridgeStore";
 
-const route = useRoute();
-const examId = computed(() => route.params.id as string | undefined);
-const isEditing = computed(() => !!examId.value);
+const assessmentStore = useAssessmentStore();
+const editorBridgeStore = useEditorBridgeStore();
 
-const settingsStore = useAssessmentSettingsStore();
+const saveContext = computed(() => editorBridgeStore.context);
+
+function handleSaveAction(option: { key: string }) {
+  editorBridgeStore.triggerSave(option);
+}
+
+const saveOptions = computed(() => {
+  const options = [];
+
+  options.push([
+    {
+      label: "Salvar Modelo no Banco",
+      key: "save_template",
+      icon: "i-lucide-save",
+    },
+  ]);
+
+  options.push([
+    {
+      label: "Salvar Modelo e Aplicar",
+      key: "save_and_apply",
+      icon: "i-lucide-send",
+    },
+    {
+      label: "Apenas Aplicar (sem salvar)",
+      key: "apply_only",
+      icon: "i-lucide-send-to-back",
+    },
+  ]);
+
+  return options;
+});
 </script>
 
 <template>
@@ -14,35 +45,46 @@ const settingsStore = useAssessmentSettingsStore();
       <div class="flex justify-between items-center h-16">
         <div class="flex items-center">
           <UButton
-            to="/home"
+            :to="saveContext.from === 'bank' ? '/banco-de-avaliacoes' : '/home'"
             color="primary"
             variant="ghost"
             icon="i-lucide-arrow-left"
             size="xl"
           />
-          <span class="ml-3 text-xl font-bold text-primary">{{
-            isEditing ? "Editar Prova" : "Criar Prova"
-          }}</span>
+          <span class="ml-3 text-xl font-bold text-primary">
+            Editor de Avaliações
+          </span>
         </div>
 
         <div class="flex items-center space-x-2">
-          <UButton color="primary" variant="ghost" icon="i-heroicons-eye"
-            >Ver como Aluno</UButton
-          >
+          <UButton color="primary" variant="ghost" icon="i-heroicons-eye">
+            Ver como Aluno
+          </UButton>
           <UButton
             color="primary"
             variant="ghost"
             icon="i-heroicons-cog-6-tooth"
-            @click="settingsStore.openSettingsDialog()"
-            >Configurações</UButton
+            @click="assessmentStore.openSettingsDialog()"
           >
-          <UButton
-            color="secondary"
-            icon="i-heroicons-arrow-down-tray"
-            @click="$emit('salvar')"
-          >
-            {{ isEditing ? "Salvar Alterações" : "Salvar Prova" }}
+            Configurações
           </UButton>
+
+          <UDropdownMenu
+            :items="saveOptions"
+            :popper="{ placement: 'bottom-end' }"
+          >
+            <UButton
+              color="secondary"
+              icon="i-heroicons-arrow-down-tray"
+              trailing-icon="i-heroicons-chevron-down-20-solid"
+            >
+              Salvar e Aplicar
+            </UButton>
+
+            <template #item="{ item }">
+              <span @click="handleSaveAction(item)">{{ item.label }}</span>
+            </template>
+          </UDropdownMenu>
         </div>
       </div>
     </div>

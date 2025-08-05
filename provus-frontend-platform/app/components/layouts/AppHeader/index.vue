@@ -23,9 +23,11 @@
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
           >Banco de questões</NuxtLink
         >
-        <span
+        <NuxtLink
+          active-class="border-b-2 border-primary text-primary"
+          to="/banco-de-avaliacoes"
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
-          >Exam Bank</span
+          >Banco de avaliações</NuxtLink
         >
         <NuxtLink
           active-class="border-b-2 border-primary text-primary"

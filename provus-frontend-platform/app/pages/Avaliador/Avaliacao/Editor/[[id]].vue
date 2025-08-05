@@ -1,25 +1,112 @@
 <script setup lang="ts">
 import Details from "@/components/Avaliacao/Details/index.vue";
-import SaveToQuestionsBankDialog from "@/components/Avaliacao/SaveToQuestionsBankDialog/index.vue";
 import AssessmentQuestionList from "@/components/Avaliacao/AssessmentQuestionList/index.vue";
 import Overview from "@/components/Avaliacao/Overview/index.vue";
 import QuickSettings from "@/components/Avaliacao/QuickSettings/index.vue";
 import SettingsDialog from "@/components/Avaliacao/SettingsDialog/index.vue";
+import OpenQuestionBankDialog from "@/components/Avaliacao/OpenQuestionBankDialog/index.vue";
+import SaveToExamBankDialog from "@/components/BancoDeAvaliacoes/SaveToExamBankDialog/index.vue";
+import SaveToQuestionsBankDialog from "@/components/Avaliacao/SaveToQuestionsBankDialog/index.vue";
+
 import type { IQuestao } from "~/types/IQuestao";
-import { useAssessmentSettingsStore } from "~/store/assessmentSettingsStore";
+import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+
 import { useAssessmentStore } from "~/store/assessmentStore";
-import type { AvaliacaoImpl } from "~/types/IAvaliacao";
+import { useExamBankStore } from "~/store/assessmentBankStore";
+import { useEditorBridgeStore } from "~/store/editorBridgeStore";
 
-const settingsStore = useAssessmentSettingsStore();
 const assessmentStore = useAssessmentStore();
+const examBankStore = useExamBankStore();
+const editorBridgeStore = useEditorBridgeStore();
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
 
-onMounted(() => {
-  assessmentStore.createNew();
-});
-
+const isSaveToBankDialogOpen = ref(false);
 const bancoDeQuestoesDialog = ref(false);
 const saveToBankDialog = ref(false);
 const questionToSave = ref<IQuestao | null>(null);
+
+watch(
+  () => editorBridgeStore.saveEvent,
+  (newEvent) => {
+    if (newEvent) {
+      handleSave(newEvent);
+      editorBridgeStore.clearSaveEvent();
+    }
+  }
+);
+
+onMounted(() => {
+  editorBridgeStore.setContext(route.query);
+
+  const assessmentId = route.params.id as string | undefined;
+
+  if (assessmentId) {
+    const idAsNumber = parseInt(assessmentId, 10);
+    const modelo = examBankStore.getItemById(idAsNumber);
+
+    if (modelo) {
+      assessmentStore.loadFromModelo(modelo);
+    } else {
+      console.error("Modelo de avaliação não encontrado!");
+      assessmentStore.createNew();
+    }
+  } else {
+    assessmentStore.createNew();
+  }
+});
+
+function handleSave(action: { key: string }) {
+  const assessmentData = assessmentStore.assessment;
+  if (!assessmentData) return;
+
+  if (action.key === "save_template") {
+    if (assessmentData.id) {
+      examBankStore.updateItem({
+        item: assessmentData,
+        updatedData: assessmentData,
+      });
+      toast.add({
+        title: "Modelo atualizado com sucesso!",
+        icon: "i-lucide-check-circle",
+      });
+      router.push("/banco-de-avaliacoes");
+    } else {
+      if (editorBridgeStore.context.from === "bank") {
+        examBankStore.createModelo({
+          modeloData: assessmentData,
+          path: editorBridgeStore.context.path ?? "",
+        });
+        toast.add({
+          title: "Modelo salvo com sucesso!",
+          icon: "i-lucide-check-circle",
+        });
+        router.push("/banco-de-avaliacoes");
+      } else {
+        isSaveToBankDialogOpen.value = true;
+      }
+    }
+  }
+}
+
+function handleSaveFromDialog(savePath: string) {
+  const assessmentData = assessmentStore.assessment;
+  if (!assessmentData) return;
+
+  examBankStore.createModelo({
+    modeloData: assessmentData,
+    path: savePath,
+  });
+
+  isSaveToBankDialogOpen.value = false;
+  toast.add({
+    title: "Modelo salvo com sucesso!",
+    icon: "i-lucide-check-circle",
+  });
+  router.push("/banco-de-avaliacoes");
+}
+
 function adicionarQuestao() {
   assessmentStore.addQuestion();
 }
@@ -28,27 +115,28 @@ function removerQuestao(id: number) {
   assessmentStore.removeQuestion(id);
 }
 
-function handleAddQuestionsFromBank(selection: {
-  questions: IQuestao[];
-  rawSelection: { folders: number[]; questions: number[] };
-}) {
+function handleAddQuestionsFromBank(selection: { questions: IQuestao[] }) {
   assessmentStore.addQuestionsFromBank(selection.questions);
 }
 
 function handleSaveQuestionToBank(question: IQuestao) {
   questionToSave.value = JSON.parse(JSON.stringify(question));
-  saveToBankDialog.value = true;
 }
 
-function handleSettingsUpdate(newSettings: Partial<AvaliacaoImpl>) {
+function handleSettingsUpdate(newSettings: Partial<IAvaliacaoImpl>) {
   assessmentStore.updateSettings(newSettings);
 }
 </script>
 
 <template>
   <div v-if="assessmentStore.assessment" class="bg-gray-50 min-h-screen">
+    <SaveToExamBankDialog
+      v-model="isSaveToBankDialogOpen"
+      @save-here="handleSaveFromDialog"
+    />
+
     <SettingsDialog
-      v-model="settingsStore.isSettingsDialogOpen"
+      v-model="assessmentStore.isSettingsDialogOpen"
       :initial-data="assessmentStore.assessment"
       @save="handleSettingsUpdate"
     />
