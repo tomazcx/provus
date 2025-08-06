@@ -61,6 +61,11 @@ const getBlankAssessment = (): IAvaliacaoImpl => ({
     quantidadeAcessosSimultaneos: 1,
     ativarControleIp: false,
     ipsPermitidos: [],
+    permitirConsulta: false,
+    materiaisAnexados: {
+      pastas: [],
+      arquivos: [],
+    },
   },
 });
 

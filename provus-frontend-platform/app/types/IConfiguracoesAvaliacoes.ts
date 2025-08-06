@@ -4,6 +4,7 @@ import type TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 import type { IQuestao } from "./IQuestao";
+import type { IFile } from "./IFile";
 
 export interface IRandomizationRule {
   id?: number;
@@ -66,4 +67,10 @@ export interface IConfiguracoes {
   ipsPermitidos: string[];
 
   regrasDeSeguranca: Record<TipoInfracaoEnum, IRegraSeguranca>;
+
+  permitirConsulta?: boolean;
+  materiaisAnexados?: {
+    pastas: number[]; 
+    arquivos: IFile[]; 
+  };
 }

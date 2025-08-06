@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import DateTimePicker from "@/components/ui/DateTimePicker/index.vue";
 import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
+import TipoArquivoEnum from "~/enums/TipoArquivoEnum";
 import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
+import type { IFile } from "~/types/IFile";
 
 const props = defineProps<{
   form: Partial<IAvaliacaoImpl>;
@@ -17,7 +19,13 @@ const formState = computed({
   },
 });
 
-const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
+const emit = defineEmits([
+  "update:form",
+  "open-bank-dialog",
+  "view-selection",
+  "open-materials-bank",
+  "view-materials",
+]);
 
 const isRandomizacaoSimplesActive = computed({
   get: () =>
@@ -97,6 +105,62 @@ function removeRule(ruleId: number) {
     formState.value.configuracoes.regrasRandomizacaoConfiguravel.filter(
       (rule) => rule.id !== ruleId
     );
+}
+
+const fileInput = ref<HTMLInputElement | null>(null);
+
+const materiaisAnexadosCount = computed(() => {
+  return props.form.configuracoes?.materiaisAnexados?.arquivos.length || 0;
+});
+
+function openFilePicker() {
+  fileInput.value?.click();
+}
+
+function handleFileUpload(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (!target.files) return;
+
+  const arquivosToAdd: IFile[] = [];
+  for (const file of Array.from(target.files)) {
+    const newFile: IFile = {
+      id: Date.now() + Math.random(),
+      titulo: file.name,
+      tipo: getFileType(file.name),
+      url: URL.createObjectURL(file),
+      tamanhoEmBytes: file.size,
+    };
+    arquivosToAdd.push(newFile);
+  }
+  if (
+    props.form.configuracoes &&
+    props.form.configuracoes.materiaisAnexados &&
+    props.form.configuracoes.materiaisAnexados.arquivos
+  ) {
+    const updatedForm = {
+      ...props.form,
+      configuracoes: {
+        ...props.form.configuracoes,
+        materiaisAnexados: {
+          ...props.form.configuracoes.materiaisAnexados,
+          arquivos: [
+            ...props.form.configuracoes.materiaisAnexados.arquivos,
+            ...arquivosToAdd,
+          ],
+        },
+      },
+    };
+    emit("update:form", updatedForm);
+  }
+}
+
+function getFileType(fileName: string): TipoArquivoEnum {
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return TipoArquivoEnum.PDF;
+  if (extension === "docx" || extension === "doc") return TipoArquivoEnum.DOCX;
+  if (extension === "pptx" || extension === "ppt") return TipoArquivoEnum.PPTX;
+  if (extension === "txt") return TipoArquivoEnum.TXT;
+  return TipoArquivoEnum.OUTRO;
 }
 
 function openBankDialogForSimple() {
@@ -276,6 +340,51 @@ function viewConfigurableGroup(rule: IRandomizationRule) {
           label="Exibir pontuação das questões"
           description="O estudante poderá ver o quanto vale cada questão."
         />
+      </div>
+    </UCard>
+
+    <UCard variant="subtle">
+      <template #header>
+        <h2 class="font-bold">Materiais de Consulta</h2>
+      </template>
+      <div class="flex flex-col gap-4">
+        <USwitch
+          v-model="formState.configuracoes.permitirConsulta"
+          label="Permitir consulta a materiais anexados"
+          description="O aluno terá acesso aos arquivos durante a avaliação."
+        />
+        <div
+          v-if="formState.configuracoes.permitirConsulta"
+          class="pl-8 flex items-center gap-3"
+        >
+          <UButton
+            label="Selecionar do Banco"
+            variant="outline"
+            icon="i-lucide-database"
+            @click="emit('open-materials-bank')"
+          />
+          <UButton
+            label="Anexar Novo Arquivo"
+            variant="outline"
+            icon="i-lucide-upload"
+            @click="openFilePicker"
+          />
+          <UButton
+            v-if="materiaisAnexadosCount > 0"
+            :label="`${materiaisAnexadosCount} materiais anexados`"
+            variant="link"
+            color="primary"
+            trailing-icon="i-lucide-eye"
+            @click="emit('view-materials')"
+          />
+          <input
+            ref="fileInput"
+            type="file"
+            class="hidden"
+            multiple
+            @change="handleFileUpload"
+          />
+        </div>
       </div>
     </UCard>
   </div>

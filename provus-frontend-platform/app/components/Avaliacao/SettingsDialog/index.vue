@@ -4,10 +4,15 @@ import OpenQuestionBankDialog from "~/components/Avaliacao/OpenQuestionBankDialo
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import GeneralSettings from "./GeneralSettings.vue";
 import SecuritySettings from "./SecuritySettings.vue";
+import IaSettings from "./IaSettings.vue";
+import OpenMaterialsBankDialog from "~/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
+import ViewAttachedMaterialsDialog from "~/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
+import EditFileDialog from "~/components/BancoDeMateriais/EditFileDialog/index.vue";
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
+import type { IFile } from "~/types/IFile";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -18,8 +23,12 @@ const emit = defineEmits(["update:modelValue", "save"]);
 
 const isViewSelectionDialogOpen = ref(false);
 const isBankDialogOpen = ref(false);
+const isMaterialsBankDialogOpen = ref(false);
+const isViewMaterialsDialogOpen = ref(false);
 
 const editingPoolQuestion = ref<IQuestao | null>(null);
+const editingAttachedMaterial = ref<IFile | null>(null);
+
 const configuringRuleId = ref<number | null>(null);
 
 const questionsToView = ref<IQuestao[]>([]);
@@ -152,6 +161,58 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
   }
   editingPoolQuestion.value = null;
 }
+
+function handleOpenMaterialsBank() {
+  isMaterialsBankDialogOpen.value = true;
+}
+
+function handleViewMaterials() {
+  isViewMaterialsDialogOpen.value = true;
+}
+
+function handleMaterialsBankSelection(selection: {
+  files: IFile[];
+  rawSelection: { folders: number[]; files: number[] };
+}) {
+  if (formState.configuracoes?.materiaisAnexados) {
+    formState.configuracoes.materiaisAnexados.arquivos.push(...selection.files);
+    formState.configuracoes.materiaisAnexados.pastas =
+      selection.rawSelection.folders;
+  }
+}
+
+function handleRemoveMaterial(fileId: number) {
+  if (formState.configuracoes?.materiaisAnexados) {
+    const { arquivos } = formState.configuracoes.materiaisAnexados;
+    const index = arquivos.findIndex((f) => f.id === fileId);
+    if (index > -1) {
+      arquivos.splice(index, 1);
+    }
+  }
+}
+
+function handleEditMaterial(fileToEdit: IFile) {
+  editingAttachedMaterial.value = fileToEdit;
+}
+
+function handleUpdateMaterial(updatedData: Partial<IFile>) {
+  if (!editingAttachedMaterial.value) return;
+
+  const originalFile =
+    formState.configuracoes?.materiaisAnexados?.arquivos.find(
+      (f) => f.id === editingAttachedMaterial.value!.id
+    );
+
+  if (originalFile) {
+    Object.assign(originalFile, updatedData);
+  }
+
+  editingAttachedMaterial.value = null;
+}
+
+function handleFormUpdate(updatedForm: Partial<IAvaliacaoImpl>) {
+  Object.assign(formState, updatedForm);
+}
 </script>
 
 <template>
@@ -199,10 +260,13 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
         <div class="flex-1 border-l border-gray-200 pl-8">
           <div v-if="activeSection === 'geral'">
             <GeneralSettings
-              v-model:form="formState"
+              :form="formState"
               :pool-questoes-count="poolQuestoesCount"
+              @update:form="handleFormUpdate"
               @open-bank-dialog="handleOpenBankDialog"
               @view-selection="handleViewSelection"
+              @open-materials-bank="handleOpenMaterialsBank"
+              @view-materials="handleViewMaterials"
             />
           </div>
           <div v-else-if="activeSection === 'seguranca'">
@@ -257,5 +321,26 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
     :question="editingPoolQuestion"
     @update:model-value="editingPoolQuestion = null"
     @update:question="handleUpdateInPool"
+  />
+
+  <OpenMaterialsBankDialog
+    v-model="isMaterialsBankDialogOpen"
+    @add-materials="handleMaterialsBankSelection"
+  />
+
+  <ViewAttachedMaterialsDialog
+    v-model="isViewMaterialsDialogOpen"
+    :selected-materials="
+      formState.configuracoes?.materiaisAnexados?.arquivos || []
+    "
+    @remove-material="handleRemoveMaterial"
+    @edit-material="handleEditMaterial"
+  />
+
+  <EditFileDialog
+    :model-value="!!editingAttachedMaterial"
+    :file="editingAttachedMaterial"
+    @update:model-value="editingAttachedMaterial = null"
+    @update:file="handleUpdateMaterial"
   />
 </template>
