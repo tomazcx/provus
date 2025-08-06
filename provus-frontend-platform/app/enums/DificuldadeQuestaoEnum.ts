@@ -1,4 +1,4 @@
-const enum DificuldadeQuestaoEnum {
+enum DificuldadeQuestaoEnum {
   FACIL = "Fácil",
   MEDIO = "Médio",
   DIFICIL = "Difícil",

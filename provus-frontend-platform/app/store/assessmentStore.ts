@@ -66,6 +66,9 @@ const getBlankAssessment = (): IAvaliacaoImpl => ({
       pastas: [],
       arquivos: [],
     },
+
+    gerarQuestoesIA: false,
+    regrasGeracaoIA: [],
   },
 });
 

@@ -5,6 +5,8 @@ import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 import type { IQuestao } from "./IQuestao";
 import type { IFile } from "./IFile";
+import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 
 export interface IRandomizationRule {
   id?: number;
@@ -32,6 +34,15 @@ export interface IRegraSeguranca {
   ativo: boolean;
   descricao: string;
   regrasDeOcorrencia: IRegraDeOcorrencia[];
+}
+
+export interface IRegraGeracaoIA {
+  id?: number;
+  quantidade: number;
+  tipo: TipoQuestaoEnum;
+  dificuldade: DificuldadeQuestaoEnum;
+  pontuacao: number;
+  materiaisAnexadosIds: number[];
 }
 
 export interface IConfiguracoes {
@@ -70,7 +81,10 @@ export interface IConfiguracoes {
 
   permitirConsulta?: boolean;
   materiaisAnexados?: {
-    pastas: number[]; 
-    arquivos: IFile[]; 
+    pastas: number[];
+    arquivos: IFile[];
   };
+
+  gerarQuestoesIA?: boolean;
+  regrasGeracaoIA?: IRegraGeracaoIA[];
 }

@@ -1,4 +1,4 @@
-const enum TipoQuestaoEnum {
+enum TipoQuestaoEnum {
   OBJETIVA = "Objetiva",
   DISCURSIVA = "Discursiva",
   MULTIPLA_ESCOLHA = "Múltipla escolha",

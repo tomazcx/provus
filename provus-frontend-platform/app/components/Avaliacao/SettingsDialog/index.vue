@@ -11,7 +11,10 @@ import EditFileDialog from "~/components/BancoDeMateriais/EditFileDialog/index.v
 
 import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import type { IRandomizationRule } from "~/types/IConfiguracoesAvaliacoes";
+import type {
+  IRandomizationRule,
+  IRegraGeracaoIA,
+} from "~/types/IConfiguracoesAvaliacoes";
 import type { IFile } from "~/types/IFile";
 
 const props = defineProps<{
@@ -25,6 +28,9 @@ const isViewSelectionDialogOpen = ref(false);
 const isBankDialogOpen = ref(false);
 const isMaterialsBankDialogOpen = ref(false);
 const isViewMaterialsDialogOpen = ref(false);
+const configuringIaRule = ref<IRegraGeracaoIA | null>(null);
+const materialsToView = ref<IFile[]>([]);
+const viewingIaRule = ref<IRegraGeracaoIA | null>(null);
 
 const editingPoolQuestion = ref<IQuestao | null>(null);
 const editingAttachedMaterial = ref<IFile | null>(null);
@@ -166,29 +172,9 @@ function handleOpenMaterialsBank() {
   isMaterialsBankDialogOpen.value = true;
 }
 
-function handleViewMaterials() {
-  isViewMaterialsDialogOpen.value = true;
-}
-
-function handleMaterialsBankSelection(selection: {
-  files: IFile[];
-  rawSelection: { folders: number[]; files: number[] };
-}) {
-  if (formState.configuracoes?.materiaisAnexados) {
-    formState.configuracoes.materiaisAnexados.arquivos.push(...selection.files);
-    formState.configuracoes.materiaisAnexados.pastas =
-      selection.rawSelection.folders;
-  }
-}
-
-function handleRemoveMaterial(fileId: number) {
-  if (formState.configuracoes?.materiaisAnexados) {
-    const { arquivos } = formState.configuracoes.materiaisAnexados;
-    const index = arquivos.findIndex((f) => f.id === fileId);
-    if (index > -1) {
-      arquivos.splice(index, 1);
-    }
-  }
+function handleOpenMaterialsBankForRule(rule: IRegraGeracaoIA) {
+  configuringIaRule.value = rule;
+  isMaterialsBankDialogOpen.value = true;
 }
 
 function handleEditMaterial(fileToEdit: IFile) {
@@ -212,6 +198,79 @@ function handleUpdateMaterial(updatedData: Partial<IFile>) {
 
 function handleFormUpdate(updatedForm: Partial<IAvaliacaoImpl>) {
   Object.assign(formState, updatedForm);
+}
+
+function handleViewMaterials() {
+  viewingIaRule.value = null;
+  isViewMaterialsDialogOpen.value = true;
+}
+
+function handleMaterialsBankSelection(selection: {
+  files: IFile[];
+  rawSelection: { folders: number[]; files: number[] };
+}) {
+  if (configuringIaRule.value) {
+    const selectedFileIds = selection.files.map((f) => f.id!);
+
+    selection.files.forEach((file) => {
+      const anexoExistente =
+        formState.configuracoes?.materiaisAnexados?.arquivos.find(
+          (f) => f.id === file.id
+        );
+      if (!anexoExistente) {
+        formState.configuracoes?.materiaisAnexados?.arquivos.push(file);
+      }
+    });
+
+    configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
+    configuringIaRule.value = null;
+  } else {
+    if (formState.configuracoes?.materiaisAnexados) {
+      formState.configuracoes.materiaisAnexados.arquivos.push(
+        ...selection.files
+      );
+      formState.configuracoes.materiaisAnexados.pastas =
+        selection.rawSelection.folders;
+    }
+  }
+}
+
+function handleRemoveMaterial(fileId: number) {
+  if (viewingIaRule.value) {
+    const index = viewingIaRule.value.materiaisAnexadosIds.indexOf(fileId);
+    if (index > -1) {
+      viewingIaRule.value.materiaisAnexadosIds.splice(index, 1);
+    }
+    const viewIndex = materialsToView.value.findIndex((m) => m.id === fileId);
+    if (viewIndex > -1) {
+      materialsToView.value.splice(viewIndex, 1);
+    }
+    if (materialsToView.value.length === 0) {
+      isViewMaterialsDialogOpen.value = false;
+    }
+  } else {
+    if (formState.configuracoes?.materiaisAnexados) {
+      const { arquivos } = formState.configuracoes.materiaisAnexados;
+      const index = arquivos.findIndex((f) => f.id === fileId);
+      if (index > -1) {
+        arquivos.splice(index, 1);
+      }
+    }
+  }
+}
+
+function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
+  if (rule.materiaisAnexadosIds && rule.materiaisAnexadosIds.length > 0) {
+    const materiais =
+      formState.configuracoes?.materiaisAnexados?.arquivos.filter((m) =>
+        rule.materiaisAnexadosIds.includes(m.id!)
+      );
+    if (materiais && materiais.length > 0) {
+      viewingIaRule.value = rule;
+      materialsToView.value = materiais;
+      isViewMaterialsDialogOpen.value = true;
+    }
+  }
 }
 </script>
 
@@ -279,10 +338,10 @@ function handleFormUpdate(updatedForm: Partial<IAvaliacaoImpl>) {
           </div>
           <div v-else-if="activeSection === 'ia'">
             <IaSettings
-              v-model:form="formState"
-              :pool-questoes-count="poolQuestoesCount"
-              @open-bank-dialog="handleOpenBankDialog"
-              @view-selection="handleViewSelection"
+              :form="formState"
+              @update:form="handleFormUpdate"
+              @open-materials-bank-for-rule="handleOpenMaterialsBankForRule"
+              @view-material-for-rule="handleViewMaterialForRule"
             />
           </div>
         </div>
@@ -331,7 +390,9 @@ function handleFormUpdate(updatedForm: Partial<IAvaliacaoImpl>) {
   <ViewAttachedMaterialsDialog
     v-model="isViewMaterialsDialogOpen"
     :selected-materials="
-      formState.configuracoes?.materiaisAnexados?.arquivos || []
+      materialsToView.length > 0
+        ? materialsToView
+        : formState.configuracoes?.materiaisAnexados?.arquivos || []
     "
     @remove-material="handleRemoveMaterial"
     @edit-material="handleEditMaterial"
