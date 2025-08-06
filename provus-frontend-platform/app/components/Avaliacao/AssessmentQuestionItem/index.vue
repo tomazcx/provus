@@ -5,9 +5,15 @@ import type { IAlternativa, IQuestao } from "~/types/IQuestao";
 
 const model = defineModel<IQuestao>({ required: true });
 
-defineProps<{ numero: number }>();
+const props = defineProps<{ numero: number; autocorrecaoAtiva?: boolean }>();
 
 const emit = defineEmits(["remover", "save-to-bank"]);
+
+const isModeloRespostaRequired = computed(() => {
+  return (
+    props.autocorrecaoAtiva && model.value.tipo === TipoQuestaoEnum.DISCURSIVA
+  );
+});
 
 const isQuestionValid = computed(() => {
   return model.value?.titulo?.trim() !== "";
@@ -128,7 +134,16 @@ const tipos = [
       </UFormField>
 
       <template v-if="model.tipo === TipoQuestaoEnum.DISCURSIVA">
-        <UFormField label="Modelo de Resposta para I.A">
+        <UFormField
+          v-if="isModeloRespostaRequired"
+          :label="
+            isModeloRespostaRequired
+              ? 'Modelo de Resposta para I.A. (Obrigatório)'
+              : 'Modelo de Resposta para I.A.'
+          "
+          :required="isModeloRespostaRequired"
+          name="exemploDeResposta"
+        >
           <UTextarea
             v-model="model.exemploDeResposta"
             placeholder="Digite a resposta esperada para esta questão..."

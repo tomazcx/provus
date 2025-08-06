@@ -14,7 +14,7 @@ import ViewAttachedMaterialsDialog from "@/components/Avaliacao/ViewAttachedMate
 import type { IQuestao } from "~/types/IQuestao";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import type { IRegraGeracaoIA } from "~/types/IConfiguracoesAvaliacoes";
-import type { IFile } from "~/types/IFile"; 
+import type { IFile } from "~/types/IFile";
 
 import { useAssessmentStore } from "~/store/assessmentStore";
 import { useExamBankStore } from "~/store/assessmentBankStore";
@@ -130,7 +130,6 @@ function handleAddQuestionsFromBank(selection: { questions: IQuestao[] }) {
   assessmentStore.addQuestionsFromBank(selection.questions);
 }
 
-
 function handleSettingsUpdate(newSettings: Partial<IAvaliacaoImpl>) {
   assessmentStore.updateSettings(newSettings);
 }
@@ -156,32 +155,32 @@ function handleViewMaterialsForIa(rule: IRegraGeracaoIA) {
     assessmentStore.assessment.configuracoes.materiaisAnexados &&
     assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos
   ) {
-    const materiais = assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos.filter(
-      (m) => rule.materiaisAnexadosIds.includes(m.id!)
-    );
+    const materiais =
+      assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos.filter(
+        (m) => rule.materiaisAnexadosIds.includes(m.id!)
+      );
     materialsToView.value = materiais;
     isViewMaterialsDialogOpen.value = true;
   }
 }
-
 
 function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
   if (configuringIaRule.value && assessmentStore.assessment) {
     const selectedFileIds = selection.files.map((f) => f.id!);
 
     selection.files.forEach((file) => {
-      const materiaisAnexados = assessmentStore.assessment!.configuracoes.materiaisAnexados;
+      const materiaisAnexados =
+        assessmentStore.assessment!.configuracoes.materiaisAnexados;
       if (materiaisAnexados && materiaisAnexados.arquivos) {
-        const anexoExistente =
-          materiaisAnexados.arquivos.find(
-            (f) => f.id === file.id
-          );
+        const anexoExistente = materiaisAnexados.arquivos.find(
+          (f) => f.id === file.id
+        );
         if (!anexoExistente) {
           materiaisAnexados.arquivos.push(file);
         }
       }
     });
-    
+
     configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
     configuringIaRule.value = null;
   }
@@ -212,7 +211,10 @@ function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
     />
     <GenerateQuestionsIaDialog
       v-model="isGenerateAIDialogOpen"
-      :materiais-anexados="assessmentStore.assessment.configuracoes.materiaisAnexados?.arquivos ?? []"
+      :materiais-anexados="
+        assessmentStore.assessment.configuracoes.materiaisAnexados?.arquivos ??
+        []
+      "
       @generate="handleAIGeneration"
       @open-materials-bank="handleOpenMaterialsBankForIa"
       @view-materials="handleViewMaterialsForIa"
@@ -228,13 +230,16 @@ function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
       @remove-material="(fileId) => {}"
       @edit-material="(file) => {}"
     />
-    
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div class="lg:col-span-3 space-y-6">
           <Details v-model="assessmentStore.assessment" />
           <AssessmentQuestionList
             v-model:questoes="assessmentStore.assessment.questoes"
+            :autocorrecao-ativa="
+              assessmentStore.assessment.configuracoes.autocorrecaoIa
+            "
             @adicionar="adicionarQuestao"
             @remover="removerQuestao"
             @adicionar-do-banco="bancoDeQuestoesDialog = true"

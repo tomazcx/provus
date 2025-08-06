@@ -5,6 +5,7 @@ import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 import type { IRegraGeracaoIA } from "~/types/IConfiguracoesAvaliacoes";
 import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
+import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 
 type SaveAction = { key: string; timestamp: number };
 
@@ -19,7 +20,7 @@ const getBlankAssessment = (): IAvaliacaoImpl => ({
     numeroMaximoDeEnvios: 1,
     tempoMaximo: 120,
     tempoMinimo: 30,
-    tipoRandomizacao: null,
+    tipoRandomizacao: TipoRandomizacaoEnum.SIMPLES,
     poolSelecaoBanco: {
       pastas: [],
       questoes: [],

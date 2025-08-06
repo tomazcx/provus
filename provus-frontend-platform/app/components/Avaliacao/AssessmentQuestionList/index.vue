@@ -3,6 +3,11 @@ import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionIte
 import type { IQuestao } from "~/types/IQuestao";
 
 const questoes = defineModel<IQuestao[]>("questoes", { required: true });
+
+defineProps<{
+  autocorrecaoAtiva?: boolean;
+}>();
+
 const emit = defineEmits([
   "adicionar",
   "remover",
@@ -72,6 +77,7 @@ const emit = defineEmits([
           <AssessmentQuestionItem
             :model-value="element"
             :numero="index + 1"
+            :autocorrecao-ativa="autocorrecaoAtiva"
             @update:model-value="questoes[index] = $event"
             @remover="emit('remover', element.id)"
             @save-to-bank="emit('save-to-bank', element)"
