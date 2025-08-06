@@ -3,6 +3,8 @@ import type { IQuestao, IAlternativa } from "~/types/IQuestao";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
+import type { IRegraGeracaoIA } from "~/types/IConfiguracoesAvaliacoes";
+import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 
 type SaveAction = { key: string; timestamp: number };
 
@@ -23,11 +25,11 @@ const getBlankAssessment = (): IAvaliacaoImpl => ({
       questoes: [],
     },
     regrasRandomizacaoConfiguravel: [],
-    tipoAplicacao: null,
+    tipoAplicacao: TipoAplicacaoEnum.MANUAL,
     dataAgendada: null,
-    exibirPontuacaDaSubmissao: false,
+    exibirPontuacaDaSubmissao: true,
     permitirRevisao: false,
-    exibirPontuacaoQuestoes: false,
+    exibirPontuacaoQuestoes: true,
     ativarAlertas: false,
     quantidadeDeAlertas: 0,
     duracaoDoAlerta: 0,
@@ -66,9 +68,6 @@ const getBlankAssessment = (): IAvaliacaoImpl => ({
       pastas: [],
       arquivos: [],
     },
-
-    gerarQuestoesIA: false,
-    regrasGeracaoIA: [],
   },
 });
 
@@ -169,6 +168,29 @@ export const useAssessmentStore = defineStore("assessment", () => {
     saveEvent.value = null;
   }
 
+  function generateAndAddQuestions(regras: IRegraGeracaoIA[]) {
+    if (!assessmentState.value) return;
+
+    const novasQuestoes: IQuestao[] = [];
+    regras.forEach((rule) => {
+      for (let i = 0; i < rule.quantidade; i++) {
+        const newQuestion: IQuestao = {
+          id: Date.now() + Math.random(),
+          titulo: `Questão (I.A.) - Tipo: ${rule.tipo}`,
+          descricao: `Gerada com base em ${rule.materiaisAnexadosIds.length} materiais.`,
+          pontuacao: rule.pontuacao,
+          dificuldade: rule.dificuldade,
+          tipo: rule.tipo,
+          alternativas:
+            rule.tipo !== TipoQuestaoEnum.DISCURSIVA ? [] : undefined,
+        };
+        novasQuestoes.push(newQuestion);
+      }
+    });
+
+    assessmentState.value.questoes.push(...novasQuestoes);
+  }
+
   return {
     assessment,
     createNew,
@@ -183,5 +205,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
     triggerSave,
     clearSaveEvent,
     loadFromModelo,
+    generateAndAddQuestions,
   };
 });

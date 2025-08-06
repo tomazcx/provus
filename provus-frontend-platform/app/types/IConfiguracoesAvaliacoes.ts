@@ -84,7 +84,4 @@ export interface IConfiguracoes {
     pastas: number[];
     arquivos: IFile[];
   };
-
-  gerarQuestoesIA?: boolean;
-  regrasGeracaoIA?: IRegraGeracaoIA[];
 }

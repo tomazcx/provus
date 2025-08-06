@@ -7,9 +7,14 @@ import SettingsDialog from "@/components/Avaliacao/SettingsDialog/index.vue";
 import OpenQuestionBankDialog from "@/components/Avaliacao/OpenQuestionBankDialog/index.vue";
 import SaveToExamBankDialog from "@/components/BancoDeAvaliacoes/SaveToExamBankDialog/index.vue";
 import SaveToQuestionsBankDialog from "@/components/Avaliacao/SaveToQuestionsBankDialog/index.vue";
+import GenerateQuestionsIaDialog from "@/components/Avaliacao/GenerateQuestionsIaDialog/index.vue";
+import OpenMaterialsBankDialog from "@/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
+import ViewAttachedMaterialsDialog from "@/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
 
 import type { IQuestao } from "~/types/IQuestao";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type { IRegraGeracaoIA } from "~/types/IConfiguracoesAvaliacoes";
+import type { IFile } from "~/types/IFile"; 
 
 import { useAssessmentStore } from "~/store/assessmentStore";
 import { useExamBankStore } from "~/store/assessmentBankStore";
@@ -26,6 +31,12 @@ const isSaveToBankDialogOpen = ref(false);
 const bancoDeQuestoesDialog = ref(false);
 const saveToBankDialog = ref(false);
 const questionToSave = ref<IQuestao | null>(null);
+const isGenerateAIDialogOpen = ref(false);
+
+const isMaterialsBankDialogOpen = ref(false);
+const isViewMaterialsDialogOpen = ref(false);
+const materialsToView = ref<IFile[]>([]);
+const configuringIaRule = ref<IRegraGeracaoIA | null>(null);
 
 watch(
   () => editorBridgeStore.saveEvent,
@@ -119,12 +130,61 @@ function handleAddQuestionsFromBank(selection: { questions: IQuestao[] }) {
   assessmentStore.addQuestionsFromBank(selection.questions);
 }
 
-function handleSaveQuestionToBank(question: IQuestao) {
-  questionToSave.value = JSON.parse(JSON.stringify(question));
-}
 
 function handleSettingsUpdate(newSettings: Partial<IAvaliacaoImpl>) {
   assessmentStore.updateSettings(newSettings);
+}
+
+function handleAIGeneration(regras: IRegraGeracaoIA[]) {
+  assessmentStore.generateAndAddQuestions(regras);
+}
+
+function handleSaveQuestionToBank(question: IQuestao) {
+  questionToSave.value = JSON.parse(JSON.stringify(question));
+  saveToBankDialog.value = true;
+}
+
+function handleOpenMaterialsBankForIa(rule: IRegraGeracaoIA) {
+  configuringIaRule.value = rule;
+  isMaterialsBankDialogOpen.value = true;
+}
+
+function handleViewMaterialsForIa(rule: IRegraGeracaoIA) {
+  if (
+    assessmentStore.assessment &&
+    rule.materiaisAnexadosIds.length > 0 &&
+    assessmentStore.assessment.configuracoes.materiaisAnexados &&
+    assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos
+  ) {
+    const materiais = assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos.filter(
+      (m) => rule.materiaisAnexadosIds.includes(m.id!)
+    );
+    materialsToView.value = materiais;
+    isViewMaterialsDialogOpen.value = true;
+  }
+}
+
+
+function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
+  if (configuringIaRule.value && assessmentStore.assessment) {
+    const selectedFileIds = selection.files.map((f) => f.id!);
+
+    selection.files.forEach((file) => {
+      const materiaisAnexados = assessmentStore.assessment!.configuracoes.materiaisAnexados;
+      if (materiaisAnexados && materiaisAnexados.arquivos) {
+        const anexoExistente =
+          materiaisAnexados.arquivos.find(
+            (f) => f.id === file.id
+          );
+        if (!anexoExistente) {
+          materiaisAnexados.arquivos.push(file);
+        }
+      }
+    });
+    
+    configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
+    configuringIaRule.value = null;
+  }
 }
 </script>
 
@@ -150,7 +210,25 @@ function handleSettingsUpdate(newSettings: Partial<IAvaliacaoImpl>) {
       v-model="saveToBankDialog"
       :question-to-save="questionToSave"
     />
+    <GenerateQuestionsIaDialog
+      v-model="isGenerateAIDialogOpen"
+      :materiais-anexados="assessmentStore.assessment.configuracoes.materiaisAnexados?.arquivos ?? []"
+      @generate="handleAIGeneration"
+      @open-materials-bank="handleOpenMaterialsBankForIa"
+      @view-materials="handleViewMaterialsForIa"
+    />
 
+    <OpenMaterialsBankDialog
+      v-model="isMaterialsBankDialogOpen"
+      @add-materials="handleMaterialsSelectionForIa"
+    />
+    <ViewAttachedMaterialsDialog
+      v-model="isViewMaterialsDialogOpen"
+      :selected-materials="materialsToView"
+      @remove-material="(fileId) => {}"
+      @edit-material="(file) => {}"
+    />
+    
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div class="lg:col-span-3 space-y-6">
@@ -161,6 +239,7 @@ function handleSettingsUpdate(newSettings: Partial<IAvaliacaoImpl>) {
             @remover="removerQuestao"
             @adicionar-do-banco="bancoDeQuestoesDialog = true"
             @save-to-bank="handleSaveQuestionToBank"
+            @gerar-ia="isGenerateAIDialogOpen = true"
           />
         </div>
         <div class="sticky top-24 space-y-6">

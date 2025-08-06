@@ -4,7 +4,6 @@ import OpenQuestionBankDialog from "~/components/Avaliacao/OpenQuestionBankDialo
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import GeneralSettings from "./GeneralSettings.vue";
 import SecuritySettings from "./SecuritySettings.vue";
-import IaSettings from "./IaSettings.vue";
 import OpenMaterialsBankDialog from "~/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
 import ViewAttachedMaterialsDialog from "~/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
 import EditFileDialog from "~/components/BancoDeMateriais/EditFileDialog/index.vue";
@@ -299,7 +298,7 @@ function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
     </template>
 
     <template #body>
-      <div class="flex gap-8 py-4">
+      <div class="flex gap-8 py-4 max-h-[700px]">
         <nav class="w-56 space-y-1">
           <button
             v-for="item in menuItems"
@@ -316,7 +315,9 @@ function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
             <span>{{ item.label }}</span>
           </button>
         </nav>
-        <div class="flex-1 border-l border-gray-200 pl-8">
+        <div
+          class="flex-1 border-l border-gray-200 pl-8 overflow-auto max-h-[700px]"
+        >
           <div v-if="activeSection === 'geral'">
             <GeneralSettings
               :form="formState"

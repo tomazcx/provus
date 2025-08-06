@@ -8,6 +8,7 @@ const emit = defineEmits([
   "remover",
   "adicionarDoBanco",
   "save-to-bank",
+  "gerar-ia",
 ]);
 </script>
 
@@ -47,6 +48,16 @@ const emit = defineEmits([
           icon="i-heroicons-circle-stack"
           @click="emit('adicionarDoBanco')"
         />
+        <div class="flex flex-col sm:flex-row gap-3">
+          <UButton
+            block
+            label="Gerar com I.A."
+            size="lg"
+            variant="soft"
+            icon="i-lucide-brain-circuit"
+            @click="emit('gerar-ia')"
+          />
+        </div>
       </div>
     </div>
 
@@ -84,6 +95,17 @@ const emit = defineEmits([
           icon="i-heroicons-circle-stack"
           color="secondary"
           @click="emit('adicionarDoBanco')"
+        />
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3">
+        <UButton
+          block
+          label="Gerar com I.A."
+          size="lg"
+          variant="soft"
+          icon="i-lucide-brain-circuit"
+          @click="emit('gerar-ia')"
         />
       </div>
     </template>
