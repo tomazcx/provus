@@ -27,4 +27,8 @@ export class AvaliadorTypeORMRepository implements AvaliadorRepository {
   async findByEmail(email: string): Promise<Avaliador | null> {
     return await this.avaliadorRepository.findOne({ where: { email } });
   }
+
+  async findById(id: number): Promise<Avaliador | null> {
+    return await this.avaliadorRepository.findOne({ where: { id } });
+  }
 }

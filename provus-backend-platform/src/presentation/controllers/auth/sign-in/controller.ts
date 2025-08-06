@@ -6,14 +6,14 @@ import { SignInDecorators } from './decorators';
 import { SignInResponse } from './response';
 
 @Controller('auth')
-@ApiTags('Auth')
+@ApiTags('Autenticação')
 export class SignInController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
   @SignInDecorators()
-  async signIn(@Body() body: SignInRequest): Promise<SignInResponse> {
+  async handle(@Body() body: SignInRequest): Promise<SignInResponse> {
     return this.authService.signIn(body);
   }
 }

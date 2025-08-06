@@ -22,6 +22,7 @@ import {
 } from 'src/domain/services/auth/dto/request';
 import { LoginResultDto } from 'src/domain/services/auth/dto/result';
 import { v4 as uuid } from 'uuid';
+import { Avaliador } from 'src/domain/entities';
 
 @Injectable()
 export class AuthServiceImpl implements AuthService {
@@ -129,5 +130,21 @@ export class AuthServiceImpl implements AuthService {
     await this.avaliadorRecuperarSenhaRepository.delete(
       avaliadorRecuperarSenha.id,
     );
+  }
+
+  async validateToken(token: string): Promise<Avaliador> {
+    try {
+      const decoded = await this.jwtProvider.verify(token);
+
+      if (!decoded) {
+        return null;
+      }
+
+      const decodedToken = decoded as { id: number };
+
+      return await this.avaliadorRepository.findById(decodedToken.id);
+    } catch (error) {
+      return null;
+    }
   }
 }

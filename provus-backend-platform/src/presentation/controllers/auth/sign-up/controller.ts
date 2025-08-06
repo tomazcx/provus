@@ -5,14 +5,14 @@ import { SignUpRequest } from './request';
 import { SignUpDecorators } from './decorators';
 
 @Controller('auth')
-@ApiTags('Auth')
+@ApiTags('Autenticação')
 export class SignUpController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('sign-up')
   @HttpCode(HttpStatus.CREATED)
   @SignUpDecorators()
-  async signUp(@Body() body: SignUpRequest): Promise<void> {
+  async handle(@Body() body: SignUpRequest): Promise<void> {
     await this.authService.signUp(body);
   }
 }

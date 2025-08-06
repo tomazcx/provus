@@ -1,3 +1,4 @@
+import { Avaliador } from 'src/domain/entities';
 import {
   LoginDto,
   RecoverPasswordDto,
@@ -11,4 +12,5 @@ export abstract class AuthService {
   abstract signIn(dto: LoginDto): Promise<LoginResultDto>;
   abstract recoverPassword(dto: RecoverPasswordDto): Promise<void>;
   abstract resetPassword(dto: ResetPasswordDto): Promise<void>;
+  abstract validateToken(token: string): Promise<Avaliador>;
 }
