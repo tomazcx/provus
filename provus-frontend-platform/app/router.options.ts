@@ -51,18 +51,42 @@ export default {
     {
       name: "banco-de-avaliacoes",
       path: "/banco-de-avaliacoes",
-      component: () => import("~/pages/Avaliador/Banco-de-avaliacoes/index.vue"),
+      component: () =>
+        import("~/pages/Avaliador/Banco-de-avaliacoes/index.vue"),
     },
 
     {
       name: "banco-de-avaliacoes-folderPath",
       path: "/banco-de-avaliacoes/:folderPath(.*)*",
-      component: () => import("~/pages/Avaliador/Banco-de-avaliacoes/index.vue"),
+      component: () =>
+        import("~/pages/Avaliador/Banco-de-avaliacoes/index.vue"),
+    },
+
+    {
+      name: "aplicacoes",
+      path: "/aplicacoes",
+      component: () => import("~/pages/Avaliador/Aplicacoes/index.vue"),
+    },
+
+    {
+      name: "aplicacoes-aplicacao",
+      path: "/aplicacoes/aplicacao/:id",
+      component: () =>
+        import("~/pages/Avaliador/Aplicacoes/Aplicacao/[id].vue"),
+    },
+
+    {
+      name: "avaliador-avaliacao-editor",
+      path: "/avaliacao/editor/:id?",
+      component: () => import("~/pages/Avaliador/Avaliacao/Editor/[[id]].vue"),
+      meta: {
+        layout: "assessment-editor",
+      },
     },
 
     {
       path: "/",
-      redirect: "/avaliacao/editor/",
+      redirect: "/aplicacoes/aplicacao/1",
     },
   ],
 } satisfies RouterConfig;

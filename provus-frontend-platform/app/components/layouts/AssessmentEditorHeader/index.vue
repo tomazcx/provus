@@ -57,9 +57,6 @@ const saveOptions = computed(() => {
         </div>
 
         <div class="flex items-center space-x-2">
-          <UButton color="primary" variant="ghost" icon="i-heroicons-eye">
-            Ver como Aluno
-          </UButton>
           <UButton
             color="primary"
             variant="ghost"

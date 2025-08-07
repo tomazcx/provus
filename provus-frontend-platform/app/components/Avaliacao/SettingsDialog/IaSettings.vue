@@ -17,7 +17,6 @@ const formState = computed({
     emit("update:form", value);
   },
 });
-
 </script>
 
 <template>
@@ -34,6 +33,5 @@ const formState = computed({
         />
       </div>
     </UCard>
-
   </div>
 </template>

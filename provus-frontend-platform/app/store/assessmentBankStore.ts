@@ -12,7 +12,11 @@ export const useExamBankStore = defineStore("examBank", () => {
     if (items.value.length > 0) return;
     isLoading.value = true;
     try {
-      items.value = [];
+      const { mockExamBankResponse } = await import(
+        "~/mock/mockExamBankResponse"
+      );
+
+      items.value = mockExamBankResponse;
     } catch (error) {
       console.error("Erro ao buscar itens do banco de avaliações:", error);
     } finally {

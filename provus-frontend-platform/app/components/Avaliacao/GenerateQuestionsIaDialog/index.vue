@@ -112,32 +112,32 @@ function handleModal(event: boolean) {
 
           <div class="flex items-center flex-wrap gap-x-2 gap-y-4 text-sm">
             <span>Gerar</span>
-            <UFormGroup>
+            <UFormField>
               <UInputNumber v-model="rule.quantidade" :min="1" class="w-20" />
-            </UFormGroup>
+            </UFormField>
             <span>questões do tipo</span>
-            <UFormGroup>
+            <UFormField>
               <USelect
                 v-model="rule.tipo"
                 :items="tipoQuestaoOptions"
                 class="w-30"
               />
-            </UFormGroup>
+            </UFormField>
             <span>de nível</span>
-            <UFormGroup>
+            <UFormField>
               <USelect
                 v-model="rule.dificuldade"
                 :items="dificuldadeOptions"
                 class="w-22"
               />
-            </UFormGroup>
+            </UFormField>
             <span>valendo</span>
-            <UFormGroup>
+            <UFormField>
               <UInputNumber v-model="rule.pontuacao" :min="0" class="w-20" />
-            </UFormGroup>
+            </UFormField>
             <span>pontos, baseadas em</span>
 
-            <UFormGroup>
+            <UFormField>
               <UButton
                 v-if="
                   !rule.materiaisAnexadosIds ||
@@ -159,7 +159,7 @@ function handleModal(event: boolean) {
                 trailing-icon="i-lucide-eye"
                 @click="viewMaterialsForRule(rule)"
               />
-            </UFormGroup>
+            </UFormField>
           </div>
         </UCard>
         <UButton

@@ -19,6 +19,12 @@
         >
         <NuxtLink
           active-class="border-b-2 border-primary text-primary"
+          to="/aplicacoes"
+          class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
+          >Aplicações</NuxtLink
+        >
+        <NuxtLink
+          active-class="border-b-2 border-primary text-primary"
           to="/banco-de-questoes"
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
           >Banco de questões</NuxtLink
@@ -34,10 +40,6 @@
           to="/banco-de-materiais"
           class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
           >Banco de materiais</NuxtLink
-        >
-        <span
-          class="text-gray-600 hover:text-primary cursor-pointer transition-colors"
-          >Analytics</span
         >
       </nav>
 

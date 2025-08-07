@@ -120,6 +120,7 @@ const breadcrumbs = computed(() => {
 
 const itemsInCurrentFolder = computed(() =>
   examBankStore.items
+    .filter((item) => isFolder(item) || item.isModelo === true)
     .filter((item) => item.path === currentPath.value)
     .sort((a, b) => {
       const aIsFolder = isFolder(a);
