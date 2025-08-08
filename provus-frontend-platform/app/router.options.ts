@@ -69,6 +69,13 @@ export default {
     },
 
     {
+      name: "aplicacoes-aplicacao",
+      path: "/aplicacoes/aplicacao/:id",
+      component: () =>
+        import("~/pages/Avaliador/Aplicacoes/Aplicacao/[id].vue"),
+    },
+
+    {
       name: "aplicacoes-aplicacao-resultados",
       path: "/aplicacoes/aplicacao/:id/resultados",
       component: () =>
@@ -76,10 +83,12 @@ export default {
     },
 
     {
-      name: "aplicacoes-aplicacao",
-      path: "/aplicacoes/aplicacao/:id",
+      name: "aplicacoes-aplicacao-resultados-submissao",
+      path: "/aplicacoes/aplicacao/:id/resultados/:submissionId",
       component: () =>
-        import("~/pages/Avaliador/Aplicacoes/Aplicacao/[id].vue"),
+        import(
+          "~/pages/Avaliador/Aplicacoes/Aplicacao/[id]/Resultados/[submissionId].vue"
+        ),
     },
 
     {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, resolveComponent } from "vue";
-import type { TableColumn } from "@nuxt/ui";
+import type { TableColumn, TableRow } from "@nuxt/ui";
 import type { ISubmissao, ISubmissaoResponse } from "~/types/ISubmissao";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
@@ -12,6 +12,8 @@ const props = defineProps<{
   submissions: ISubmissaoResponse;
   isLoading: boolean;
 }>();
+
+const router = useRouter();
 
 type SubmissionRow = ISubmissao & {
   tempoGasto: string;
@@ -189,6 +191,12 @@ const sorting = ref([
     desc: true,
   },
 ]);
+
+function onSelect(row: TableRow<SubmissionRow>) {
+  router.push(
+    `/aplicacoes/aplicacao/${props.submissions.applicationId}/resultados/${row.original.id}`
+  );
+}
 </script>
 
 <template>
@@ -201,6 +209,7 @@ const sorting = ref([
       :columns="columns"
       :loading="isLoading"
       class="flex-1"
+      @select="onSelect"
     />
 
     <div

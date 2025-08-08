@@ -3,7 +3,7 @@ import Header from "@/components/Aplicacoes/Header/index.vue";
 import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
 import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
 import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
-import Breadcrumbs from "@/components/Aplicacoes/Breadcrumbs/index.vue";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 
 import { useApplicationsStore } from "~/store/applicationsStore";
 import { useExamBankStore } from "~/store/assessmentBankStore";

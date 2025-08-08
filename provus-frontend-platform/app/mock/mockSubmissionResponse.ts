@@ -3,6 +3,7 @@ import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import EstadoRespostaEnum from "~/enums/EstadoRespostaEnum";
 import { mockAvaliacao } from "./mockAvaliacao";
 import type { IQuestaoDiscursiva, IQuestaoObjetiva } from "~/types/IQuestao";
+import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 
 const questao1_original = mockAvaliacao.questoes.find(
   (q) => q.id === 2001
@@ -39,8 +40,9 @@ export const mockSubmissionResponse: ISubmissaoResponse = {
             dados: { alternativaId: 3002 },
             submissaoId: 1,
             questaoId: 2001,
-            pontuacao: 3,
-            estado: EstadoRespostaEnum.CORRIGIDA,
+            pontuacao: 19,
+            estadoProcessamento: EstadoRespostaEnum.CORRIGIDA,
+            estadoCorrecao: EstadoQuestaoCorrigida.CORRETA,
           },
         },
         {
@@ -54,7 +56,8 @@ export const mockSubmissionResponse: ISubmissaoResponse = {
             submissaoId: 1,
             questaoId: 2002,
             pontuacao: 6,
-            estado: EstadoRespostaEnum.CORRIGIDA,
+            estadoProcessamento: EstadoRespostaEnum.CORRIGIDA,
+            estadoCorrecao: EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA,
             textoRevisao:
               "Ótima resposta, mas poderia detalhar mais as consequências sociais.",
           },
@@ -81,7 +84,8 @@ export const mockSubmissionResponse: ISubmissaoResponse = {
             submissaoId: 2,
             questaoId: 2001,
             pontuacao: 0,
-            estado: EstadoRespostaEnum.CORRIGIDA,
+            estadoProcessamento: EstadoRespostaEnum.CORRIGIDA,
+            estadoCorrecao: EstadoQuestaoCorrigida.INCORRETA,
           },
         },
         {
@@ -92,7 +96,8 @@ export const mockSubmissionResponse: ISubmissaoResponse = {
             submissaoId: 2,
             questaoId: 2002,
             pontuacao: 4,
-            estado: EstadoRespostaEnum.CORRIGIDA,
+            estadoProcessamento: EstadoRespostaEnum.CORRIGIDA,
+            estadoCorrecao: EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA,
             textoRevisao: "Resposta correta, mas muito superficial.",
           },
         },

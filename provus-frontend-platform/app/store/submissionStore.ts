@@ -30,11 +30,12 @@ export const useSubmissionsStore = defineStore("submissions", () => {
   }
 
   function getSubmissionById(id: number): ISubmissao | undefined {
-    if (!response.value || !response.value.submissoes) {
+    if (!response.value?.submissoes) {
       return undefined;
     }
     return response.value.submissoes.find((sub) => sub.id === id);
   }
+
 
   const submissions = computed(() => response.value || null);
 

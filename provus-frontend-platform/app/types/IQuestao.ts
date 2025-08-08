@@ -2,6 +2,7 @@ import type DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import type EstadoRespostaEnum from "~/enums/EstadoRespostaEnum";
 import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import type { ItemSistemaDeArquivos } from "./IBank";
+import type EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 
 interface IQuestaoBase extends ItemSistemaDeArquivos {
   id?: number;
@@ -51,7 +52,8 @@ export interface IResposta {
   submissaoId: number;
   questaoId: number;
   pontuacao?: number;
-  estado: EstadoRespostaEnum;
+  estadoProcessamento: EstadoRespostaEnum;
+  estadoCorrecao: EstadoQuestaoCorrigida;
   criadoEm?: string;
   atualizadoEm?: string;
 }

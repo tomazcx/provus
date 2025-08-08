@@ -2,7 +2,7 @@
 import Header from "@/components/Aplicacoes/Header/index.vue";
 import SubmissionsControls from "@/components/Aplicacoes/Resultados/SubmissionsControls.vue";
 import SubmissionsTable from "@/components/Aplicacoes/Resultados/SubmissionsTable.vue";
-import Breadcrumbs from "@/components/Aplicacoes/Breadcrumbs/index.vue";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 
 import { useSubmissionsStore } from "~/store/submissionStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
