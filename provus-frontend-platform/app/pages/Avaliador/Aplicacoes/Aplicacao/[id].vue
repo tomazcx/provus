@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import ApplicationHeader from "@/components/Aplicacoes/Detalhes/ApplicationHeader.vue";
+import Header from "@/components/Aplicacoes/Header/index.vue";
 import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
 import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
 import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
-import ViewConfigurationDialog from "~/components/Aplicacoes/Detalhes/ViewConfigurationDialog.vue";
+import Breadcrumbs from "@/components/Aplicacoes/Breadcrumbs/index.vue";
 
 import { useApplicationsStore } from "~/store/applicationsStore";
 import { useExamBankStore } from "~/store/assessmentBankStore";
@@ -14,12 +14,10 @@ const applicationsStore = useApplicationsStore();
 const examBankStore = useExamBankStore();
 const route = useRoute();
 
-const isConfigDialogOpen = ref(false);
 const aplicacao = ref<IAplicacao | null>(null);
 const modeloDaAplicacao = ref<IAvaliacaoImpl | null>(null);
 
 onMounted(async () => {
-  console.log(examBankStore.items)
   await applicationsStore.fetchItems();
   await examBankStore.fetchItems();
 
@@ -28,13 +26,9 @@ onMounted(async () => {
 
   if (foundApplication) {
     aplicacao.value = foundApplication;
-
     const foundModelo = examBankStore.getItemById(
       foundApplication.avaliacaoModeloId
     );
-
-    console.log(foundApplication);
-
     if (foundModelo) {
       modeloDaAplicacao.value = foundModelo;
     }
@@ -46,19 +40,27 @@ onMounted(async () => {
 
 <template>
   <div v-if="aplicacao && modeloDaAplicacao">
-    <ApplicationHeader :aplicacao="aplicacao" :modelo="modeloDaAplicacao" />
-    <OverviewStats :aplicacao="aplicacao" />
-    <AnalysisGrid
-      :aplicacao="aplicacao"
-      :modelo="modeloDaAplicacao"
-      @view-config="isConfigDialogOpen = true"
-    />
-    <ViolationsTable :aplicacao="aplicacao" />
+    <Breadcrumbs :aplicacao="aplicacao" level="details" />
 
-    <ViewConfigurationDialog
-      v-model="isConfigDialogOpen"
-      :configuracao="modeloDaAplicacao"
+    <Header
+      :titulo="modeloDaAplicacao.titulo"
+      :descricao="modeloDaAplicacao.descricao"
+      :data-aplicacao="aplicacao.dataAplicacao"
     />
+
+    <div class="bg-green-100 border border-green-200 rounded-lg px-4 py-3 mb-8">
+      <div class="flex items-center space-x-2">
+        <Icon name="i-lucide-check-circle" class="text-green-600" />
+        <span class="font-medium text-green-800">{{ aplicacao.estado }}</span>
+        <span class="text-green-600"
+          >• {{ aplicacao.participantes }} participantes</span
+        >
+      </div>
+    </div>
+
+    <OverviewStats :aplicacao="aplicacao" />
+    <AnalysisGrid :aplicacao="aplicacao" :modelo="modeloDaAplicacao" />
+    <ViolationsTable :aplicacao="aplicacao" />
   </div>
   <div v-else>
     <p class="text-gray-500">Carregando dados da aplicação...</p>

@@ -6,8 +6,6 @@ defineProps<{
   aplicacao: IAplicacao;
   modelo: IAvaliacaoImpl;
 }>();
-
-const emit = defineEmits(["view-config"]);
 </script>
 
 <template>
@@ -44,28 +42,15 @@ const emit = defineEmits(["view-config"]);
         </div>
         <div class="flex justify-between">
           <span class="text-gray-600">Nota Média</span>
-          <span class="font-bold text-primary"
-            >{{ aplicacao.notaMedia }}</span
-          >
+          <span class="font-bold text-primary">{{ aplicacao.notaMedia }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-gray-600">Desvio padrão</span>
-          <span class="font-bold text-primary"
-            >{{ aplicacao.desvioPadrao }}</span
-          >
+          <span class="font-bold text-primary">{{
+            aplicacao.desvioPadrao
+          }}</span>
         </div>
       </div>
-
-      <template #footer>
-        <UButton
-          block
-          variant="soft"
-          icon="i-lucide-settings-2"
-          @click="emit('view-config')"
-        >
-          Ver Configuração Completa
-        </UButton>
-      </template>
     </UCard>
   </div>
 </template>

@@ -13,7 +13,7 @@ export const mockAvaliacao: IAvaliacaoImpl = {
   path: "/2025/1º Semestre/",
   criadoEm: "2025-08-01T10:00:00Z",
   atualizadoEm: "2025-08-05T14:30:00Z",
-  pontuacao: 10,
+  pontuacao: 20,
   descricao: "Uma avaliação sobre o período colonial e o império no Brasil.",
   isModelo: true,
 
@@ -23,7 +23,7 @@ export const mockAvaliacao: IAvaliacaoImpl = {
       titulo: "Quem foi o primeiro imperador do Brasil?",
       tipo: TipoQuestaoEnum.OBJETIVA,
       dificuldade: DificuldadeQuestaoEnum.FACIL,
-      pontuacao: 3,
+      pontuacao: 10,
       alternativas: [
         { id: 3001, descricao: "Dom João VI", isCorreto: false },
         { id: 3002, descricao: "Dom Pedro I", isCorreto: true },
@@ -37,7 +37,7 @@ export const mockAvaliacao: IAvaliacaoImpl = {
         "Discorra sobre a importância da Lei Áurea para a sociedade brasileira da época.",
       tipo: TipoQuestaoEnum.DISCURSIVA,
       dificuldade: DificuldadeQuestaoEnum.MEDIO,
-      pontuacao: 7,
+      pontuacao: 10,
       exemploDeResposta:
         "A Lei Áurea, assinada em 1888 pela Princesa Isabel, foi o diploma legal que extinguiu a escravidão no Brasil...",
     },
@@ -72,12 +72,12 @@ export const mockAvaliacao: IAvaliacaoImpl = {
         regrasDeOcorrencia: [
           {
             id: 1,
-            ocorrencias: 1, 
+            ocorrencias: 1,
             punicoes: [{ id: 11, tipo: TipoPenalidadeEnum.ALERTAR_ESTUDANTE }],
           },
           {
             id: 2,
-            ocorrencias: 3, 
+            ocorrencias: 3,
             punicoes: [
               { id: 12, tipo: TipoPenalidadeEnum.REDUZIR_PONTOS, valor: 10 },
               { id: 13, tipo: TipoPenalidadeEnum.NOTIFICAR_PROFESSOR },
@@ -97,7 +97,7 @@ export const mockAvaliacao: IAvaliacaoImpl = {
         regrasDeOcorrencia: [
           {
             id: 3,
-            ocorrencias: 1, 
+            ocorrencias: 1,
             punicoes: [{ id: 14, tipo: TipoPenalidadeEnum.ENCERRAR_AVALIACAO }],
           },
         ],

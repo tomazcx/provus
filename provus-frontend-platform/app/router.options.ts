@@ -69,6 +69,13 @@ export default {
     },
 
     {
+      name: "aplicacoes-aplicacao-resultados",
+      path: "/aplicacoes/aplicacao/:id/resultados",
+      component: () =>
+        import("~/pages/Avaliador/Aplicacoes/Aplicacao/[id]/Resultados.vue"),
+    },
+
+    {
       name: "aplicacoes-aplicacao",
       path: "/aplicacoes/aplicacao/:id",
       component: () =>

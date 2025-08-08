@@ -15,4 +15,12 @@
   --color-gray: #f3f4f6;
   --color-error: #ef4444;
   --color-neutral: #9ca3af;
+
+  --color-yellow: #fbbf24;
+  --color-yellow-light: #fef3c7;
+  --color-yellow-dark: #b45309; 
+
+  --color-orange: #f97316;
+  --color-orange-light: #ffedd5;
+  --color-orange-dark: #c2410c; 
 }

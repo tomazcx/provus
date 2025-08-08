@@ -10,7 +10,7 @@ const filters = reactive({
       <UFormField label="Buscar" class="w-full">
         <UInput
           v-model="filters.search"
-          placeholder="Buscar por nome"
+          placeholder="Buscar por nome ou email"
           icon="i-lucide-search"
           class="w-full"
         />
@@ -18,7 +18,15 @@ const filters = reactive({
       <UFormField label="Tipo de status" class="w-full">
         <USelect
           v-model="filters.type"
-          :items="['Todos os tipos', 'Concluída', 'Em Andamento', 'Agendada']"
+          :items="[
+            'Todos os tipos',
+            'Iniciada',
+            'Enviada',
+            'Avaliada',
+            'Encerrada',
+            'Abandonada',
+            'Reaberta',
+          ]"
           class="w-full"
         />
       </UFormField>

@@ -43,6 +43,8 @@ const formattedDate = computed(() => {
     year: "numeric",
   });
 });
+
+const emit = defineEmits(["view-config"]);
 </script>
 
 <template>
@@ -96,8 +98,27 @@ const formattedDate = computed(() => {
     </div>
 
     <div class="flex items-center space-x-2">
-      <UButton block :to="`aplicacoes/aplicacao/${item.id}`"> Ver Detalhes </UButton>
-      <UButton block color="primary" variant="outline"> Resultados </UButton>
+      <UButton block :to="`aplicacoes/aplicacao/${item.id}`">
+        Ver Detalhes
+      </UButton>
+
+      <UButton
+        block
+        color="primary"
+        variant="outline"
+        :to="`/aplicacoes/aplicacao/${item.id}/resultados`"
+      >
+        Resultados
+      </UButton>
     </div>
+    <UButton
+      block
+      variant="soft"
+      icon="i-lucide-settings-2"
+      class="mt-2"
+      @click="emit('view-config', item)"
+    >
+      Ver Configuração Completa
+    </UButton>
   </UCard>
 </template>

@@ -3,7 +3,7 @@ import type EstadoRespostaEnum from "~/enums/EstadoRespostaEnum";
 import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import type { ItemSistemaDeArquivos } from "./IBank";
 
-export interface IQuestao extends ItemSistemaDeArquivos {
+interface IQuestaoBase extends ItemSistemaDeArquivos {
   id?: number;
   titulo: string;
   descricao?: string;
@@ -11,11 +11,30 @@ export interface IQuestao extends ItemSistemaDeArquivos {
   exemploDeResposta?: string;
   pontuacao?: number;
   isModelo?: boolean;
-  tipo: TipoQuestaoEnum;
   textoRevisao?: string;
   alternativas?: IAlternativa[];
-  resposta?: IResposta;
 }
+
+export interface IQuestaoDiscursiva extends IQuestaoBase {
+  tipo: TipoQuestaoEnum.DISCURSIVA;
+  resposta?: IRespostaDiscursiva;
+}
+
+export interface IQuestaoObjetiva extends IQuestaoBase {
+  tipo: TipoQuestaoEnum.OBJETIVA;
+  resposta?: IRespostaObjetiva;
+}
+
+export interface IQuestaoMultiplaEscolhaOuVerdadeiroOuFalso
+  extends IQuestaoBase {
+  tipo: TipoQuestaoEnum.MULTIPLA_ESCOLHA | TipoQuestaoEnum.VERDADEIRO_FALSO;
+  resposta?: IRespostaMultiplaEscolha;
+}
+
+export type IQuestao =
+  | IQuestaoDiscursiva
+  | IQuestaoObjetiva
+  | IQuestaoMultiplaEscolhaOuVerdadeiroOuFalso;
 
 export interface IAlternativa {
   id?: number;
@@ -28,7 +47,6 @@ export interface IAlternativa {
 
 export interface IResposta {
   id?: number;
-  dados: JSON;
   textoRevisao?: string;
   submissaoId: number;
   questaoId: number;
@@ -36,6 +54,18 @@ export interface IResposta {
   estado: EstadoRespostaEnum;
   criadoEm?: string;
   atualizadoEm?: string;
+}
+
+export interface IRespostaDiscursiva extends IResposta {
+  dados: { texto: string };
+}
+
+export interface IRespostaObjetiva extends IResposta {
+  dados: { alternativaId: number };
+}
+
+export interface IRespostaMultiplaEscolha extends IResposta {
+  dados: { alternativasId: number[] };
 }
 
 export type TQuestionForm = {

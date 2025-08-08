@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import type { IAplicacao } from "~/types/IAplicacao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-
 const props = defineProps<{
-  aplicacao: IAplicacao;
-  modelo: IAvaliacaoImpl;
+  titulo: string;
+  descricao?: string;
+  dataAplicacao: string;
 }>();
 
 const dataAplicacaoFormatada = computed(() => {
-  return new Date(props.aplicacao.dataAplicacao).toLocaleDateString("pt-BR");
+  return new Date(props.dataAplicacao).toLocaleDateString("pt-BR");
 });
 
 const horaAplicacaoFormatada = computed(() => {
-  return new Date(props.aplicacao.dataAplicacao).toLocaleTimeString("pt-BR", {
+  return new Date(props.dataAplicacao).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -30,9 +28,9 @@ const horaAplicacaoFormatada = computed(() => {
         </div>
         <div>
           <h1 class="text-2xl font-bold text-gray-900">
-            {{ aplicacao.titulo }}
+            {{ titulo }}
           </h1>
-          <p>{{ modelo.descricao }}</p>
+          <p>{{ descricao }}</p>
         </div>
       </div>
       <div class="text-gray-600 flex gap-4">
@@ -44,15 +42,6 @@ const horaAplicacaoFormatada = computed(() => {
           <Icon name="i-lucide-clock" />
           {{ horaAplicacaoFormatada }}
         </p>
-      </div>
-    </div>
-    <div class="bg-green-100 border border-green-200 rounded-lg px-4 py-3">
-      <div class="flex items-center space-x-2">
-        <Icon name="i-lucide-check-circle" class="text-green-600" />
-        <span class="font-medium text-green-800">{{ aplicacao.estado }}</span>
-        <span class="text-green-600"
-          >• {{ aplicacao.participantes }} participantes</span
-        >
       </div>
     </div>
   </div>

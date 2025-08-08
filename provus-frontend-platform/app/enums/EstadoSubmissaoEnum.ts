@@ -2,7 +2,7 @@ const enum EstadoSubmissaoEnum {
   INICIADA = "Iniciada",
   ENVIADA = "Enviada",
   AVALIADA = "Avaliada",
-  CANCELADA = "Cancelada",
+  ENCERRADA = "Encerrada",
   ABANDONADA = "Abandonada",
   REABERTA = "Reaberta",
 }

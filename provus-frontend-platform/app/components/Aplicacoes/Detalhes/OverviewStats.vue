@@ -33,7 +33,7 @@ defineProps<{
         <div>
           <p class="text-sm text-gray-600">Taxa de conclusão</p>
           <p class="text-3xl font-bold">
-            {{ aplicacao.taxaDeConclusao * 100 }}%
+            {{ aplicacao.taxaDeConclusao }}%
           </p>
         </div>
       </div>
