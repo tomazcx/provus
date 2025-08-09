@@ -102,6 +102,52 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  function applyScheduledNow(applicationId: number) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (app && app.estado === EstadoAplicacaoEnum.AGENDADA) {
+      app.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+      app.dataAplicacao = new Date().toISOString();
+      toast.add({
+        title: "Aplicação iniciada!",
+        description: "A avaliação agora está em andamento.",
+        icon: "i-lucide-play-circle",
+        color: "secondary",
+      });
+    }
+  }
+
+  function cancelScheduled(applicationId: number) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (app && app.estado === EstadoAplicacaoEnum.AGENDADA) {
+      app.estado = EstadoAplicacaoEnum.CANCELADA;
+      toast.add({
+        title: "Agendamento cancelado.",
+        icon: "i-lucide-calendar-x-2",
+        color: "error",
+      });
+    }
+  }
+
+  function reopenApplication(applicationId: number) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (
+      app &&
+      (app.estado === EstadoAplicacaoEnum.CONCLUIDA ||
+        app.estado === EstadoAplicacaoEnum.FINALIZADA)
+    ) {
+      app.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+      app.dataAplicacao = new Date().toISOString();
+      app.ajusteDeTempoEmSegundos = 0;
+
+      toast.add({
+        title: "Aplicação reaberta!",
+        description: "A avaliação está em andamento novamente.",
+        icon: "i-lucide-refresh-cw",
+        color: "primary",
+      });
+    }
+  }
+
   return {
     applications,
     isLoading,
@@ -111,5 +157,8 @@ export const useApplicationsStore = defineStore("applications", () => {
     updateApplicationStatus,
     ajustarTempoAplicacao,
     reiniciarTimerAplicacao,
+    applyScheduledNow,
+    cancelScheduled,
+    reopenApplication,
   };
 });

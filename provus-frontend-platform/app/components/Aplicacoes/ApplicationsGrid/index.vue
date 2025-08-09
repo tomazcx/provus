@@ -28,6 +28,18 @@ function handleViewConfig(aplicacao: IAplicacao) {
     console.error("Modelo da aplicação não encontrado!");
   }
 }
+
+function handleApplyNow(aplicacao: IAplicacao) {
+  applicationsStore.applyScheduledNow(aplicacao.id);
+}
+
+function handleCancelSchedule(aplicacao: IAplicacao) {
+  applicationsStore.cancelScheduled(aplicacao.id);
+}
+
+function handleReopen(aplicacao: IAplicacao) {
+  applicationsStore.reopenApplication(aplicacao.id);
+}
 </script>
 
 <template>
@@ -48,6 +60,9 @@ function handleViewConfig(aplicacao: IAplicacao) {
         :key="app.id"
         :item="app"
         @view-config="handleViewConfig"
+        @apply-now="handleApplyNow"
+        @cancel-schedule="handleCancelSchedule"
+        @reopen="handleReopen"
       />
     </div>
   </div>

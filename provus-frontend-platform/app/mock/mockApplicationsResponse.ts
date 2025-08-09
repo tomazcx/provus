@@ -18,7 +18,7 @@ export const mockApplicationsResponse: IAplicacao[] = [
     desvioPadrao: 8.2,
     notaMedia: 7.6,
     ajusteDeTempoEmSegundos: 0,
-    estado: EstadoAplicacaoEnum.EM_ANDAMENTO, 
+    estado: EstadoAplicacaoEnum.EM_ANDAMENTO,
     penalidades: [
       {
         estudante: "Fulano de tal",
@@ -29,5 +29,23 @@ export const mockApplicationsResponse: IAplicacao[] = [
       },
     ],
     avaliacaoModeloId: 101,
+  },
+  {
+    id: 2,
+    titulo: "Avaliação de Geografia Agendada",
+    descricao: "Um teste sobre os biomas brasileiros e relevo.",
+    dataAplicacao: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    participantes: 0,
+    mediaGeral: 0,
+    taxaDeConclusao: 0,
+    tempoMedio: 0,
+    maiorNota: 0,
+    menorNota: 0,
+    desvioPadrao: 0,
+    notaMedia: 0,
+    ajusteDeTempoEmSegundos: 0,
+    estado: EstadoAplicacaoEnum.AGENDADA,
+    penalidades: [],
+    avaliacaoModeloId: 102,
   },
 ];

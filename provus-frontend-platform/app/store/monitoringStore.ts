@@ -1,35 +1,42 @@
-import { defineStore } from "pinia";
+import { useApplicationsStore } from "./applicationsStore";
+import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import TipoAtividadeEnum from "~/enums/TipoAtividadeEnum";
 import type { IProgressoAluno, ILogAtividade } from "~/types/IMonitoring";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
-let activityInterval: NodeJS.Timeout | null = null;
+let simulationInterval: NodeJS.Timeout | null = null;
 
-function createMockActivity(students: IProgressoAluno[]): ILogAtividade {
-  const randomStudent = students[Math.floor(Math.random() * students.length)];
-  const activityTypes = [
-    {
-      type: TipoAtividadeEnum.PENALIDADE,
-      desc: "recebeu um alerta por troca de aba.",
-    },
-    { type: TipoAtividadeEnum.PAUSOU, desc: "pausou a avaliação." },
-    { type: TipoAtividadeEnum.RETOMOU, desc: "retomou a avaliação." },
-  ];
-  const randomActivity =
-    activityTypes[Math.floor(Math.random() * activityTypes.length)];
-
-  return {
-    id: Date.now(),
-    tipo: randomActivity!.type,
-    alunoNome: randomStudent!.aluno.nome || "Aluno Teste",
-    descricao: randomActivity!.desc,
-    timestamp: new Date().toISOString(),
-  };
-}
+const ACTION_PROBABILITIES: Record<
+  "ANSWER_QUESTION" | "SWITCH_TAB" | "PAUSE" | "RESUME" | "FINISH" | "ABANDON",
+  number
+> = {
+  ANSWER_QUESTION: 0.25,
+  SWITCH_TAB: 0.05,
+  PAUSE: 0.02,
+  RESUME: 0,
+  FINISH: 0,
+  ABANDON: 0,
+};
 
 export const useMonitoringStore = defineStore("monitoring", () => {
   const studentProgress = ref<IProgressoAluno[]>([]);
   const activityFeed = ref<ILogAtividade[]>([]);
   const isLoading = ref(false);
+
+  function addActivityLog(
+    tipo: TipoAtividadeEnum,
+    alunoNome: string,
+    descricao: string
+  ) {
+    activityFeed.value.unshift({
+      id: Date.now() + Math.random(),
+      tipo,
+      alunoNome,
+      descricao,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   async function fetchMonitoringData(applicationId: number) {
     isLoading.value = true;
@@ -45,10 +52,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       if (mockMonitoringResponse.applicationId === applicationId) {
         studentProgress.value = mockMonitoringResponse.progressoAlunos;
         activityFeed.value = mockMonitoringResponse.atividades;
-      } else {
-        console.warn(
-          `Dados de monitoramento não encontrados para a aplicação ID: ${applicationId}`
-        );
       }
     } catch (error) {
       console.error("Erro ao buscar dados de monitoramento:", error);
@@ -57,38 +60,88 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     }
   }
 
-  function simulateStudentProgressUpdate() {
-    const studentToUpdate = studentProgress.value.find(
-      (s) => s.estado === "Iniciada"
-    );
-    if (studentToUpdate) {
-      studentToUpdate.questoesRespondidas += 1;
-      studentToUpdate.progresso =
-        (studentToUpdate.questoesRespondidas / studentToUpdate.totalQuestoes) *
-        100;
+  function stopSimulation() {
+    if (simulationInterval) {
+      clearInterval(simulationInterval);
+      simulationInterval = null;
     }
   }
 
-  function startActivitySimulation() {
-    // Garante que não haja simulações duplicadas rodando
-    if (activityInterval) {
-      clearInterval(activityInterval);
-    }
+  function startSimulation() {
+    stopSimulation();
 
-    activityInterval = setInterval(() => {
-      // Cria uma nova atividade mockada aleatória
-      const newActivity = createMockActivity(studentProgress.value);
+    const applicationsStore = useApplicationsStore();
 
-      // Adiciona a nova atividade no topo da lista (unshift)
-      activityFeed.value.unshift(newActivity);
-    }, 5000); // Adiciona uma nova atividade a cada 5 segundos
-  }
+    simulationInterval = setInterval(() => {
+      const aplicacao = applicationsStore.getApplicationById(1);
+      if (!aplicacao || aplicacao.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO) {
+        return;
+      }
 
-  function stopActivitySimulation() {
-    if (activityInterval) {
-      clearInterval(activityInterval);
-      activityInterval = null;
-    }
+      studentProgress.value.forEach((aluno) => {
+        if (
+          aluno.estado !== EstadoSubmissaoEnum.INICIADA &&
+          aluno.estado !== EstadoSubmissaoEnum.REABERTA &&
+          aluno.estado !== EstadoSubmissaoEnum.PAUSADA
+        ) {
+          return;
+        }
+
+        const randomAction = Math.random();
+
+        if (aluno.estado === EstadoSubmissaoEnum.PAUSADA) {
+          if (Math.random() < 0.1) {
+            aluno.estado = EstadoSubmissaoEnum.INICIADA;
+            addActivityLog(
+              TipoAtividadeEnum.RETOMOU,
+              aluno.aluno.nome,
+              "retomou a avaliação."
+            );
+          }
+          return;
+        }
+
+        if (randomAction < ACTION_PROBABILITIES.ANSWER_QUESTION) {
+          if (aluno.questoesRespondidas < aluno.totalQuestoes) {
+            aluno.questoesRespondidas++;
+            aluno.progresso = Math.round(
+              (aluno.questoesRespondidas / aluno.totalQuestoes) * 100
+            );
+
+            if (aluno.questoesRespondidas === aluno.totalQuestoes) {
+              aluno.estado = EstadoSubmissaoEnum.ENVIADA;
+              addActivityLog(
+                TipoAtividadeEnum.FINALIZOU,
+                aluno.aluno.nome,
+                "finalizou a avaliação."
+              );
+            }
+          }
+        } else if (
+          randomAction <
+          ACTION_PROBABILITIES.ANSWER_QUESTION + ACTION_PROBABILITIES.SWITCH_TAB
+        ) {
+          aluno.alertas++;
+          addActivityLog(
+            TipoAtividadeEnum.PENALIDADE,
+            aluno.aluno.nome,
+            `recebeu um alerta por ${TipoInfracaoEnum.TROCA_ABAS}.`
+          );
+        } else if (
+          randomAction <
+          ACTION_PROBABILITIES.ANSWER_QUESTION +
+            ACTION_PROBABILITIES.SWITCH_TAB +
+            ACTION_PROBABILITIES.PAUSE
+        ) {
+          aluno.estado = EstadoSubmissaoEnum.PAUSADA;
+          addActivityLog(
+            TipoAtividadeEnum.PAUSOU,
+            aluno.aluno.nome,
+            "pausou a avaliação."
+          );
+        }
+      });
+    }, 2000);
   }
 
   return {
@@ -96,8 +149,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     activityFeed,
     isLoading,
     fetchMonitoringData,
-    simulateStudentProgressUpdate,
-    startActivitySimulation,
-    stopActivitySimulation,
+    startSimulation,
+    stopSimulation,
   };
 });

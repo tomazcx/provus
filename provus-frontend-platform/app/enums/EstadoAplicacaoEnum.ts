@@ -4,6 +4,7 @@ const enum EstadoAplicacaoEnum {
   AGENDADA = "Agendada",
   FINALIZADA = "Finalizada",
   PAUSADA = "Pausada",
+  CANCELADA = "Cancelada",
 }
 
 export default EstadoAplicacaoEnum;

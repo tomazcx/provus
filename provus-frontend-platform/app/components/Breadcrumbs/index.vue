@@ -5,25 +5,34 @@ import type { ISubmissao } from "~/types/ISubmissao";
 const props = defineProps<{
   aplicacao: IAplicacao | null;
   submission?: ISubmissao | null;
-  level: "details" | "results" | "submission";
+  level: "details" | "results" | "submission" | "monitoring";
 }>();
 
 const breadcrumbItems = computed(() => {
   if (!props.aplicacao) return [];
 
-  const crumbs = [
-    { label: "Aplicações", to: "/aplicacoes" },
-    {
-      label: props.aplicacao.titulo,
-      to: `/aplicacoes/aplicacao/${props.aplicacao.id}`,
-    },
-  ];
+  const crumbs = [{ label: "Aplicações", to: "/aplicacoes" }];
+
+  crumbs.push({
+    label: props.aplicacao.titulo,
+    to:
+      props.level === "details"
+        ? `/aplicacoes/aplicacao/${props.aplicacao.id}`
+        : "",
+  });
 
   if (props.level === "results" || props.level === "submission") {
     crumbs.push({
       label: "Resultados",
-      to: `/aplicacoes/aplicacao/${props.aplicacao.id}/resultados`,
+      to:
+        props.level === "submission"
+          ? `/aplicacoes/aplicacao/${props.aplicacao.id}/resultados`
+          : "",
     });
+  }
+
+  if (props.level === "monitoring") {
+    crumbs.push({ label: "Monitoramento", to: "" });
   }
 
   if (props.level === "submission" && props.submission) {

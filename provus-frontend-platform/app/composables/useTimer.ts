@@ -2,7 +2,7 @@ export function useTimer(config: {
   dataAplicacao: Ref<string | undefined>;
   tempoMaximoEmMinutos: Ref<number | undefined>;
   ajusteDeTempoEmSegundos: Ref<number | undefined>;
-  isActive: Ref<boolean>; // <-- MUDANÇA AQUI
+  isActive: Ref<boolean>;
 }) {
   const tempoRestanteEmSegundos = ref(0);
   let interval: NodeJS.Timeout | null = null;

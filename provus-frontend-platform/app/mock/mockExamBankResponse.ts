@@ -1,6 +1,7 @@
 import type { TExamBankItem } from "~/types/IAvaliacao";
-import { mockAvaliacao } from "./mockAvaliacao"; 
+import { mockAvaliacao, mockAvaliacaoGeografia } from "./mockAvaliacao";
 
 export const mockExamBankResponse: TExamBankItem[] = [
   mockAvaliacao,
+  mockAvaliacaoGeografia,
 ];

@@ -3,6 +3,7 @@ import MonitoringHeader from "~/components/Monitoramento/Header/index.vue";
 import MonitoringStats from "~/components/Monitoramento/Stats/index.vue";
 import StudentProgressGrid from "~/components/Monitoramento/StudentProgressGrid/index.vue";
 import ActivityFeed from "~/components/Monitoramento/ActivityFeed/index.vue";
+import Breadcrumbs from "~/components/Breadcrumbs/index.vue";
 
 import { useMonitoringStore } from "~/store/monitoringStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
@@ -14,9 +15,6 @@ const route = useRoute();
 const monitoringStore = useMonitoringStore();
 const applicationsStore = useApplicationsStore();
 const examBankStore = useExamBankStore();
-const dataAplicacaoRef = computed(() => aplicacao.value?.dataAplicacao);
-const tempoMaximoRef = computed(() => modelo.value?.configuracoes.tempoMaximo);
-const ajusteTempoRef = computed(() => aplicacao.value?.ajusteDeTempoEmSegundos);
 
 const applicationId = parseInt(route.params.id as string, 10);
 
@@ -37,15 +35,15 @@ const modelo = computed(() =>
     : null
 );
 
-const timerGlobal = computed(() => {
-  if (!aplicacao.value || !modelo.value?.configuracoes.tempoMaximo) return null;
+const dataAplicacaoRef = computed(() => aplicacao.value?.dataAplicacao);
+const tempoMaximoRef = computed(() => modelo.value?.configuracoes.tempoMaximo);
+const ajusteTempoRef = computed(() => aplicacao.value?.ajusteDeTempoEmSegundos);
 
-  return useTimer({
-    dataAplicacao: dataAplicacaoRef,
-    tempoMaximoEmMinutos: tempoMaximoRef,
-    ajusteDeTempoEmSegundos: ajusteTempoRef,
-    isActive: isApplicationActive,
-  });
+const { tempoRestanteFormatado, tempoRestanteEmSegundos } = useTimer({
+  dataAplicacao: dataAplicacaoRef,
+  tempoMaximoEmMinutos: tempoMaximoRef,
+  ajusteDeTempoEmSegundos: ajusteTempoRef,
+  isActive: isApplicationActive,
 });
 
 function handleFinalizar() {
@@ -90,8 +88,7 @@ function handleReiniciar() {
 function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno) {
   const penalidade = aluno.tempoPenalidadeEmSegundos || 0;
 
-  const tempoRestanteIndividual =
-    (timerGlobal.value?.tempoRestanteEmSegundos.value ?? 0) - penalidade;
+  const tempoRestanteIndividual = tempoRestanteEmSegundos.value - penalidade;
 
   if (tempoRestanteIndividual <= 0) return "00:00:00";
   const horas = Math.floor(tempoRestanteIndividual / 3600)
@@ -109,19 +106,21 @@ onMounted(async () => {
   await examBankStore.fetchItems();
   await monitoringStore.fetchMonitoringData(applicationId);
 
-  monitoringStore.startActivitySimulation();
+  monitoringStore.startSimulation();
 });
 
 onUnmounted(() => {
-  monitoringStore.stopActivitySimulation();
+  monitoringStore.stopSimulation();
 });
 </script>
 
 <template>
   <div v-if="aplicacao">
+    <Breadcrumbs :aplicacao="aplicacao" level="monitoring" />
+
     <MonitoringHeader
       :aplicacao="aplicacao"
-      :timer="timerGlobal?.tempoRestanteFormatado.value ?? null"
+      :timer="tempoRestanteFormatado"
       @ajustar-tempo="ajustarTempo"
       @finalizar="handleFinalizar"
       @pausar="handlePausar"

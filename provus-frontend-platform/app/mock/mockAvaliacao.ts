@@ -127,3 +127,99 @@ export const mockAvaliacao: IAvaliacaoImpl = {
     },
   },
 };
+
+// Nova constante para o modelo de avaliação de Geografia
+export const mockAvaliacaoGeografia: IAvaliacaoImpl = {
+  id: 102,
+  titulo: "Avaliação de Geografia Agendada",
+  path: "/",
+  criadoEm: "2025-08-08T11:00:00Z",
+  atualizadoEm: "2025-08-08T11:00:00Z",
+  pontuacao: 15,
+  descricao: "Um teste sobre os biomas brasileiros e relevo.",
+  isModelo: true,
+
+  questoes: [
+    {
+      id: 2003,
+      titulo:
+        "Qual bioma brasileiro é conhecido por sua vasta planície inundável?",
+      tipo: TipoQuestaoEnum.OBJETIVA,
+      dificuldade: DificuldadeQuestaoEnum.FACIL,
+      pontuacao: 5,
+      alternativas: [
+        { id: 3005, descricao: "Amazônia", isCorreto: false },
+        { id: 3006, descricao: "Cerrado", isCorreto: false },
+        { id: 3007, descricao: "Pantanal", isCorreto: true },
+        { id: 3008, descricao: "Caatinga", isCorreto: false },
+      ],
+    },
+    {
+      id: 2004,
+      titulo:
+        "Descreva as principais características do bioma da Mata Atlântica.",
+      tipo: TipoQuestaoEnum.DISCURSIVA,
+      dificuldade: DificuldadeQuestaoEnum.MEDIO,
+      pontuacao: 10,
+      exemploDeResposta:
+        "A Mata Atlântica é uma floresta tropical que se estende pela costa litorânea do Brasil. Caracteriza-se por alta biodiversidade, com grande variedade de espécies de fauna e flora, clima quente e úmido, e um relevo acidentado.",
+    },
+  ],
+
+  configuracoes: {
+    autocorrecaoIa: false,
+    numeroMaximoDeEnvios: 1,
+    tempoMaximo: 60,
+    tempoMinimo: 10,
+    tipoRandomizacao: TipoRandomizacaoEnum.SIMPLES,
+    poolSelecaoBanco: {
+      pastas: [],
+      questoes: [],
+    },
+    regrasRandomizacaoConfiguravel: [],
+    tipoAplicacao: TipoAplicacaoEnum.AGENDADA,
+    // Data de agendamento corresponde à aplicação
+    dataAgendada: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    exibirPontuacaDaSubmissao: true,
+    permitirRevisao: false,
+    exibirPontuacaoQuestoes: true,
+    ativarAlertas: false,
+    quantidadeDeAlertas: 0,
+    duracaoDoAlerta: 0,
+    permitirFecharAlerta: false,
+    ativarNotificacoes: false,
+    tipoNotificacao: null,
+    regrasDeSeguranca: {
+      [TipoInfracaoEnum.TROCA_ABAS]: {
+        ativo: false,
+        descricao: "Detecte se o estudante sair da aba da avaliação.",
+        regrasDeOcorrencia: [],
+      },
+      [TipoInfracaoEnum.PRINT_SCREEN]: {
+        ativo: false,
+        descricao: "Detecte se o estudante tirar um print da tela.",
+        regrasDeOcorrencia: [],
+      },
+      [TipoInfracaoEnum.COPIAR_COLAR]: {
+        ativo: false,
+        descricao:
+          "Detecte se o estudante tentar copiar ou colar algum conteúdo.",
+        regrasDeOcorrencia: [],
+      },
+      [TipoInfracaoEnum.DEV_TOOLS]: {
+        ativo: false,
+        descricao:
+          "Detecte se o estudante abrir as ferramentas de desenvolvedor da página.",
+        regrasDeOcorrencia: [],
+      },
+    },
+    quantidadeAcessosSimultaneos: 1,
+    ativarControleIp: false,
+    ipsPermitidos: [],
+    permitirConsulta: false,
+    materiaisAnexados: {
+      pastas: [],
+      arquivos: [],
+    },
+  },
+};
