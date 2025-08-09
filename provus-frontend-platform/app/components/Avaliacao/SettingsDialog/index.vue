@@ -18,7 +18,7 @@ import type { IFile } from "~/types/IFile";
 
 const props = defineProps<{
   modelValue: boolean;
-  initialData: IAvaliacaoImpl;
+  initialData: IAvaliacaoImpl | null;
 }>();
 
 const emit = defineEmits(["update:modelValue", "save"]);

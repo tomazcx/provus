@@ -43,7 +43,7 @@ export const useExamBankStore = defineStore("examBank", () => {
   async function createModelo(data: {
     modeloData: IAvaliacaoImpl;
     path: string;
-  }) {
+  }): Promise<IAvaliacaoImpl> {
     const newModelo: IAvaliacaoImpl = {
       ...data.modeloData,
       id: Date.now(),
@@ -51,7 +51,10 @@ export const useExamBankStore = defineStore("examBank", () => {
       criadoEm: new Date().toISOString(),
       atualizadoEm: new Date().toISOString(),
     };
+
     items.value.push(newModelo);
+
+    return newModelo;
   }
 
   async function deleteItem(itemToDelete: TExamBankItem) {
@@ -78,7 +81,7 @@ export const useExamBankStore = defineStore("examBank", () => {
     item: TExamBankItem;
     newTitle?: string;
     updatedData?: Partial<IAvaliacaoImpl>;
-  }) {
+  }): Promise<TExamBankItem | undefined> {
     const { item, newTitle, updatedData } = payload;
 
     if (isFolder(item) && newTitle) {
@@ -101,6 +104,8 @@ export const useExamBankStore = defineStore("examBank", () => {
           i.path = i.path.replace(oldChildPath, newChildPath);
         }
       });
+
+      return items.value.find((i) => i.id === item.id);
     } else if (!isFolder(item) && updatedData) {
       const index = items.value.findIndex((f) => f.id === item.id);
       if (index !== -1) {
@@ -116,6 +121,8 @@ export const useExamBankStore = defineStore("examBank", () => {
           configuracoes: updatedData.configuracoes ?? current.configuracoes,
           atualizadoEm: new Date().toISOString(),
         };
+
+        return items.value[index]; 
       }
     }
   }

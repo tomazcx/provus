@@ -195,6 +195,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
   return {
     assessment,
     createNew,
+    assessmentState,
     addQuestion,
     removeQuestion,
     addQuestionsFromBank,

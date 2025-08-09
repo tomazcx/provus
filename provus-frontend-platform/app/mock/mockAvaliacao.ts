@@ -10,7 +10,7 @@ import TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 export const mockAvaliacao: IAvaliacaoImpl = {
   id: 101,
   titulo: "Avaliação de História do Brasil",
-  path: "/2025/1º Semestre/",
+  path: "/",
   criadoEm: "2025-08-01T10:00:00Z",
   atualizadoEm: "2025-08-05T14:30:00Z",
   pontuacao: 20,

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 
-const model = defineModel<IAvaliacaoImpl>({ required: true });
+const model = defineModel<IAvaliacaoImpl | null>({ required: true });
 </script>
 
 <template>
-  <UCard>
+  <UCard v-if="model">
     <div class="space-y-4">
       <UFormField label="Título da Prova">
         <UInput

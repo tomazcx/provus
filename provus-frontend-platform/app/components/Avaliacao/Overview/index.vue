@@ -4,7 +4,7 @@ import type { IQuestao } from '~/types/IQuestao';
 
 
 const props = defineProps<{
-  prova: IAvaliacaoImpl;
+  prova: IAvaliacaoImpl | null;
 }>();
 
 const totalPontos = computed(() => {
@@ -34,7 +34,7 @@ const contagemTipos = computed(() => {
     <div class="space-y-4">
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Questões</span>
-        <span class="font-medium">{{ prova.questoes.length }}</span>
+        <span class="font-medium">{{ prova?.questoes.length }}</span>
       </div>
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Pontos Totais</span>
@@ -42,7 +42,7 @@ const contagemTipos = computed(() => {
       </div>
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Duração</span>
-        <span class="font-medium">{{ prova.configuracoes.tempoMaximo }} minutos</span>
+        <span class="font-medium">{{ prova?.configuracoes.tempoMaximo }} minutos</span>
       </div>
 
       <div class="space-y-2">
