@@ -68,7 +68,17 @@ npm install
 
 7. Inicie o Emulador Android
 
+- Abra o Android Studio
+- Acesse o Virtual Device Manager no menu de ferramentas
+- Inicie com o play
+- Após o emulador carregar completamente, pode fechar a janela principal do Android Studio
 
+8. Rode o projeto mobile
+
+```bash
+# No diretório provus-mobile-platform
+npx react-native run-android
+```
 
 Após seguir estes passos, a aplicação estará disponível em:
 
