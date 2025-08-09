@@ -16,6 +16,8 @@ Repositório para o sistema Provus, contendo a aplicação front-end desenvolvid
 - Docker e Docker Compose
 - Node.js
 - NPM ou Yarn
+- JDK
+- Android Studio (essencial para criar e executar emuladores)
 
 ### Configuração do ambiente
 
