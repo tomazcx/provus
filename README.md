@@ -8,6 +8,8 @@ Repositório para o sistema Provus, contendo a aplicação front-end desenvolvid
 
 - `provus-backend-platform/`: Aplicação back-end desenvolvida com Nest.js
 - `provus-frontend-platform/`: Aplicação front-end desenvolvida com Nuxt.js
+- `provus-mobile-platform/`: Aplicação mobile desenvolvida com React Native.
+
 
 ### Pré-requisitos
 
