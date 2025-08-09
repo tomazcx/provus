@@ -8,7 +8,7 @@ export class SignUpRequest {
   })
   @IsNotEmpty()
   @IsString()
-  name: string;
+  nome: string;
 
   @ApiProperty({
     description: 'Email do usuário',
@@ -24,5 +24,5 @@ export class SignUpRequest {
   })
   @IsNotEmpty()
   @IsString()
-  password: string;
+  senha: string;
 }
