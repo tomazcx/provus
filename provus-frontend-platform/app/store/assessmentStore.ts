@@ -89,8 +89,15 @@ export const useAssessmentStore = defineStore("assessment", () => {
   }
 
   function loadFromModelo(modelo: IAvaliacaoImpl) {
-    assessmentState.value = JSON.parse(JSON.stringify(modelo));
+    const modelCopy = JSON.parse(JSON.stringify(modelo));
+
+    if (modelCopy.configuracoes?.dataAgendada) {
+      modelCopy.configuracoes.dataAgendada = new Date(modelCopy.configuracoes.dataAgendada);
+    }
+
+    assessmentState.value = modelCopy;
   }
+
 
   function addQuestion() {
     if (!assessmentState.value) return;

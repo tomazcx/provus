@@ -51,6 +51,13 @@ watch(
   (newData) => {
     if (newData) {
       const dataCopy = JSON.parse(JSON.stringify(newData));
+
+      if (dataCopy.configuracoes?.dataAgendada) {
+        dataCopy.configuracoes.dataAgendada = new Date(
+          dataCopy.configuracoes.dataAgendada
+        );
+      }
+
       Object.assign(formState, dataCopy);
     }
   },
