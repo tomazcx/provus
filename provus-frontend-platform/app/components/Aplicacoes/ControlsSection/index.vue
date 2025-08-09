@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const filters = reactive({
   search: "",
-  type: "Todos os tipos",
+  type: "Todos",
+  sortBy: "Última Modificação",
 });
 </script>
 <template>
@@ -18,8 +19,26 @@ const filters = reactive({
       <UFormField label="Tipo de status" class="w-full">
         <USelect
           v-model="filters.type"
-          :items="['Todos os tipos', 'Concluída', 'Em Andamento', 'Agendada']"
+          :items="[
+            'Todos',
+            'Em Andamento',
+            'Agendada',
+            'Concluída',
+            'Cancelada',
+          ]"
           class="w-full"
+        />
+      </UFormField>
+      <UFormField label="Ordenar Por" class="w-full">
+        <USelect
+          v-model="filters.sortBy"
+          class="w-full"
+          :items="[
+            'Última Modificação',
+            'Mais Recente',
+            'Mais Antigo',
+            'Título A-Z',
+          ]"
         />
       </UFormField>
     </div>

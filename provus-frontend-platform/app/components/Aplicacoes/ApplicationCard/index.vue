@@ -104,8 +104,8 @@ const emit = defineEmits(["view-config"]);
 
       <UButton
         block
-        color="primary"
-        variant="outline"
+        color="secondary"
+        variant="solid"
         :to="`/aplicacoes/aplicacao/${item.id}/resultados`"
       >
         Resultados
@@ -113,7 +113,8 @@ const emit = defineEmits(["view-config"]);
     </div>
     <UButton
       block
-      variant="soft"
+      color="primary"
+      variant="outline"
       icon="i-lucide-settings-2"
       class="mt-2"
       @click="emit('view-config', item)"

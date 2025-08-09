@@ -1,53 +1,78 @@
 <script setup lang="ts">
-import EstadoAvaliacaoEnum from "~/enums/EstadoAvaliacaoEnum";
-import ExamCard from "../ExamCard/index.vue";
-import { mockDashboardResponse } from "~/mock/mockDashboardResponse";
+import ExamCard from "~/components/Home/ExamCard/index.vue";
+import { useApplicationsStore } from "~/store/applicationsStore";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+import type { IAplicacao } from "~/types/IAplicacao";
 
-const style = {
-  Finalizado: {
-    icone: "i-lucide-check-circle",
-    iconeBg: "bg-green-100 text-green-800",
+const applicationsStore = useApplicationsStore();
+
+onMounted(() => {
+  applicationsStore.fetchItems();
+});
+
+type StateVisual = {
+  status: string;
+  icon: string;
+  color: string;
+};
+
+const stateMap: Partial<Record<EstadoAplicacaoEnum, StateVisual>> = {
+  [EstadoAplicacaoEnum.CONCLUIDA]: {
+    status: "Concluída",
+    icon: "i-lucide-check-circle",
+    color: "green",
   },
-  "Em andamento": {
-    icone: "i-lucide-clock",
-    iconeBg: "bg-yellow-100 text-yellow-800",
+  [EstadoAplicacaoEnum.EM_ANDAMENTO]: {
+    status: "Em Andamento",
+    icon: "i-lucide-clock",
+    color: "yellow",
   },
-  Agendado: {
-    icone: "i-lucide-calendar",
-    iconeBg: "bg-purple-100 text-purple-800",
+  [EstadoAplicacaoEnum.AGENDADA]: {
+    status: "Agendada",
+    icon: "i-lucide-calendar",
+    color: "purple",
+  },
+  [EstadoAplicacaoEnum.CANCELADA]: {
+    status: "Cancelada",
+    icon: "i-lucide-x-circle",
+    color: "red",
   },
 };
 
-const cardsResponse = mockDashboardResponse.ultimosEventos || [];
-
-const cards = cardsResponse.map((card) => {
-  if (card.estado === EstadoAvaliacaoEnum.FINALIZADA) {
+const exams = computed(() => {
+  return applicationsStore.applications.map((app: IAplicacao) => {
+    const visual =
+      stateMap[app.estado] || stateMap[EstadoAplicacaoEnum.AGENDADA];
     return {
-      ...card,
-      icone: style.Finalizado.icone,
-      iconeBg: style.Finalizado.iconeBg,
-      estadoBg: "bg-green-100 text-green-800",
+      id: app.id,
+      title: app.titulo,
+      description: `Aplicado em ${new Date(
+        app.dataAplicacao
+      ).toLocaleDateString("pt-BR")}`,
+      status: visual?.status ?? "",
+      studentInfo: `${app.participantes} participantes`,
+      timeInfo: `Média de ${app.mediaGeral}%`,
+      icon: visual?.icon ?? "",
+      color: visual?.color ?? "",
     };
-  } else if (card.estado === EstadoAvaliacaoEnum.EM_ANDAMENTO) {
-    return {
-      ...card,
-      icone: style["Em andamento"].icone,
-      iconeBg: style["Em andamento"].iconeBg,
-      estadoBg: "bg-yellow-100 text-yellow-800",
-    };
-  } else if (card.estado === EstadoAvaliacaoEnum.AGENDADA) {
-    return {
-      ...card,
-      icone: style.Agendado.icone,
-      iconeBg: style.Agendado.iconeBg,
-      estadoBg: "bg-purple-100 text-purple-800",
-    };
-  }
+  });
 });
 </script>
-
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <ExamCard v-for="c in cards" :key="c?.id" v-bind="c" />
-  </div>
+  <UCard>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-gray-900">Aplicações Recentes</h2>
+        <span class="text-sm text-gray-500"
+          >{{ applicationsStore.applications.length }} aplicações no total</span
+        >
+      </div>
+    </template>
+    <div v-if="applicationsStore.isLoading" class="text-center text-gray-500">
+      Carregando...
+    </div>
+    <div v-else class="space-y-4">
+      <ExamCard v-for="exam in exams" :key="exam.id" :item="exam" />
+    </div>
+  </UCard>
 </template>

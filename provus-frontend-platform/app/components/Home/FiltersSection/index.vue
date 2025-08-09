@@ -1,76 +1,44 @@
 <script setup lang="ts">
-import { reactive } from "vue";
-
-const state = reactive({
-  search: "",
-  sortBy: "",
-  eventFilter: "",
-  dateFrom: "",
-  dateTo: "",
-});
-
-const sortOptions = ["Última modificação", "Data de criação", "Título A‑Z"];
-
-const eventOptions = [
-  "Todos as avaliações",
-  "Administradas",
-  "Em andamento",
-  "Finalizadas",
-  "Agendadas",
-  "Rascunhos",
-];
+const search = ref("");
+const status = ref("Todos");
+const sortBy = ref("Última Modificação");
 </script>
-
 <template>
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      <UFormField label="Buscar avaliações">
+  <UCard class="mb-6">
+    <div class="flex space-x-4">
+      <UFormField label="Buscar Avaliações" class="w-full">
         <UInput
-          v-model="state.search"
-          placeholder="Busque por título..."
+          v-model="search"
+          placeholder="Buscar por título..."
           icon="i-lucide-search"
-          variant="outline"
           class="w-full"
         />
       </UFormField>
-
-      <UFormField label="Ordene por">
+      <UFormField label="Filtrar por Status" class="w-full">
         <USelect
-          v-model="state.sortBy"
-          :items="sortOptions"
-          placeholder="Selecione uma opção"
-          variant="outline"
+          v-model="status"
           class="w-full"
+          :items="[
+            'Todos',
+            'Em Andamento',
+            'Agendada',
+            'Concluída',
+            'Cancelada',
+          ]"
         />
       </UFormField>
-
-      <UFormField label="Filtro">
+      <UFormField label="Ordenar Por" class="w-full">
         <USelect
-          v-model="state.eventFilter"
-          :items="eventOptions"
-          placeholder="Selecione um filtro"
-          variant="outline"
+          v-model="sortBy"
           class="w-full"
-        />
-      </UFormField>
-
-      <UFormField label="Data de Início">
-        <UInput
-          v-model="state.dateFrom"
-          type="date"
-          variant="outline"
-          class="w-full"
-        />
-      </UFormField>
-
-      <UFormField label="Data de Término">
-        <UInput
-          v-model="state.dateTo"
-          type="date"
-          variant="outline"
-          class="w-full"
+          :items="[
+            'Última Modificação',
+            'Mais Recente',
+            'Mais Antigo',
+            'Título A-Z',
+          ]"
         />
       </UFormField>
     </div>
-  </div>
+  </UCard>
 </template>

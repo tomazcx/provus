@@ -1,3 +1,22 @@
+<script setup lang="ts">
+import NotificationsDropdown from "~/components/ui/NotificationsDropdown/index.vue";
+
+const userMenuItems = [
+  [
+    {
+      label: "Profile Settings",
+      icon: "i-heroicons-user-circle",
+    },
+  ],
+  [
+    {
+      label: "Logout",
+      icon: "i-heroicons-arrow-left-on-rectangle",
+      slot: "logout",
+    },
+  ],
+];
+</script>
 <template>
   <header class="bg-white shadow-sm border-b border-gray-200">
     <div
@@ -43,44 +62,30 @@
         >
       </nav>
 
-      <UDropdownMenu
-        :items="userMenuItems"
-        :popper="{ placement: 'bottom-end' }"
-      >
-        <UButton
-          color="neutral"
-          variant="ghost"
-          class="flex items-center space-x-3"
+      <div class="flex items-center space-x-2">
+        <NotificationsDropdown />
+
+        <UDropdownMenu
+          :items="userMenuItems"
+          :popper="{ placement: 'bottom-end' }"
         >
-          <UAvatar
-            src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
-            alt="User"
-          />
-          <span class="text-gray-700 font-medium">John Doe</span>
-          <Icon
-            name="i-heroicons-chevron-down-20-solid"
-            class="text-gray-400"
-          />
-        </UButton>
-      </UDropdownMenu>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="flex items-center space-x-3"
+          >
+            <UAvatar
+              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
+              alt="User"
+            />
+            <span class="text-gray-700 font-medium">John Doe</span>
+            <Icon
+              name="i-heroicons-chevron-down-20-solid"
+              class="text-gray-400"
+            />
+          </UButton>
+        </UDropdownMenu>
+      </div>
     </div>
   </header>
 </template>
-
-<script setup lang="ts">
-const userMenuItems = [
-  [
-    {
-      label: "Profile Settings",
-      icon: "i-heroicons-user-circle",
-    },
-  ],
-  [
-    {
-      label: "Logout",
-      icon: "i-heroicons-arrow-left-on-rectangle",
-      slot: "logout",
-    },
-  ],
-];
-</script>
