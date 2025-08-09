@@ -8,12 +8,16 @@ Repositório para o sistema Provus, contendo a aplicação front-end desenvolvid
 
 - `provus-backend-platform/`: Aplicação back-end desenvolvida com Nest.js
 - `provus-frontend-platform/`: Aplicação front-end desenvolvida com Nuxt.js
+- `provus-mobile-platform/`: Aplicação mobile desenvolvida com React Native
+
 
 ### Pré-requisitos
 
 - Docker e Docker Compose
 - Node.js
 - NPM ou Yarn
+- JDK
+- Android Studio (essencial para criar e executar emuladores)
 
 ### Configuração do ambiente
 
@@ -53,6 +57,27 @@ npm run migration:run
 # No diretório provus-frontend-platform
 npm install
 npm run dev
+```
+
+6. Instale as dependências do mobile:
+
+```bash
+# No diretório provus-mobile-platform
+npm install
+```
+
+7. Inicie o Emulador Android
+
+- Abra o Android Studio
+- Acesse o Virtual Device Manager no menu de ferramentas
+- Inicie com o play
+- Após o emulador carregar completamente, pode fechar a janela principal do Android Studio
+
+8. Rode o projeto mobile
+
+```bash
+# No diretório provus-mobile-platform
+npx react-native run-android
 ```
 
 Após seguir estes passos, a aplicação estará disponível em:

@@ -26,4 +26,5 @@ export interface IAplicacao {
   penalidades: Penalidade[];
   estado: EstadoAplicacaoEnum;
   avaliacaoModeloId: number;
+  ajusteDeTempoEmSegundos: number;
 }

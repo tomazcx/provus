@@ -92,6 +92,13 @@ export default {
     },
 
     {
+      name: "aplicacoes-aplicacao-monitoramento",
+      path: "/aplicacoes/aplicacao/:id/monitoramento",
+      component: () =>
+        import("~/pages/Avaliador/Aplicacoes/Aplicacao/[id]/Monitoramento.vue"),
+    },
+
+    {
       name: "avaliador-avaliacao-editor",
       path: "/avaliacao/editor/:id?",
       component: () => import("~/pages/Avaliador/Avaliacao/Editor/[[id]].vue"),
