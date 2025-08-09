@@ -8,7 +8,7 @@ export const mockApplicationsResponse: IAplicacao[] = [
     id: 1,
     titulo: "Mathematics Quiz - Chapter 1",
     descricao: "Uma avaliação sobre o período colonial e o império no Brasil.",
-    dataAplicacao: "2024-03-15T00:00:00Z",
+    dataAplicacao: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     participantes: 3,
     mediaGeral: 38.3,
     taxaDeConclusao: 66.7,
@@ -17,7 +17,8 @@ export const mockApplicationsResponse: IAplicacao[] = [
     menorNota: 0,
     desvioPadrao: 8.2,
     notaMedia: 7.6,
-    estado: EstadoAplicacaoEnum.CONCLUIDA,
+    ajusteDeTempoEmSegundos: 0,
+    estado: EstadoAplicacaoEnum.EM_ANDAMENTO, 
     penalidades: [
       {
         estudante: "Fulano de tal",

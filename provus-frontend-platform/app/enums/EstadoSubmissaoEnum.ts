@@ -5,6 +5,8 @@ const enum EstadoSubmissaoEnum {
   ENCERRADA = "Encerrada",
   ABANDONADA = "Abandonada",
   REABERTA = "Reaberta",
+  PAUSADA = "Pausada",
+  CANCELADA = "Cancelada",
 }
 
 export default EstadoSubmissaoEnum;

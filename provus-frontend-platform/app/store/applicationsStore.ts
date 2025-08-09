@@ -6,6 +6,7 @@ import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 export const useApplicationsStore = defineStore("applications", () => {
   const applications = ref<IAplicacao[]>([]);
   const isLoading = ref(false);
+  const toast = useToast();
 
   async function fetchItems() {
     if (applications.value.length > 0) return;
@@ -54,9 +55,51 @@ export const useApplicationsStore = defineStore("applications", () => {
       desvioPadrao: 0,
       notaMedia: 0,
       penalidades: [],
+      ajusteDeTempoEmSegundos: 0,
     };
 
     applications.value.unshift(newApplication);
+  }
+
+  function updateApplicationStatus(
+    applicationId: number,
+    newStatus: EstadoAplicacaoEnum
+  ) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (app) {
+      app.estado = newStatus;
+      console.log(app.estado);
+    }
+  }
+
+  function ajustarTempoAplicacao(applicationId: number, segundos: number) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (app) {
+      if (!app.ajusteDeTempoEmSegundos) {
+        app.ajusteDeTempoEmSegundos = 0;
+      }
+      app.ajusteDeTempoEmSegundos += segundos;
+
+      toast.add({
+        title: `Tempo da avaliação ajustado em ${segundos > 0 ? "+" : ""}${
+          segundos / 60
+        } minutos.`,
+        icon: "i-lucide-timer",
+      });
+    }
+  }
+
+  function reiniciarTimerAplicacao(applicationId: number) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (app) {
+      app.dataAplicacao = new Date().toISOString();
+      app.ajusteDeTempoEmSegundos = 0;
+
+      toast.add({
+        title: "Timer da avaliação reiniciado!",
+        icon: "i-lucide-rotate-cw",
+      });
+    }
   }
 
   return {
@@ -65,5 +108,8 @@ export const useApplicationsStore = defineStore("applications", () => {
     fetchItems,
     getApplicationById,
     createApplication,
+    updateApplicationStatus,
+    ajustarTempoAplicacao,
+    reiniciarTimerAplicacao,
   };
 });
