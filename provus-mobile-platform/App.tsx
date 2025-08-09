@@ -1,13 +1,8 @@
-/**
- * Sample React Native App
- * ...
- */
-
 import React from 'react';
-import LoginScreen from './src/screens/LoginScreen';
+import AppNavigator from './src/navigation/AppNavigator';
 
 function App(): React.JSX.Element {
-  return <LoginScreen />;
+  return <AppNavigator />;
 }
 
 export default App;

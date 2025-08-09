@@ -11,9 +11,11 @@ import {
   Alert,
   StatusBar,
 } from 'react-native';
-
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
+
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 const COLORS = {
   backgroundGradient: ['#E0F7FA', '#FFFFFF'],
@@ -25,7 +27,9 @@ const COLORS = {
   shadow: '#000',
 };
 
-const LoginScreen = () => {
+type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -37,7 +41,7 @@ const LoginScreen = () => {
       Alert.alert('Login inválido', 'Por favor, preencha todos os campos.');
       return;
     }
-    Alert.alert('Sucesso!', `Bem-vindo de volta!`);
+    navigation.navigate('Applications');
   };
 
   return (
@@ -123,12 +127,8 @@ const LoginScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
+  gradient: { flex: 1 },
+  container: { flex: 1 },
   keyboardAvoidingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -180,9 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: COLORS.white,
   },
-  inputIcon: {
-    marginHorizontal: 8,
-  },
+  inputIcon: { marginHorizontal: 8 },
   input: {
     flex: 1,
     height: '100%',
