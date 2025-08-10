@@ -4,13 +4,14 @@ import NotificationsDropdown from "~/components/ui/NotificationsDropdown/index.v
 const userMenuItems = [
   [
     {
-      label: "Profile Settings",
+      label: "Perfil",
       icon: "i-heroicons-user-circle",
+      to: "/perfil",
     },
   ],
   [
     {
-      label: "Logout",
+      label: "Sair",
       icon: "i-heroicons-arrow-left-on-rectangle",
       slot: "logout",
     },

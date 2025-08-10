@@ -15,6 +15,12 @@ export default {
       component: () => import("~/pages/Avaliador/Dashboard/index.vue"),
     },
 
+        {
+      name: "avaliador-perfil",
+      path: "/perfil",
+      component: () => import("~/pages/Avaliador/Perfil/index.vue"),
+    },
+
     {
       name: "avaliador-avaliacao-editor",
       path: "/avaliacao/editor/:id?",
