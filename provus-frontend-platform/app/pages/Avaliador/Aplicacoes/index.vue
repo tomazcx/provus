@@ -6,7 +6,7 @@ import ApplicationsGrid from "~/components/Aplicacoes/ApplicationsGrid/index.vue
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">
+      <h1 class="text-3xl font-bold text-primary mb-1">
         Aplicações de Avaliações
       </h1>
       <p class="text-gray-600">
