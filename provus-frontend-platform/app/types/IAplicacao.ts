@@ -12,6 +12,7 @@ export type Penalidade = {
 
 export interface IAplicacao {
   id: number;
+  codigoDeAcesso?: string; 
   titulo: string;
   descricao?: string;
   dataAplicacao: string;

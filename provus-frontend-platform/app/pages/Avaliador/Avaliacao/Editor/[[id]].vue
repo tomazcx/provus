@@ -20,6 +20,7 @@ import { useAssessmentStore } from "~/store/assessmentStore";
 import { useExamBankStore } from "~/store/assessmentBankStore";
 import { useEditorBridgeStore } from "~/store/editorBridgeStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
+import type { IAplicacao } from "~/types/IAplicacao";
 
 const assessmentStore = useAssessmentStore();
 const examBankStore = useExamBankStore();
@@ -39,6 +40,15 @@ const isViewMaterialsDialogOpen = ref(false);
 const materialsToView = ref<IFile[]>([]);
 const configuringIaRule = ref<IRegraGeracaoIA | null>(null);
 const pendingAction = ref<"apply" | null>(null);
+const applicationToStart = ref<IAplicacao | null>(null);
+const isDialogVisible = computed({
+  get: () => !!applicationToStart.value,
+  set: (value) => {
+    if (!value) {
+      applicationToStart.value = null;
+    }
+  },
+});
 
 watch(
   () => editorBridgeStore.saveEvent,
@@ -114,12 +124,25 @@ const saveOrUpdateModelo = async (
   }
 };
 
+function handleStartNowFromEditor() {
+  if (applicationToStart.value) {
+    applicationsStore.startApplication(applicationToStart.value.id);
+    applicationToStart.value = null;
+    router.push("/aplicacoes");
+  }
+}
+
 async function handleSave(action: { key: string }) {
   const assessmentData = assessmentStore.assessment;
   if (!assessmentData) return;
 
   const isNewAssessmentFromDashboard =
     !assessmentData.id && editorBridgeStore.context.from === "dashboard";
+
+  const handleApply = (modelo: IAvaliacaoImpl) => {
+    const newApp = applicationsStore.createApplication(modelo);
+    applicationToStart.value = newApp;
+  };
 
   if (action.key === "save_template") {
     if (isNewAssessmentFromDashboard) {
@@ -134,11 +157,11 @@ async function handleSave(action: { key: string }) {
       isSaveToBankDialogOpen.value = true;
     } else {
       const modeloSalvo = await saveOrUpdateModelo(true);
-      applyAssessment(modeloSalvo);
+      handleApply(modeloSalvo);
     }
   } else if (action.key === "apply_only") {
     const modeloSalvo = await saveOrUpdateModelo(false);
-    applyAssessment(modeloSalvo);
+    handleApply(modeloSalvo);
   }
 }
 
@@ -229,6 +252,12 @@ function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
 
 <template>
   <div v-if="assessmentStore.assessmentState" class="bg-gray-50 min-h-screen">
+    <StartApplicationDialog
+      v-model="isDialogVisible"
+      :aplicacao="applicationToStart"
+      @start-now="handleStartNowFromEditor"
+    />
+
     <SaveToExamBankDialog
       v-model="isSaveToBankDialogOpen"
       @save-here="handleSaveFromDialog"

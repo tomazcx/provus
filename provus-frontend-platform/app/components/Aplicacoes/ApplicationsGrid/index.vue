@@ -10,7 +10,15 @@ const applicationsStore = useApplicationsStore();
 const examBankStore = useExamBankStore();
 
 const applications = computed(() => applicationsStore.applications);
-
+const applicationToStart = ref<IAplicacao | null>(null);
+const isDialogVisible = computed({
+  get: () => !!applicationToStart.value,
+  set: (value) => {
+    if (!value) {
+      applicationToStart.value = null;
+    }
+  },
+});
 const isConfigDialogOpen = ref(false);
 const modeloParaVisualizar = ref<IAvaliacaoImpl | null>(null);
 
@@ -40,6 +48,17 @@ function handleCancelSchedule(aplicacao: IAplicacao) {
 function handleReopen(aplicacao: IAplicacao) {
   applicationsStore.reopenApplication(aplicacao.id);
 }
+
+function handleStartNowFromCard(aplicacao: IAplicacao) {
+  applicationToStart.value = aplicacao;
+}
+
+function handleStartNowFromDialog() {
+  if (applicationToStart.value) {
+    applicationsStore.startApplication(applicationToStart.value.id);
+    applicationToStart.value = null; // Fecha o diálogo
+  }
+}
 </script>
 
 <template>
@@ -47,6 +66,12 @@ function handleReopen(aplicacao: IAplicacao) {
     <ViewConfigurationDialog
       v-model="isConfigDialogOpen"
       :configuracao="modeloParaVisualizar"
+    />
+
+    <StartApplicationDialog
+      v-model="isDialogVisible"
+      :aplicacao="applicationToStart"
+      @start-now="handleStartNowFromDialog"
     />
 
     <div v-if="applicationsStore.isLoading" class="text-center text-gray-500">
@@ -63,6 +88,7 @@ function handleReopen(aplicacao: IAplicacao) {
         @apply-now="handleApplyNow"
         @cancel-schedule="handleCancelSchedule"
         @reopen="handleReopen"
+        @start-now="handleStartNowFromCard"
       />
     </div>
   </div>

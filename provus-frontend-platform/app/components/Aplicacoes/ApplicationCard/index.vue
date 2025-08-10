@@ -10,8 +10,12 @@ const emit = defineEmits([
   "view-config",
   "apply-now",
   "cancel-schedule",
-  "reopen",
+  "reopen", 'start-now',
 ]);
+
+const isCriada = computed(
+  () => props.item.estado === EstadoAplicacaoEnum.CRIADA
+);
 
 const isEmAndamento = computed(
   () => props.item.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
@@ -179,6 +183,7 @@ const formattedDate = computed(() => {
           Resultados
         </UButton>
       </div>
+
       <UButton
         v-if="item.estado !== 'Cancelada'"
         block
@@ -200,6 +205,18 @@ const formattedDate = computed(() => {
         @click="emit('view-config', item)"
       >
         Ver Configuração Completa
+      </UButton>
+    </template>
+
+    <template v-else-if="isCriada">
+      <UButton
+        block
+        color="secondary"
+        variant="solid"
+        icon="i-lucide-play"
+        @click="emit('start-now', item)"
+      >
+        Iniciar Agora
       </UButton>
     </template>
 

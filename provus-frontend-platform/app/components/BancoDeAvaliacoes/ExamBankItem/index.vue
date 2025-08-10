@@ -7,7 +7,7 @@ defineProps<{
   isSelected?: boolean;
 }>();
 
-const emit = defineEmits(["edit", "delete"]);
+const emit = defineEmits(["edit", "delete", "apply"]);
 </script>
 
 <template>
@@ -39,6 +39,15 @@ const emit = defineEmits(["edit", "delete"]);
           <span>{{ item.pontuacao }} pontos</span>
         </div>
       </div>
+    </div>
+
+    <div class="ml-4 flex-shrink-0">
+      <UButton
+        label="Aplicar"
+        color="secondary"
+        icon="i-lucide-send"
+        @click.stop="emit('apply')"
+      />
     </div>
   </Item>
 </template>

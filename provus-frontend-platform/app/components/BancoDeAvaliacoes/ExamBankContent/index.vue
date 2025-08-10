@@ -9,6 +9,8 @@ import isFolder from "~/guards/isFolder";
 import type { IFolder } from "~/types/IBank";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 import { useExamBankStore } from "~/store/assessmentBankStore";
+import { useApplicationsStore } from "~/store/applicationsStore";
+import type { IAplicacao } from "~/types/IAplicacao";
 
 const props = defineProps({
   mode: {
@@ -20,6 +22,7 @@ const props = defineProps({
 defineEmits(["path-changed"]);
 
 const examBankStore = useExamBankStore();
+const applicationsStore = useApplicationsStore();
 const router = useRouter();
 const showCreateFolder = ref(false);
 const editingFolder = ref<IFolder | null>(null);
@@ -27,6 +30,16 @@ const internalCurrentPath = ref("/");
 const selectedItems = ref({
   folders: new Set<number>(),
   exams: new Set<number>(),
+});
+
+const applicationToStart = ref<IAplicacao | null>(null);
+const isDialogVisible = computed({
+  get: () => !!applicationToStart.value,
+  set: (value) => {
+    if (!value) {
+      applicationToStart.value = null;
+    }
+  },
 });
 
 const filters = reactive({
@@ -67,6 +80,22 @@ function handleSelectItem(item: IFolder | IAvaliacaoImpl) {
 
 function handleCreateModelo() {
   router.push(`/avaliacao/editor?path=${internalCurrentPath.value}`);
+}
+
+function handleApply(item: IAvaliacaoImpl) {
+  const newApp = applicationsStore.createApplication(item);
+  applicationToStart.value = newApp;
+}
+
+function handleStartNow() {
+  if (applicationToStart.value) {
+    applicationsStore.startApplication(applicationToStart.value.id);
+    applicationToStart.value = null;
+    const firstApp = applicationsStore.applications[0];
+    if (firstApp) {
+      router.push(`/aplicacoes/aplicacao/${firstApp.id}/monitoramento`);
+    }
+  }
 }
 
 function handleEdit(item: IFolder | IAvaliacaoImpl) {
@@ -152,6 +181,12 @@ function navigateFromBreadcrumb(path: string) {
 
 <template>
   <div>
+    <StartApplicationDialog
+      v-model="isDialogVisible"
+      :aplicacao="applicationToStart"
+      @start-now="handleStartNow"
+    />
+
     <CreateFolderDialog
       v-model="showCreateFolder"
       :current-path-label="breadcrumbs.map((c) => c.label).join(' > ')"
@@ -247,6 +282,7 @@ function navigateFromBreadcrumb(path: string) {
           @select="handleSelectItem(item)"
           @edit="handleEdit(item)"
           @delete="handleDelete(item)"
+          @apply="handleApply(item)"
         />
       </div>
     </div>

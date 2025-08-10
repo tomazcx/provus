@@ -3,6 +3,10 @@ import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import type { IAplicacao } from "~/types/IAplicacao";
 import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 
+function generateAccessCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export const useApplicationsStore = defineStore("applications", () => {
   const applications = ref<IAplicacao[]>([]);
   const isLoading = ref(false);
@@ -29,7 +33,7 @@ export const useApplicationsStore = defineStore("applications", () => {
     return applications.value.find((app) => app.id === id);
   }
 
-  function createApplication(modelo: IAvaliacaoImpl) {
+  function createApplication(modelo: IAvaliacaoImpl): IAplicacao {
     const isAgendada =
       modelo.configuracoes.tipoAplicacao === TipoAplicacaoEnum.AGENDADA &&
       modelo.configuracoes.dataAgendada &&
@@ -37,14 +41,15 @@ export const useApplicationsStore = defineStore("applications", () => {
 
     const newApplication: IAplicacao = {
       id: Date.now(),
+      estado: isAgendada
+        ? EstadoAplicacaoEnum.AGENDADA
+        : EstadoAplicacaoEnum.CRIADA,
+      codigoDeAcesso: generateAccessCode(),
       titulo: modelo.titulo,
       descricao: modelo.descricao,
       dataAplicacao: isAgendada
         ? new Date(modelo.configuracoes.dataAgendada!).toISOString()
         : new Date().toISOString(),
-      estado: isAgendada
-        ? EstadoAplicacaoEnum.AGENDADA
-        : EstadoAplicacaoEnum.EM_ANDAMENTO,
       participantes: 0,
       avaliacaoModeloId: modelo.id!,
       taxaDeConclusao: 0,
@@ -59,6 +64,7 @@ export const useApplicationsStore = defineStore("applications", () => {
     };
 
     applications.value.unshift(newApplication);
+    return newApplication; 
   }
 
   function updateApplicationStatus(
@@ -85,6 +91,20 @@ export const useApplicationsStore = defineStore("applications", () => {
           segundos / 60
         } minutos.`,
         icon: "i-lucide-timer",
+      });
+    }
+  }
+
+  function startApplication(applicationId: number) {
+    const app = applications.value.find((a) => a.id === applicationId);
+    if (app && app.estado === EstadoAplicacaoEnum.CRIADA) {
+      app.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+      app.dataAplicacao = new Date().toISOString();
+      toast.add({
+        title: "Avaliação iniciada!",
+        description: "Os alunos já podem começar.",
+        icon: "i-lucide-play-circle",
+        color: "secondary",
       });
     }
   }
@@ -160,5 +180,6 @@ export const useApplicationsStore = defineStore("applications", () => {
     applyScheduledNow,
     cancelScheduled,
     reopenApplication,
+    startApplication,
   };
 });
