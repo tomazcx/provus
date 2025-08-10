@@ -128,7 +128,6 @@ export const mockAvaliacao: IAvaliacaoImpl = {
   },
 };
 
-// Nova constante para o modelo de avaliação de Geografia
 export const mockAvaliacaoGeografia: IAvaliacaoImpl = {
   id: 102,
   titulo: "Avaliação de Geografia Agendada",
@@ -178,7 +177,6 @@ export const mockAvaliacaoGeografia: IAvaliacaoImpl = {
     },
     regrasRandomizacaoConfiguravel: [],
     tipoAplicacao: TipoAplicacaoEnum.AGENDADA,
-    // Data de agendamento corresponde à aplicação
     dataAgendada: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
     exibirPontuacaDaSubmissao: true,
     permitirRevisao: false,

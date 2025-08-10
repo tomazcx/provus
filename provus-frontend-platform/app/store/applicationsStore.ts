@@ -64,7 +64,7 @@ export const useApplicationsStore = defineStore("applications", () => {
     };
 
     applications.value.unshift(newApplication);
-    return newApplication; 
+    return newApplication;
   }
 
   function updateApplicationStatus(
@@ -122,17 +122,18 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
-  function applyScheduledNow(applicationId: number) {
+  function applyScheduledNow(applicationId: number): IAplicacao | undefined {
     const app = applications.value.find((a) => a.id === applicationId);
     if (app && app.estado === EstadoAplicacaoEnum.AGENDADA) {
-      app.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+      app.estado = EstadoAplicacaoEnum.CRIADA;
       app.dataAplicacao = new Date().toISOString();
+      app.codigoDeAcesso = generateAccessCode();
       toast.add({
-        title: "Aplicação iniciada!",
-        description: "A avaliação agora está em andamento.",
-        icon: "i-lucide-play-circle",
-        color: "secondary",
+        title: "Aplicação pronta para iniciar!",
+        description: "Compartilhe o código com os alunos.",
+        icon: "i-lucide-key-round",
       });
+      return app;
     }
   }
 

@@ -8,6 +8,7 @@ import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
 
 const applicationsStore = useApplicationsStore();
 const examBankStore = useExamBankStore();
+const router = useRouter();
 
 const applications = computed(() => applicationsStore.applications);
 const applicationToStart = ref<IAplicacao | null>(null);
@@ -38,7 +39,10 @@ function handleViewConfig(aplicacao: IAplicacao) {
 }
 
 function handleApplyNow(aplicacao: IAplicacao) {
-  applicationsStore.applyScheduledNow(aplicacao.id);
+  const appUpdated = applicationsStore.applyScheduledNow(aplicacao.id);
+  if (appUpdated) {
+    applicationToStart.value = appUpdated;
+  }
 }
 
 function handleCancelSchedule(aplicacao: IAplicacao) {
@@ -55,8 +59,11 @@ function handleStartNowFromCard(aplicacao: IAplicacao) {
 
 function handleStartNowFromDialog() {
   if (applicationToStart.value) {
-    applicationsStore.startApplication(applicationToStart.value.id);
-    applicationToStart.value = null; // Fecha o diálogo
+    const appId = applicationToStart.value.id;
+    applicationsStore.startApplication(appId);
+    applicationToStart.value = null;
+
+    router.push(`/aplicacoes/aplicacao/${appId}/monitoramento`);
   }
 }
 </script>
