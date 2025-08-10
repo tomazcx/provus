@@ -1,9 +1,19 @@
 import { Module } from '@nestjs/common';
-import { SignUpController } from './';
+import {
+  ResetPasswordController,
+  SignInController,
+  SignUpController,
+  RecoverPasswordController,
+} from './';
 import { ServiceModule } from 'src/data/services-implementation/services.module';
 
 @Module({
   imports: [ServiceModule],
-  controllers: [SignUpController],
+  controllers: [
+    SignUpController,
+    SignInController,
+    ResetPasswordController,
+    RecoverPasswordController,
+  ],
 })
 export class AuthControllersModule {}
