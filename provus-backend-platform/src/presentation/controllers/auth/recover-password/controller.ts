@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Patch, Post } from '@nestjs/common';
 import { AuthService } from 'src/domain/services/auth';
 import { RecoverPasswordRequest } from './request';
 import { RecoverPasswordDecorators } from './decorators';

@@ -4,6 +4,7 @@ import {
   SignInController,
   SignUpController,
   RecoverPasswordController,
+  ConfirmEmailController,
 } from './';
 import { ServiceModule } from 'src/data/services-implementation/services.module';
 
@@ -14,6 +15,7 @@ import { ServiceModule } from 'src/data/services-implementation/services.module'
     SignInController,
     ResetPasswordController,
     RecoverPasswordController,
+    ConfirmEmailController,
   ],
 })
 export class AuthControllersModule {}

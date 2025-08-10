@@ -2,11 +2,13 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
   AvaliadorRecuperarSenhaRepository,
   AvaliadorRepository,
+  AvaliadorConfirmarEmailRepository,
 } from 'src/data/protocols/database';
 import { EmailTemplatesProvider } from 'src/data/protocols/email-templates';
 import { NotificationProvider } from 'src/data/protocols/notification';
@@ -15,6 +17,7 @@ import { AuthService } from 'src/domain/services';
 import * as bcrypt from 'bcrypt';
 import { Env } from 'src/shared/env';
 import {
+  ConfirmEmailDto,
   LoginDto,
   RecoverPasswordDto,
   ResetPasswordDto,
@@ -23,6 +26,7 @@ import {
 import { LoginResultDto } from 'src/domain/services/auth/dto/result';
 import { v4 as uuid } from 'uuid';
 import { Avaliador } from 'src/domain/entities';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthServiceImpl implements AuthService {
@@ -30,6 +34,7 @@ export class AuthServiceImpl implements AuthService {
     private readonly avaliadorRepository: AvaliadorRepository,
     private readonly jwtProvider: JwtProvider,
     private readonly avaliadorRecuperarSenhaRepository: AvaliadorRecuperarSenhaRepository,
+    private readonly avaliadorConfirmacaoEmailRepository: AvaliadorConfirmarEmailRepository,
     private readonly emailTemplatesProvider: EmailTemplatesProvider,
     private readonly notificationProvider: NotificationProvider,
   ) {}
@@ -44,11 +49,52 @@ export class AuthServiceImpl implements AuthService {
     const salt = await bcrypt.genSalt(Env.HASH_SALT);
     const senha = await bcrypt.hash(dto.senha, salt);
 
-    await this.avaliadorRepository.create({
+    const avaliador = await this.avaliadorRepository.create({
       nome: dto.nome,
       email: dto.email,
       senha,
     });
+
+    const avaliadorConfirmacaoEmail =
+      await this.avaliadorConfirmacaoEmailRepository.create({
+        avaliadorId: avaliador.id,
+        hash: crypto.createHash('md5').update(uuid()).digest('hex'),
+        isConfirmado: false,
+        expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+    const url = `${Env.FRONTEND_URL}/confirmar-email/${avaliadorConfirmacaoEmail.hash}`;
+
+    const html = this.emailTemplatesProvider.confirmEmail(url);
+
+    await this.notificationProvider.sendEmail(
+      dto.email,
+      'Provus - Confirmação de Email',
+      html,
+    );
+  }
+
+  async confirmEmail(dto: ConfirmEmailDto): Promise<void> {
+    const avaliadorConfirmacaoEmail =
+      await this.avaliadorConfirmacaoEmailRepository.findByHash(dto.hash);
+
+    if (!avaliadorConfirmacaoEmail) {
+      throw new ForbiddenException('Hash inválido');
+    }
+
+    if (avaliadorConfirmacaoEmail.expiraEm < new Date()) {
+      throw new ForbiddenException('Hash inválido');
+    }
+
+    if (avaliadorConfirmacaoEmail.isConfirmado) {
+      return;
+    }
+
+    avaliadorConfirmacaoEmail.isConfirmado = true;
+
+    await this.avaliadorConfirmacaoEmailRepository.save(
+      avaliadorConfirmacaoEmail,
+    );
   }
 
   async signIn(dto: LoginDto): Promise<LoginResultDto> {
@@ -61,6 +107,15 @@ export class AuthServiceImpl implements AuthService {
     const isPasswordValid = await bcrypt.compare(dto.senha, avaliador.senha);
 
     if (!isPasswordValid) {
+      throw new UnauthorizedException('Email ou senha inválidos');
+    }
+
+    const avaliadorConfirmacaoEmail =
+      await this.avaliadorConfirmacaoEmailRepository.findByAvaliadorId(
+        avaliador.id,
+      );
+
+    if (!avaliadorConfirmacaoEmail.isConfirmado) {
       throw new UnauthorizedException('Email ou senha inválidos');
     }
 
@@ -78,7 +133,7 @@ export class AuthServiceImpl implements AuthService {
       return;
     }
 
-    const hash = uuid();
+    const hash = crypto.createHash('md5').update(uuid()).digest('hex');
 
     const twentyFourHours = 1000 * 60 * 60 * 24;
 
@@ -142,7 +197,24 @@ export class AuthServiceImpl implements AuthService {
 
       const decodedToken = decoded as { id: number };
 
-      return await this.avaliadorRepository.findById(decodedToken.id);
+      const avaliador = await this.avaliadorRepository.findById(
+        decodedToken.id,
+      );
+
+      if (!avaliador) {
+        return null;
+      }
+
+      const avaliadorConfirmacaoEmail =
+        await this.avaliadorConfirmacaoEmailRepository.findByAvaliadorId(
+          avaliador.id,
+        );
+
+      if (!avaliadorConfirmacaoEmail.isConfirmado) {
+        return null;
+      }
+
+      return avaliador;
     } catch (error) {
       return null;
     }
