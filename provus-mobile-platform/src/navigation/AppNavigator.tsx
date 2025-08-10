@@ -9,7 +9,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 export type RootStackParamList = {
   Login: undefined;
   Applications: undefined;
-  Dashboard: undefined;
+  Dashboard: { applicationId?: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
