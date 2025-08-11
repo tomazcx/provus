@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,12 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { Aplicacao, Penalidade } from '../types/Application';
+import mockDataService from '../services/mockDataService';
+import TipoInfracaoEnum from '../enums/TipoInfracaoEnum';
 
 const COLORS = {
   background: '#F8F9FA',
@@ -53,7 +57,86 @@ type DashboardScreenProps = NativeStackScreenProps<
   'Dashboard'
 >;
 
-const DashboardScreen = ({ navigation }: DashboardScreenProps) => {
+const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
+  const [application, setApplication] = useState<Aplicacao | null>(null);
+  const [loading, setLoading] = useState(true);
+  const applicationId = route.params?.applicationId || 1;
+
+  useEffect(() => {
+    const loadApplication = async () => {
+      try {
+        const data = await mockDataService.getApplicationById(applicationId);
+        setApplication(data);
+      } catch (error) {
+        console.error('Error loading application:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadApplication();
+  }, [applicationId]);
+
+  const getInfracaoLabel = (infracao: TipoInfracaoEnum): string => {
+    return infracao || 'Infração';
+  };
+
+  const getStatusIcon = (estado: string): string => {
+    switch (estado) {
+      case 'Em Andamento':
+        return 'clock';
+      case 'Finalizada':
+        return 'check-circle';
+      case 'Agendada':
+        return 'calendar';
+      default:
+        return 'file-text';
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={COLORS.background}
+          translucent
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Carregando detalhes...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!application) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={COLORS.background}
+          translucent
+        />
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle" size={48} color={COLORS.textSecondary} />
+          <Text style={styles.errorTitle}>Aplicação não encontrada</Text>
+          <Text style={styles.errorText}>
+            Não foi possível carregar os detalhes da aplicação.
+          </Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Voltar</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const statusColor = mockDataService.getStatusColor(application.estado);
+  const statusIcon = getStatusIcon(application.estado);
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar
@@ -78,38 +161,54 @@ const DashboardScreen = ({ navigation }: DashboardScreenProps) => {
         </View>
 
         <Text style={styles.breadcrumbs}>
-          Aplicações &gt; Avaliação de História
+          Aplicações &gt; {application.titulo}
         </Text>
 
         <View style={styles.card}>
           <View style={styles.titleContainer}>
             <Icon name="file-text" size={24} color={COLORS.primary} />
             <View style={styles.titleTextContainer}>
-              <Text style={styles.mainTitle}>
-                Avaliação de História do Brasil
+              <Text style={styles.mainTitle} numberOfLines={2}>
+                {application.titulo}
               </Text>
-              <Text style={styles.subtitle}>
-                Uma avaliação sobre o período colonial e o império no Brasil.
-              </Text>
+              {application.descricao && (
+                <Text style={styles.subtitle} numberOfLines={3}>
+                  {application.descricao}
+                </Text>
+              )}
             </View>
           </View>
-          <Text style={styles.dateText}>09/08/2025 19:12</Text>
+          <Text style={styles.dateText}>
+            {mockDataService.formatDateTime(application.dataAplicacao)}
+          </Text>
         </View>
 
-        <View style={styles.statusBanner}>
-          <Icon name="check-circle" size={16} color={COLORS.greenText} />
-          <Text style={styles.statusText}>Em Andamento • 3 participantes</Text>
+        <View style={[styles.statusBanner, { backgroundColor: mockDataService.getStatusBackgroundColor(application.estado) }]}>
+          <Icon name={statusIcon} size={16} color={statusColor} />
+          <Text style={[styles.statusText, { color: statusColor }]}>
+            {application.estado} • {application.participantes} participantes
+          </Text>
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard title="Total de Participantes" value="3" />
-          <StatCard title="Média Geral" value="38.3%" valueColor="#D35400" />
+          <StatCard 
+            title="Total de Participantes" 
+            value={application.participantes.toString()} 
+          />
+          <StatCard 
+            title="Média Geral" 
+            value={`${application.mediaGeral.toFixed(1)}%`} 
+            valueColor={application.mediaGeral >= 70 ? '#27AE60' : '#D35400'}
+          />
           <StatCard
             title="Taxa de conclusão"
-            value="66.7%"
-            valueColor="#27AE60"
+            value={`${application.taxaDeConclusao.toFixed(1)}%`}
+            valueColor={application.taxaDeConclusao >= 70 ? '#27AE60' : '#D35400'}
           />
-          <StatCard title="Tempo médio de submissão" value="20m" />
+          <StatCard 
+            title="Tempo médio de submissão" 
+            value={`${application.tempoMedio}m`} 
+          />
         </View>
 
         <View style={styles.card}>
@@ -118,50 +217,69 @@ const DashboardScreen = ({ navigation }: DashboardScreenProps) => {
             <Text style={styles.noteStatLabel}>Maior Nota</Text>
             <Text style={styles.noteStatValue}>
               <Text style={{ color: COLORS.greenText, fontWeight: 'bold' }}>
-                19
+                {application.maiorNota}
               </Text>{' '}
-              / 20
+              / {Math.round(application.maiorNota * 1.05) || 20}
             </Text>
           </View>
           <View style={styles.noteStatRow}>
             <Text style={styles.noteStatLabel}>Menor Nota</Text>
             <Text style={styles.noteStatValue}>
               <Text style={{ color: COLORS.redText, fontWeight: 'bold' }}>
-                0
+                {application.menorNota}
               </Text>{' '}
-              / 20
+              / {Math.round(application.maiorNota * 1.05) || 20}
             </Text>
           </View>
           <View style={styles.noteStatRow}>
             <Text style={styles.noteStatLabel}>Nota Média</Text>
-            <Text style={styles.noteStatValue}>7.6</Text>
+            <Text style={styles.noteStatValue}>{application.notaMedia.toFixed(1)}</Text>
           </View>
           <View style={styles.noteStatRow}>
             <Text style={styles.noteStatLabel}>Desvio padrão</Text>
-            <Text style={styles.noteStatValue}>8.2</Text>
+            <Text style={styles.noteStatValue}>{application.desvioPadrao.toFixed(1)}</Text>
           </View>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Penalidades e Violações</Text>
-          <View style={styles.tableRow}>
-            <Text style={[styles.tableHeader, { flex: 2 }]}>Estudante</Text>
-            <Text style={[styles.tableHeader, { flex: 3 }]}>Email</Text>
-            <Text style={[styles.tableHeader, { flex: 2 }]}>Infração</Text>
-            <Text style={[styles.tableHeader, { flex: 1.5 }]}>Hora</Text>
-          </View>
-          <View style={styles.tableRow}>
-            <Text style={[styles.tableCell, { flex: 2 }]}>Fulano de tal</Text>
-            <Text style={[styles.tableCell, { flex: 3 }]}>
-              fulano@gmail.com
-            </Text>
-            <View style={[styles.tableCell, { flex: 2 }]}>
-              <View style={styles.tagRed}>
-                <Text style={styles.tagText}>Copiar e Colar</Text>
-              </View>
+          {application.penalidades.length === 0 ? (
+            <View style={styles.emptyViolations}>
+              <Icon name="check-circle" size={32} color={COLORS.greenText} />
+              <Text style={styles.emptyViolationsText}>
+                Nenhuma penalidade registrada
+              </Text>
             </View>
-            <Text style={[styles.tableCell, { flex: 1.5 }]}>07:30:00</Text>
-          </View>
+          ) : (
+            <>
+              <View style={styles.tableRow}>
+                <Text style={[styles.tableHeader, { flex: 2 }]}>Estudante</Text>
+                <Text style={[styles.tableHeader, { flex: 3 }]}>Email</Text>
+                <Text style={[styles.tableHeader, { flex: 2 }]}>Infração</Text>
+                <Text style={[styles.tableHeader, { flex: 1.5 }]}>Hora</Text>
+              </View>
+              {application.penalidades.map((penalidade: Penalidade, index: number) => (
+                <View key={index} style={styles.tableRow}>
+                  <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={2}>
+                    {penalidade.estudante}
+                  </Text>
+                  <Text style={[styles.tableCell, { flex: 3 }]} numberOfLines={2}>
+                    {penalidade.email}
+                  </Text>
+                  <View style={[styles.tableCell, { flex: 2 }]}>
+                    <View style={styles.tagRed}>
+                      <Text style={styles.tagText}>
+                        {getInfracaoLabel(penalidade.infracao)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.tableCell, { flex: 1.5 }]}>
+                    {mockDataService.formatTime(penalidade.hora)}
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -269,6 +387,58 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   tagText: { color: COLORS.redText, fontSize: 10, fontWeight: 'bold' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  backButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  emptyViolations: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyViolationsText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
 });
 
 export default DashboardScreen;
