@@ -5,12 +5,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 
@@ -45,12 +45,13 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   };
 
   return (
-    <LinearGradient colors={COLORS.backgroundGradient} style={styles.gradient}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={COLORS.backgroundGradient[0]}
-      />
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <LinearGradient colors={COLORS.backgroundGradient} style={styles.gradient}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={COLORS.backgroundGradient[0]}
+          translucent
+        />
         <KeyboardAvoidingView
           style={styles.keyboardAvoidingContainer}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -121,14 +122,14 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </LinearGradient>
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
   gradient: { flex: 1 },
-  container: { flex: 1 },
   keyboardAvoidingContainer: {
     flex: 1,
     justifyContent: 'center',

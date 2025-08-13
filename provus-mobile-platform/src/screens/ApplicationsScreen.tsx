@@ -3,10 +3,11 @@ import {
   StyleSheet,
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -70,7 +71,12 @@ type ApplicationsScreenProps = NativeStackScreenProps<
 
 const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={COLORS.background}
+        translucent
+      />
       <ScrollView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Provus</Text>
@@ -101,7 +107,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
-    marginTop: 16,
   },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
   headerIcons: { flexDirection: 'row', alignItems: 'center' },
