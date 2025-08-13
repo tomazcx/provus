@@ -3,6 +3,36 @@ import type { RouterConfig } from "@nuxt/schema";
 export default {
   routes: (_routes) => [
     {
+      name: "aluno-entrar",
+      path: "/aluno/entrar",
+      component: () => import("~/pages/Aluno/Entrar/index.vue"),
+      meta: { layout: false },
+    },
+
+    {
+      name: "aluno-avaliacao",
+      path: "/aluno/avaliacao/:codigo",
+      component: () => import("~/pages/Aluno/Avaliacao/[codigo].vue"),
+      meta: { layout: "assessment-student" },
+    },
+
+    {
+      name: "aluno-avaliacao-finalizado",
+      path: "/aluno/avaliacao/:codigo/finalizado",
+      component: () =>
+        import("~/pages/Aluno/Avaliacao/[codigo]/finalizado.vue"),
+      meta: { layout: false },
+    },
+
+        {
+      name: "aluno-avaliacao-revisao",
+      path: "/aluno/avaliacao/:codigo/revisao",
+      component: () => import("~/pages/Aluno/Avaliacao/[codigo]/revisao.vue"),
+      meta: { layout: 'assessment-student' },
+    },
+
+
+    {
       name: "auth",
       path: "/auth",
       component: () => import("~/pages/Auth/index.vue"),
@@ -15,7 +45,7 @@ export default {
       component: () => import("~/pages/Avaliador/Dashboard/index.vue"),
     },
 
-        {
+    {
       name: "avaliador-perfil",
       path: "/perfil",
       component: () => import("~/pages/Avaliador/Perfil/index.vue"),
@@ -115,7 +145,7 @@ export default {
 
     {
       path: "/",
-      redirect: "/aplicacoes/aplicacao/1",
+      redirect: "/aluno/avaliacao/1",
     },
   ],
 } satisfies RouterConfig;

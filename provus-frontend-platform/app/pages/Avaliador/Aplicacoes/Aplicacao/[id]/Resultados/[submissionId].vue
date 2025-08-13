@@ -4,8 +4,8 @@ import { useSubmissionsStore } from "~/store/submissionStore";
 import type { IAplicacao } from "~/types/IAplicacao";
 import type { ISubmissao } from "~/types/ISubmissao";
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
-import SubmissionHeader from "@/components/Submissao/Header/index.vue";
-import SubmissionStats from "@/components/Submissao/Stats/index.vue";
+import SubmissionHeader from "@/components/Submissao/SubmissaoHeader/index.vue";
+import SubmissionStats from "@/components/Submissao/SubmissaoStats/index.vue";
 import AnsweredQuestionCard from "@/components/Submissao/AnsweredQuestionCard/index.vue";
 
 const route = useRoute();

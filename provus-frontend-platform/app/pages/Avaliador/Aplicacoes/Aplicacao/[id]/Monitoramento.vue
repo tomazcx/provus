@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import MonitoringHeader from "~/components/Monitoramento/Header/index.vue";
-import MonitoringStats from "~/components/Monitoramento/Stats/index.vue";
+import MonitoringHeader from "~/components/Monitoramento/MonitoramentoHeader/index.vue";
+import MonitoringStats from "~/components/Monitoramento/MonitoramentoStats/index.vue";
 import StudentProgressGrid from "~/components/Monitoramento/StudentProgressGrid/index.vue";
 import ActivityFeed from "~/components/Monitoramento/ActivityFeed/index.vue";
 import Breadcrumbs from "~/components/Breadcrumbs/index.vue";

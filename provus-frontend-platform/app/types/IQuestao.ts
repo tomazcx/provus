@@ -63,7 +63,7 @@ export interface IRespostaDiscursiva extends IResposta {
 }
 
 export interface IRespostaObjetiva extends IResposta {
-  dados: { alternativaId: number };
+  dados: { alternativaId: number | undefined };
 }
 
 export interface IRespostaMultiplaEscolha extends IResposta {

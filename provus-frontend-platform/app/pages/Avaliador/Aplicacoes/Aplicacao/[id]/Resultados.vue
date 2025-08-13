@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Header from "@/components/Aplicacoes/Header/index.vue";
+import Header from "@/components/Aplicacoes/AplicacoesHeader/index.vue";
 import SubmissionsControls from "@/components/Aplicacoes/Resultados/SubmissionsControls.vue";
 import SubmissionsTable from "@/components/Aplicacoes/Resultados/SubmissionsTable.vue";
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";

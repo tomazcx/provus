@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Header from "@/components/Aplicacoes/Header/index.vue";
+import Header from "@/components/Aplicacoes/AplicacoesHeader/index.vue";
 import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
 import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
 import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
