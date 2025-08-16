@@ -1,17 +1,45 @@
 import { Module } from '@nestjs/common';
-import { ProctorRepository } from 'src/data/protocols/database';
-import { ProctorTypeORMRepository } from './repositories';
-import { ProctorModel } from './config/models';
+import {
+  AvaliadorRepository,
+  AvaliadorRecuperarSenhaRepository,
+  AvaliadorConfirmarEmailRepository,
+} from 'src/data/protocols/database';
+import {
+  AvaliadorTypeORMRepository,
+  AvaliadorRecuperarSenhaTypeORMRepository,
+  AvaliadorConfirmarEmailTypeORMRepository,
+} from './repositories';
+import { AvaliadorModel } from './config/models';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AvaliadorRecuperarSenhaModel } from './config/models/avaliador-recuperar-senha';
+import { AvaliadorConfirmarEmailModel } from './config/models/avaliador-confirmar-email';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProctorModel])],
+  imports: [
+    TypeOrmModule.forFeature([
+      AvaliadorModel,
+      AvaliadorRecuperarSenhaModel,
+      AvaliadorConfirmarEmailModel,
+    ]),
+  ],
   providers: [
     {
-      provide: ProctorRepository,
-      useClass: ProctorTypeORMRepository,
+      provide: AvaliadorRepository,
+      useClass: AvaliadorTypeORMRepository,
+    },
+    {
+      provide: AvaliadorRecuperarSenhaRepository,
+      useClass: AvaliadorRecuperarSenhaTypeORMRepository,
+    },
+    {
+      provide: AvaliadorConfirmarEmailRepository,
+      useClass: AvaliadorConfirmarEmailTypeORMRepository,
     },
   ],
-  exports: [ProctorRepository],
+  exports: [
+    AvaliadorRepository,
+    AvaliadorRecuperarSenhaRepository,
+    AvaliadorConfirmarEmailRepository,
+  ],
 })
 export class DatabaseModule {}
