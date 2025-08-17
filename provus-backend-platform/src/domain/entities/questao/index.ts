@@ -10,8 +10,6 @@ import { ItemSistemaArquivos } from '../item-sistema-arquivos';
 export class Questao extends ItemSistemaArquivos {
   readonly tipo = TipoItemEnum.QUESTAO;
 
-  id: number;
-  titulo: string;
   dificuldade: DificuldadeQuestaoEnum;
   descricao: string;
   exemploDeResposta: string;
@@ -21,8 +19,6 @@ export class Questao extends ItemSistemaArquivos {
   textoRevisao: string;
   alternativas: Alternativa[];
   questoes_avaliacoes: QuestoesAvaliacoes;
-  criadoEm: Date;
-  atualizadoEm: Date;
   submissoesDasRespostas: SubmissaoResposta[];
   configuracoesRandomizacao: ConfiguracoesRandomizacao[];
 }
