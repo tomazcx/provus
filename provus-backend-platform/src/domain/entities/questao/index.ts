@@ -4,8 +4,10 @@ import type { Alternativa } from '../alternativa';
 import { SubmissaoResposta } from '../submissao-resposta';
 import { QuestoesAvaliacoes } from '../questoes-avaliacoes';
 import { TipoItemEnum } from 'src/domain/enums/tipo-item.enum';
+import { ConfiguracoesRandomizacao } from '../configuracoes-randomizacao';
+import { ItemSistemaArquivos } from '../item-sistema-arquivos';
 
-export class Questao {
+export class Questao extends ItemSistemaArquivos {
   readonly tipo = TipoItemEnum.QUESTAO;
 
   id: number;
@@ -22,4 +24,5 @@ export class Questao {
   criadoEm: Date;
   atualizadoEm: Date;
   submissoesDasRespostas: SubmissaoResposta[];
+  configuracoesRandomizacao: ConfiguracoesRandomizacao[];
 }
