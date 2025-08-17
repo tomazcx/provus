@@ -3,15 +3,12 @@ import TipoAplicacaoEnum from 'src/domain/enums/tipo-aplicacao.enum';
 import TipoInfracaoEnum from 'src/domain/enums/tipo-infracao.enum';
 import TipoNotificacaoEnum from 'src/domain/enums/tipo-notificacao.enum';
 import TipoPenalidadeEnum from 'src/domain/enums/tipo-penalidade.enum';
-// import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
 import TipoRandomizacaoEnum from 'src/domain/enums/tipo-randomizacao.enum';
 
-// Interfaces internas para manter a clareza
 export interface IRegraRandomizacao {
   id?: number;
   quantidade: number;
   dificuldade: DificuldadeQuestaoEnum | 'Qualquer';
-  // Em um modelo de domínio rico, o grupo poderia ser uma entidade
 }
 
 export interface IPunicao {
