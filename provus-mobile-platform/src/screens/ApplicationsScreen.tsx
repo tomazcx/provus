@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,12 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { Aplicacao } from '../types/Application';
+import mockDataService from '../services/mockDataService';
 
 const COLORS = {
   background: '#F8F9FA',
@@ -24,45 +27,85 @@ const COLORS = {
   border: '#E9ECEF',
 };
 
-const ApplicationCard = ({ navigation }: { navigation: any }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <Icon name="clock" size={24} color={COLORS.yellow} />
-      <Text style={styles.cardTitle}>Mathematics Quiz - Chapter 1</Text>
-    </View>
-    <View style={styles.cardBody}>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Aplicado em:</Text>
-        <Text style={styles.infoValue}>09 de agosto de 2025</Text>
+const ApplicationCard = ({ 
+  application, 
+  navigation 
+}: { 
+  application: Aplicacao;
+  navigation: any;
+}) => {
+  const getStatusIcon = (estado: string) => {
+    switch (estado) {
+      case 'Em Andamento':
+        return 'clock';
+      case 'Finalizada':
+        return 'check-circle';
+      case 'Agendada':
+        return 'calendar';
+      default:
+        return 'file-text';
+    }
+  };
+
+  const statusColor = mockDataService.getStatusColor(application.estado);
+  const statusBackgroundColor = mockDataService.getStatusBackgroundColor(application.estado);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Icon 
+          name={getStatusIcon(application.estado)} 
+          size={24} 
+          color={statusColor} 
+        />
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {application.titulo}
+        </Text>
       </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Alunos:</Text>
-        <Text style={styles.infoValue}>3 participantes</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Média:</Text>
-        <Text style={[styles.infoValue, { color: '#D35400' }]}>38.3%</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Status:</Text>
-        <View style={styles.statusTag}>
-          <Text style={styles.statusTagText}>Em Andamento</Text>
+      <View style={styles.cardBody}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Aplicado em:</Text>
+          <Text style={styles.infoValue}>
+            {mockDataService.formatDate(application.dataAplicacao)}
+          </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Alunos:</Text>
+          <Text style={styles.infoValue}>
+            {application.participantes} participantes
+          </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Média:</Text>
+          <Text style={[styles.infoValue, { 
+            color: application.mediaGeral >= 70 ? '#27AE60' : '#D35400' 
+          }]}>
+            {application.mediaGeral.toFixed(1)}%
+          </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Status:</Text>
+          <View style={[styles.statusTag, { backgroundColor: statusBackgroundColor }]}>
+            <Text style={[styles.statusTagText, { color: statusColor }]}>
+              {application.estado}
+            </Text>
+          </View>
         </View>
       </View>
+      <View style={styles.cardFooter}>
+        <TouchableOpacity
+          style={styles.buttonPrimary}
+          onPress={() => navigation.navigate('Dashboard', { applicationId: application.id })}
+        >
+          <Text style={styles.buttonTextPrimary}>Ver Detalhes</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.buttonSecondary}>
+          <Text style={styles.buttonTextSecondary}>Resultados</Text>
+        </TouchableOpacity>
+      </View>
     </View>
-    <View style={styles.cardFooter}>
-      <TouchableOpacity
-        style={styles.buttonPrimary}
-        onPress={() => navigation.navigate('Dashboard')}
-      >
-        <Text style={styles.buttonTextPrimary}>Ver Detalhes</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.buttonSecondary}>
-        <Text style={styles.buttonTextSecondary}>Resultados</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+  );
+};
 
 type ApplicationsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -70,6 +113,40 @@ type ApplicationsScreenProps = NativeStackScreenProps<
 >;
 
 const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
+  const [applications, setApplications] = useState<Aplicacao[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadApplications = async () => {
+      try {
+        const data = await mockDataService.getApplications();
+        setApplications(data);
+      } catch (error) {
+        console.error('Error loading applications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadApplications();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={COLORS.background}
+          translucent
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Carregando aplicações...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar
@@ -93,7 +170,23 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
           Visualize e gerencie as avaliações aplicadas e seus resultados.
         </Text>
 
-        <ApplicationCard navigation={navigation} />
+        {applications.map((application) => (
+          <ApplicationCard
+            key={application.id}
+            application={application}
+            navigation={navigation}
+          />
+        ))}
+
+        {applications.length === 0 && (
+          <View style={styles.emptyState}>
+            <Icon name="inbox" size={48} color={COLORS.textSecondary} />
+            <Text style={styles.emptyStateTitle}>Nenhuma aplicação encontrada</Text>
+            <Text style={styles.emptyStateText}>
+              Não há aplicações de avaliações disponíveis no momento.
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -147,6 +240,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.textPrimary,
     marginLeft: 12,
+    flex: 1,
   },
   cardBody: { paddingVertical: 12 },
   infoRow: {
@@ -203,6 +297,35 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 12,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+    marginTop: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 
