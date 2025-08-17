@@ -1,3 +1,4 @@
+import { ItemSistemaArquivos } from '../item-sistema-arquivos';
 export class Avaliador {
   id: number;
   nome: string;
@@ -5,4 +6,5 @@ export class Avaliador {
   senha: string;
   criadoEm: Date;
   atualizadoEm: Date;
+  itemSistemaArquivos: ItemSistemaArquivos[];
 }
