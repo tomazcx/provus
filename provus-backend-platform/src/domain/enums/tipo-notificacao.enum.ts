@@ -1,4 +1,4 @@
-const enum TipoNotificacaoEnum {
+enum TipoNotificacaoEnum {
   EMAIL = 'Email',
   PUSH_NOTIFICATION = 'Notificação Push',
 }

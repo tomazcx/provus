@@ -1,4 +1,4 @@
-const enum TipoInfracaoEnum {
+enum TipoInfracaoEnum {
   TROCA_ABAS = 'Troca de Abas',
   PRINT_SCREEN = 'Print Screen',
   COPIAR_COLAR = 'Copiar e Colar',

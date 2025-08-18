@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Patch } from '@nestjs/common';
 import { AuthService } from 'src/domain/services/auth';
 import { ConfirmEmailRequest } from './request';
 import { ConfirmEmailDecorators } from './decorators';

@@ -9,7 +9,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api', {
     exclude: ['/'],
-  })
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -19,19 +19,19 @@ async function bootstrap() {
         enableImplicitConversion: true,
       },
     }),
-  )
+  );
 
   const config = new DocumentBuilder()
     .setTitle(Env.APP_NAME)
     .setDescription(`${Env.APP_DESCRIPTION} - ${Env.ENVIRONMENT}`)
     .addBearerAuth()
     .setVersion(Env.APP_VERSION)
-    .build()
+    .build();
 
-  const document = SwaggerModule.createDocument(app, config)
-  SwaggerModule.setup('api-docs', app, document)
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-docs', app, document);
 
-  app.enableCors()
+  app.enableCors();
 
   await app.listen(Env.PORT);
 }

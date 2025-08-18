@@ -1,4 +1,4 @@
-const enum TipoAplicacaoEnum {
+enum TipoAplicacaoEnum {
   MANUAL = 'Manual',
   AGENDADA = 'Agendada',
 }

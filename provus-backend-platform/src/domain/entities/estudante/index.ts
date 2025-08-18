@@ -6,5 +6,5 @@ export class Estudante {
   email: string;
   criadoEm: Date;
   atualizadoEm: Date;
-  submissoes: Submissao[];
+  submissao: Submissao;
 }

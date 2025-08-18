@@ -1,4 +1,4 @@
-const enum EstadoSubmissaoEnum {
+enum EstadoSubmissaoEnum {
   INICIADA = 'Iniciada',
   ENVIADA = 'Enviada',
   AVALIADA = 'Avaliada',

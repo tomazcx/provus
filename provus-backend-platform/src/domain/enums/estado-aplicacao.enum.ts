@@ -1,4 +1,4 @@
-const enum EstadoAplicacaoEnum {
+enum EstadoAplicacaoEnum {
   CRIADA = 'Criada',
   CONCLUIDA = 'Concluída',
   EM_ANDAMENTO = 'Em Andamento',
