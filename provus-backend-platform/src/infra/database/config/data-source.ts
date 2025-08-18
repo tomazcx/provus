@@ -2,8 +2,6 @@ import { config } from 'dotenv';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { SeederOptions } from 'typeorm-extension';
 
-console.log('O __dirname do data-source.ts é:', __dirname); // <-- ADICIONE ISSO
-
 config();
 
 export const options: DataSourceOptions & SeederOptions = {
