@@ -14,7 +14,7 @@ export class EstudanteModel {
   @PrimaryColumn({ name: 'submissao_id' })
   id: number;
 
-  @Column({ unique: true })
+  @PrimaryColumn()
   email: string;
 
   @Column()

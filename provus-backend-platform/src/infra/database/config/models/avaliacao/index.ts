@@ -9,7 +9,7 @@ export class AvaliacaoModel extends ItemSistemaArquivosModel {
   @Column()
   descricao: string;
 
-  @Column('is_modelo')
+  @Column({ name: 'is_modelo' })
   isModelo: boolean;
 
   @OneToOne(() => ConfiguracaoAvaliacaoModel, { cascade: true, eager: true })

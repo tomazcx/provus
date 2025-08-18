@@ -1,12 +1,11 @@
 import { ChildEntity, Column, JoinTable, ManyToMany, OneToMany } from 'typeorm';
-// Enums
-import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
 import { ItemSistemaArquivosModel } from '../item-sistema-arquivos';
 import { AlternativaModel } from '../alternativa';
 import { ConfiguracoesRandomizacaoModel } from '../configuracoes-randomizacao';
-import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
 import { QuestoesAvaliacoesModel } from '../questoes-avaliacoes';
 import { SubmissaoRespostasModel } from '../submissao-respostas';
+import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
+import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
 
 @ChildEntity('QUESTAO')
 export class QuestaoModel extends ItemSistemaArquivosModel {

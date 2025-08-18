@@ -10,9 +10,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { EstudanteModel } from '../estudante';
-import EstadoSubmissaoEnum from 'src/domain/enums/estado-submissao.enum';
 import { AplicacaoModel } from '../aplicacao';
 import { SubmissaoRespostasModel } from '../submissao-respostas';
+import EstadoSubmissaoEnum from 'src/domain/enums/estado-submissao.enum';
 
 @Entity('submissao')
 export class SubmissaoModel {

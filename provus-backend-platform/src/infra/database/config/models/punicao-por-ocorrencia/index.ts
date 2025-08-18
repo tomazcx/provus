@@ -17,16 +17,16 @@ export class PunicaoPorOcorrenciaModel {
   @Column({ name: 'tipo_infracao', type: 'enum', enum: TipoInfracaoEnum })
   tipoInfracao: TipoInfracaoEnum;
 
-  @Column('quantidade_ocorrencias')
+  @Column({ name: 'quantidade_ocorrencias' })
   quantidadeOcorrencias: number;
 
   @Column({ name: 'tipo_penalidade', type: 'enum', enum: TipoPenalidadeEnum })
   tipoPenalidade: TipoPenalidadeEnum;
 
-  @Column('pontuacao_perdida')
+  @Column({ name: 'pontuacao_perdida' })
   pontuacaoPerdida: number;
 
-  @Column('tempo_reduzido')
+  @Column({ name: 'tempo_reduzido' })
   tempoReduzido: number;
 
   @ManyToOne(() => ConfiguracoesSegurancaModel, (config) => config.punicoes)

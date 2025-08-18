@@ -8,7 +8,8 @@ import { Env } from 'src/shared/env';
       type: 'postgres',
       url: Env.DATABASE_URL,
       entities: [__dirname + '/models/**/index{.ts,.js}'],
-      synchronize: true,
+      migrationsRun: true,
+      synchronize: false,
     }),
   ],
 })

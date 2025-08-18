@@ -3,7 +3,7 @@ import { ConfiguracoesRandomizacao } from '../configuracoes-randomizacao';
 
 export class ConfiguracoesGerais {
   id: number;
-  configuracaoRandomizacao: ConfiguracoesRandomizacao;
+  configuracoesRandomizacao: ConfiguracoesRandomizacao[];
   tempoMaximo: number;
   tempoMinimo: number;
   tipoAplicacao: TipoAplicacaoEnum;

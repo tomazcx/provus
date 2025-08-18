@@ -1,10 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { ConfiguracoesRandomizacaoModel } from '../configuracoes-randomizacao';
 import TipoAplicacaoEnum from 'src/domain/enums/tipo-aplicacao.enum';
 
@@ -13,10 +7,10 @@ export class ConfiguracoesGeraisModel {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column('tempo_maximo')
+  @Column({ name: 'tempo_maximo' })
   tempoMaximo: number;
 
-  @Column('tempo_minimo')
+  @Column({ name: 'tempo_minimo' })
   tempoMinimo: number;
 
   @Column({ name: 'tipo_aplicacao', type: 'enum', enum: TipoAplicacaoEnum })
@@ -25,25 +19,24 @@ export class ConfiguracoesGeraisModel {
   @Column({ type: 'timestamp', name: 'data_agendamento', nullable: true })
   dataAgendamento: Date;
 
-  @Column('mostrar_pontuacao')
+  @Column({ name: 'mostrar_pontuacao' })
   mostrarPontuacao: boolean;
 
-  @Column('permitir_revisao')
+  @Column({ name: 'permitir_revisao' })
   permitirRevisao: boolean;
 
-  @Column('permitir_multiplos_envios')
+  @Column({ name: 'permitir_multiplos_envios' })
   permitirMultiplosEnvios: boolean;
 
-  @Column('exibir_pontuacao_questoes')
+  @Column({ name: 'exibir_pontuacao_questoes' })
   exibirPontuacaoQuestoes: boolean;
 
-  @Column('permitir_consultar_anexos')
+  @Column({ name: 'permitir_consultar_anexos' })
   permitirConsultarAnexos: boolean;
 
-  @OneToOne(() => ConfiguracoesRandomizacaoModel, {
-    cascade: true,
-    eager: true,
-  })
-  @JoinColumn({ name: 'configuracao_randomizacao_id' })
-  configuracaoRandomizacao: ConfiguracoesRandomizacaoModel;
+  @OneToMany(
+    () => ConfiguracoesRandomizacaoModel,
+    (configuracao) => configuracao.configuracoesGerais,
+  )
+  configuracoesRandomizacao: ConfiguracoesRandomizacaoModel[];
 }

@@ -1,4 +1,4 @@
-import { TipoItemEnum } from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
 import { ItemSistemaArquivos } from '../item-sistema-arquivos';
 
 export class Arquivo extends ItemSistemaArquivos {

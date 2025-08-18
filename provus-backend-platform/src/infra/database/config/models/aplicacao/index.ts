@@ -1,16 +1,14 @@
-import EstadoAplicacaoEnum from 'src/domain/enums/estado-aplicacao.enum';
 import {
   Column,
-  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { AvaliacaoModel } from '../avaliacao';
 import { SubmissaoModel } from '../submissao';
+import EstadoAplicacaoEnum from 'src/domain/enums/estado-aplicacao.enum';
 
 @Entity('aplicacao')
 export class AplicacaoModel {
@@ -28,12 +26,6 @@ export class AplicacaoModel {
 
   @Column({ type: 'enum', enum: EstadoAplicacaoEnum })
   estado: EstadoAplicacaoEnum;
-
-  @CreateDateColumn({ name: 'criado_em' })
-  criadoEm: Date;
-
-  @UpdateDateColumn({ name: 'atualizado_em' })
-  atualizadoEm: Date;
 
   @ManyToOne(() => AvaliacaoModel, (avaliacao) => avaliacao.aplicacoes)
   @JoinColumn({ name: 'avaliacao_id' })

@@ -4,3 +4,5 @@ export enum TipoItemEnum {
   QUESTAO = 'QUESTAO',
   AVALIACAO = 'AVALIACAO',
 }
+
+export default TipoItemEnum;

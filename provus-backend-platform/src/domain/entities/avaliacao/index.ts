@@ -1,4 +1,4 @@
-import { TipoItemEnum } from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
 import type { Aplicacao } from '../aplicacao';
 import type { ConfiguracaoAvaliacao } from '../configuracao-avaliacao';
 import { QuestoesAvaliacoes } from '../questoes-avaliacoes';

@@ -1,7 +1,15 @@
-import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { DificuldadeRandomizacaoEnum } from 'src/domain/enums/dificuldade-randomizacao.enum';
-import TipoRandomizacaoEnum from 'src/domain/enums/tipo-randomizacao.enum';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToMany,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { QuestaoModel } from '../questao';
+import DificuldadeRandomizacaoEnum from 'src/domain/enums/dificuldade-randomizacao.enum';
+import TipoRandomizacaoEnum from 'src/domain/enums/tipo-randomizacao.enum';
+import { ConfiguracoesGeraisModel } from '../configuracoes-gerais';
 
 @Entity('configuracoes_randomizacao')
 export class ConfiguracoesRandomizacaoModel {
@@ -16,6 +24,13 @@ export class ConfiguracoesRandomizacaoModel {
 
   @Column()
   quantidade: number;
+
+  @ManyToOne(
+    () => ConfiguracoesGeraisModel,
+    (configuracao) => configuracao.configuracoesRandomizacao,
+  )
+  @JoinColumn({ name: 'configuracoes_gerais_id' })
+  configuracoesGerais: ConfiguracoesGeraisModel;
 
   @ManyToMany(
     () => QuestaoModel,

@@ -1,5 +1,5 @@
 import type { Avaliador } from '../avaliador';
-import { TipoItemEnum } from '../../enums/tipo-item.enum';
+import TipoItemEnum from '../../enums/tipo-item.enum';
 
 export abstract class ItemSistemaArquivos {
   id: number;

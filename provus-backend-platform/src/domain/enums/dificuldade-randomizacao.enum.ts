@@ -4,3 +4,5 @@ export enum DificuldadeRandomizacaoEnum {
   DIFICIL = 'DIFICIL',
   QUALQUER = 'QUALQUER',
 }
+
+export default DificuldadeRandomizacaoEnum;
