@@ -1,8 +1,15 @@
-import { ChildEntity, Column } from 'typeorm';
+import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { ItemSistemaArquivosModel } from '../item-sistema-arquivos';
 
-@ChildEntity('ARQUIVO')
-export class ArquivoModel extends ItemSistemaArquivosModel {
+@Entity('arquivo')
+export class ArquivoModel {
+  @PrimaryColumn()
+  id: number;
+
+  @OneToOne(() => ItemSistemaArquivosModel, { eager: true, cascade: true })
+  @JoinColumn({ name: 'id' })
+  item: ItemSistemaArquivosModel;
+
   @Column()
   url: string;
 

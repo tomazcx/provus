@@ -1,4 +1,13 @@
-import { ChildEntity, Column, JoinTable, ManyToMany, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+  PrimaryColumn,
+  JoinColumn,
+  OneToOne,
+} from 'typeorm';
 import { ItemSistemaArquivosModel } from '../item-sistema-arquivos';
 import { AlternativaModel } from '../alternativa';
 import { ConfiguracoesRandomizacaoModel } from '../configuracoes-randomizacao';
@@ -7,8 +16,15 @@ import { SubmissaoRespostasModel } from '../submissao-respostas';
 import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
 import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
 
-@ChildEntity('QUESTAO')
-export class QuestaoModel extends ItemSistemaArquivosModel {
+@Entity('questao')
+export class QuestaoModel {
+  @PrimaryColumn()
+  id: number;
+
+  @OneToOne(() => ItemSistemaArquivosModel, { eager: true, cascade: true })
+  @JoinColumn({ name: 'id' })
+  item: ItemSistemaArquivosModel;
+
   @Column({ type: 'enum', enum: DificuldadeQuestaoEnum })
   dificuldade: DificuldadeQuestaoEnum;
 

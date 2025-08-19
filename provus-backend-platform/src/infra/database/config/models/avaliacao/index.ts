@@ -1,11 +1,25 @@
-import { ChildEntity, Column, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+import {
+  Entity,
+  Column,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import { ConfiguracaoAvaliacaoModel } from '../configuracao-avaliacao';
-import { ItemSistemaArquivosModel } from '../item-sistema-arquivos';
 import { QuestoesAvaliacoesModel } from '../questoes-avaliacoes';
 import { AplicacaoModel } from '../aplicacao';
+import { ItemSistemaArquivosModel } from '../item-sistema-arquivos';
 
-@ChildEntity('AVALIACAO')
-export class AvaliacaoModel extends ItemSistemaArquivosModel {
+@Entity('avaliacao')
+export class AvaliacaoModel {
+  @PrimaryColumn()
+  id: number;
+
+  @OneToOne(() => ItemSistemaArquivosModel, { eager: true, cascade: true })
+  @JoinColumn({ name: 'id' })
+  item: ItemSistemaArquivosModel;
+
   @Column()
   descricao: string;
 

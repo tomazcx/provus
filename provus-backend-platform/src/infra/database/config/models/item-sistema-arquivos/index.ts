@@ -5,18 +5,17 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  TableInheritance,
   Tree,
   TreeChildren,
   TreeParent,
   UpdateDateColumn,
 } from 'typeorm';
 import { AvaliadorModel } from '../avaliador';
+import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
 
 @Entity('item_sistema_arquivos')
 @Tree('adjacency-list')
-@TableInheritance({ column: { type: 'varchar', name: 'tipo' } })
-export abstract class ItemSistemaArquivosModel {
+export class ItemSistemaArquivosModel {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -26,6 +25,9 @@ export abstract class ItemSistemaArquivosModel {
   @TreeParent()
   @JoinColumn({ name: 'pai_id' })
   pai: ItemSistemaArquivosModel;
+
+  @Column({ type: 'enum', enum: TipoItemEnum })
+  tipo: TipoItemEnum;
 
   @ManyToOne(() => AvaliadorModel, (avaliador) => avaliador.itemSistemaArquivos)
   @JoinColumn({ name: 'avaliador_id' })

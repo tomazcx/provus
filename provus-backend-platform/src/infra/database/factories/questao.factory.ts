@@ -7,8 +7,6 @@ import { QuestaoModel } from '../config/models';
 export const QuestoesFactory = setSeederFactory(QuestaoModel, () => {
   const questao = new QuestaoModel();
 
-  questao.titulo = faker.lorem.sentence({ min: 5, max: 10 }).replace('.', '?');
-
   questao.dificuldade = faker.helpers.enumValue(DificuldadeQuestaoEnum);
   questao.tipoQuestao = faker.helpers.enumValue(TipoQuestaoEnum);
 

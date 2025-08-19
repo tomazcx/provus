@@ -10,7 +10,6 @@ export * from './ips-permitidos';
 export * from './item-sistema-arquivos';
 export * from './questao';
 export * from './questoes-avaliacoes';
-export * from './pasta';
 export * from './alternativa';
 export * from './configuracoes-randomizacao';
 export * from './submissao';

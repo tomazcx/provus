@@ -11,12 +11,13 @@ import {
   ConfiguracaoAvaliacaoModel,
   ConfiguracoesGeraisModel,
   ConfiguracoesSegurancaModel,
-  PastaModel,
+  ItemSistemaArquivosModel,
   QuestaoModel,
   QuestoesAvaliacoesModel,
   SubmissaoModel,
 } from '../config/models';
 import { AppDataSource } from '../config/data-source';
+import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
 import { ArquivoModel } from '../config/models/arquivo';
 import { EstudanteModel } from '../config/models/estudante';
 
@@ -25,6 +26,10 @@ export default class MainSeeder implements Seeder {
     dataSource: DataSource,
     factoryManager: SeederFactoryManager,
   ): Promise<void> {
+    const itemRepo = dataSource.getRepository(ItemSistemaArquivosModel);
+    const questaoRepo = dataSource.getRepository(QuestaoModel);
+    const avaliacaoRepo = dataSource.getRepository(AvaliacaoModel);
+    const arquivoRepo = dataSource.getRepository(ArquivoModel);
     const questoesAvaliacoesRepository = dataSource.getRepository(
       QuestoesAvaliacoesModel,
     );
@@ -33,41 +38,63 @@ export default class MainSeeder implements Seeder {
     );
 
     const avaliadorFactory = factoryManager.get(AvaliadorModel);
-    const questaoFactory = factoryManager.get(QuestaoModel);
     const alternativaFactory = factoryManager.get(AlternativaModel);
-    const avaliacaoFactory = factoryManager.get(AvaliacaoModel);
     const aplicacaoFactory = factoryManager.get(AplicacaoModel);
     const submissaoFactory = factoryManager.get(SubmissaoModel);
     const estudanteFactory = factoryManager.get(EstudanteModel);
-    const pastaFactory = factoryManager.get(PastaModel);
+    const questaoFactory = factoryManager.get(QuestaoModel);
+    const avaliacaoFactory = factoryManager.get(AvaliacaoModel);
     const arquivoFactory = factoryManager.get(ArquivoModel);
     const configGeraisFactory = factoryManager.get(ConfiguracoesGeraisModel);
     const configSegurancaFactory = factoryManager.get(
       ConfiguracoesSegurancaModel,
     );
 
+    // =========================================================================
+    // 1. CRIAÇÃO DE AVALIADORES
+    // =========================================================================
     console.log('Criando 2 avaliadores...');
     const [avaliadorPrincipal, outroAvaliador] =
       await avaliadorFactory.saveMany(2);
 
+    // =========================================================================
+    // 2. CRIAÇÃO DE UM "BANCO DE QUESTÕES" COM ALTERNATIVAS
+    // =========================================================================
     console.log('Criando um banco de 20 questões...');
-    const bancoDeQuestoes = await questaoFactory.saveMany(20, {
-      avaliador: avaliadorPrincipal,
-    });
+    const bancoDeQuestoes: QuestaoModel[] = [];
+    for (let i = 0; i < 20; i++) {
+      const itemBase = itemRepo.create({
+        titulo: faker.lorem.sentence(5),
+        avaliador: avaliadorPrincipal,
+        tipo: TipoItemEnum.QUESTAO,
+      });
+      await itemRepo.save(itemBase);
 
-    console.log(
-      'Adicionando alternativas para cada questão (1 correta, 4 incorretas)...',
-    );
-    for (const questao of bancoDeQuestoes) {
-      await alternativaFactory.saveMany(4, { isCorreto: false, questao });
-      await alternativaFactory.save({ isCorreto: true, questao });
+      const questaoEspecifica = await questaoFactory.make({ id: itemBase.id });
+      await questaoRepo.save(questaoEspecifica);
+
+      const questaoCompleta = {
+        ...itemBase,
+        ...questaoEspecifica,
+      } as QuestaoModel;
+      bancoDeQuestoes.push(questaoCompleta);
     }
 
-    console.log('Criando configurações (Gerais e de Segurança)...');
+    console.log('Adicionando alternativas para cada questão...');
+    for (const questao of bancoDeQuestoes) {
+      await alternativaFactory.saveMany(4, {
+        isCorreto: false,
+        questao: questao,
+      });
+      await alternativaFactory.save({ isCorreto: true, questao: questao });
+    }
+
+    // =========================================================================
+    // 3. CRIAÇÃO DE UMA AVALIAÇÃO PRINCIPAL E ASSOCIAÇÃO DAS QUESTÕES
+    // =========================================================================
+    console.log('Criando configurações...');
     const configGerais = await configGeraisFactory.save();
     const configSeguranca = await configSegurancaFactory.save();
-
-    console.log('Montando a configuração da avaliação...');
     const novaConfigAvaliacao = configAvaliacaoRepo.create({
       configuracoesGerais: configGerais,
       configuracoesSeguranca: configSeguranca,
@@ -75,27 +102,41 @@ export default class MainSeeder implements Seeder {
     await configAvaliacaoRepo.save(novaConfigAvaliacao);
 
     console.log('Criando a avaliação principal...');
-    const avaliacaoPrincipal = await avaliacaoFactory.save({
+    const avaliacaoItemBase = itemRepo.create({
       titulo: 'Avaliação de Conhecimentos Gerais 2025',
       avaliador: avaliadorPrincipal,
+      tipo: TipoItemEnum.AVALIACAO,
+    });
+    await itemRepo.save(avaliacaoItemBase);
+
+    const avaliacaoEspecifica = await avaliacaoFactory.make({
+      id: avaliacaoItemBase.id,
       configuracaoAvaliacao: novaConfigAvaliacao,
     });
+    await avaliacaoRepo.save(avaliacaoEspecifica);
+    const avaliacaoPrincipal = {
+      ...avaliacaoItemBase,
+      ...avaliacaoEspecifica,
+    } as AvaliacaoModel;
 
     console.log('Associando 10 questões à avaliação principal...');
     const questoesDaAvaliacao = faker.helpers.arrayElements(
       bancoDeQuestoes,
       10,
     );
-
     for (const [index, questao] of questoesDaAvaliacao.entries()) {
-      const questaoAvaliacao = new QuestoesAvaliacoesModel();
-      questaoAvaliacao.avaliacaoId = avaliacaoPrincipal.id;
-      questaoAvaliacao.questaoId = questao.id;
-      questaoAvaliacao.ordem = index + 1;
-      questaoAvaliacao.pontuacao = 10;
+      const questaoAvaliacao = questoesAvaliacoesRepository.create({
+        avaliacaoId: avaliacaoPrincipal.id,
+        questaoId: questao.id,
+        ordem: index + 1,
+        pontuacao: 10,
+      });
       await questoesAvaliacoesRepository.save(questaoAvaliacao);
     }
 
+    // =========================================================================
+    // 4. CRIAÇÃO DE APLICAÇÕES E SUBMISSÕES
+    // =========================================================================
     console.log('Criando 2 aplicações para a avaliação...');
     const aplicacoes = await aplicacaoFactory.saveMany(2, {
       avaliacao: avaliacaoPrincipal,
@@ -114,26 +155,52 @@ export default class MainSeeder implements Seeder {
       }
     }
 
+    // =========================================================================
+    // 5. CRIAÇÃO DE PASTAS E ARQUIVOS
+    // =========================================================================
     console.log('Criando estrutura de pastas e arquivos...');
-    const pastaRaiz = await pastaFactory.save({
+    const pastaRaiz = itemRepo.create({
       titulo: 'Meus Documentos',
       avaliador: outroAvaliador,
+      tipo: TipoItemEnum.PASTA,
     });
-    const pastaAvaliacoes = await pastaFactory.save({
+    await itemRepo.save(pastaRaiz);
+
+    const pastaAvaliacoes = itemRepo.create({
       titulo: 'Avaliações Salvas',
       avaliador: outroAvaliador,
       pai: pastaRaiz,
+      tipo: TipoItemEnum.PASTA,
     });
-    await arquivoFactory.saveMany(5, {
-      avaliador: outroAvaliador,
-      pai: pastaRaiz,
-    });
-    await arquivoFactory.saveMany(3, {
-      avaliador: outroAvaliador,
-      pai: pastaAvaliacoes,
-    });
+    await itemRepo.save(pastaAvaliacoes);
 
-    console.log('\n Seeding completo executado com sucesso!');
+    console.log('Criando arquivos...');
+    for (let i = 0; i < 5; i++) {
+      const arqItemBase = itemRepo.create({
+        titulo: faker.system.fileName(),
+        avaliador: outroAvaliador,
+        pai: pastaRaiz,
+        tipo: TipoItemEnum.ARQUIVO,
+      });
+      await itemRepo.save(arqItemBase);
+
+      const arqEspecifico = await arquivoFactory.make({ id: arqItemBase.id });
+      await arquivoRepo.save(arqEspecifico);
+    }
+    for (let i = 0; i < 3; i++) {
+      const arqItemBase = itemRepo.create({
+        titulo: faker.system.fileName(),
+        avaliador: outroAvaliador,
+        pai: pastaAvaliacoes,
+        tipo: TipoItemEnum.ARQUIVO,
+      });
+      await itemRepo.save(arqItemBase);
+
+      const arqEspecifico = await arquivoFactory.make({ id: arqItemBase.id });
+      await arquivoRepo.save(arqEspecifico);
+    }
+
+    console.log('\nSeeding completo executado com sucesso!');
   }
 }
 
@@ -143,7 +210,7 @@ const run = async () => {
     await runSeeder(AppDataSource, MainSeeder);
     console.log('Execução do seeder finalizada.');
   } catch (error) {
-    console.error(' Erro durante a execução do seeder:', error);
+    console.error('Erro durante a execução do seeder:', error);
   } finally {
     await AppDataSource.destroy();
   }

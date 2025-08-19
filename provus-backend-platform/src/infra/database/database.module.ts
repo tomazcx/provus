@@ -23,7 +23,6 @@ import { IpsPermitidosModel } from './config/models/ips-permitidos';
 import { ItemSistemaArquivosModel } from './config/models/item-sistema-arquivos';
 import { QuestaoModel } from './config/models/questao';
 import { QuestoesAvaliacoesModel } from './config/models/questoes-avaliacoes';
-import { PastaModel } from './config/models/pasta';
 import { ConfiguracoesRandomizacaoModel } from './config/models/configuracoes-randomizacao';
 import { SubmissaoModel } from './config/models/submissao';
 import { SubmissaoRespostasModel } from './config/models/submissao-respostas';
@@ -45,7 +44,6 @@ import { AplicacaoModel } from './config/models/aplicacao';
       ItemSistemaArquivosModel,
       QuestaoModel,
       QuestoesAvaliacoesModel,
-      PastaModel,
       ConfiguracoesRandomizacaoModel,
       SubmissaoModel,
       SubmissaoRespostasModel,
