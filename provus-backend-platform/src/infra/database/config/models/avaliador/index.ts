@@ -1,4 +1,12 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { ItemSistemaArquivosModel } from '../item-sistema-arquivos';
 
 @Entity('avaliador')
 export class AvaliadorModel {
@@ -8,24 +16,18 @@ export class AvaliadorModel {
   @Column()
   nome: string;
 
-  @Column()
+  @Column({ unique: true })
   email: string;
 
   @Column()
   senha: string;
 
-  @Column({
-    name: 'criado_em',
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-  })
+  @CreateDateColumn({ name: 'criado_em' })
   criadoEm: Date;
 
-  @Column({
-    name: 'atualizado_em',
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-  })
+  @UpdateDateColumn({ name: 'atualizado_em' })
   atualizadoEm: Date;
+
+  @OneToMany(() => ItemSistemaArquivosModel, (item) => item.avaliador)
+  itemSistemaArquivos: ItemSistemaArquivosModel[];
 }
