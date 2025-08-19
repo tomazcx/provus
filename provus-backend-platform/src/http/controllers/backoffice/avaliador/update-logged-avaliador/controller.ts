@@ -1,12 +1,12 @@
 import { Body, Controller, Put, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { UpdateAvaliadorDecorators } from './decorators';
-import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador';
-import { AvaliadorResponse } from 'src/http/models/avaliador';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
-import { UpdateAvaliadorRequest } from './request';
 import { AvaliadorService } from 'src/services/avaliador.service';
-import { AvaliadorAuthGuard } from 'src/http/guards';
+import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
+import { UpdateAvaliadorRequest } from './request';
+import { Avaliador } from 'src/domain/entities/avaliador.entity';
+import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
+import { AvaliadorResponse } from 'src/http/models/avaliador.response';
 
 @Controller('backoffice/avaliador')
 @ApiTags('Backoffice - Avaliador')

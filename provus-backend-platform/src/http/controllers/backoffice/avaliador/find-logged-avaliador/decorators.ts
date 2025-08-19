@@ -1,6 +1,6 @@
 import { applyDecorators, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { AvaliadorResponse } from 'src/http/models/avaliador';
+import { AvaliadorResponse } from 'src/http/models/avaliador.response';
 
 export const FindAvaliadorByIdDecorators = () => {
   return applyDecorators(
