@@ -12,23 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { Aplicacao, Penalidade } from '../types/Application';
-import mockDataService from '../services/mockDataService';
-import TipoInfracaoEnum from '../enums/TipoInfracaoEnum';
-
-const COLORS = {
-  background: '#F8F9FA',
-  white: '#FFFFFF',
-  textPrimary: '#212529',
-  textSecondary: '#6C757D',
-  primary: '#192A56',
-  green: '#E6F4EA',
-  greenText: '#1E8449',
-  red: '#FADBD8',
-  redText: '#C0392B',
-  border: '#E9ECEF',
-};
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { Aplicacao, Penalidade } from '../../types/Application';
+import mockDataService from '../../services/mockDataService';
+import TipoInfracaoEnum from '../../enums/TipoInfracaoEnum';
+import { COLORS } from '../../constants/colors';
 
 const StatCard = ({
   title,
@@ -329,7 +317,7 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.greenBackground,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
