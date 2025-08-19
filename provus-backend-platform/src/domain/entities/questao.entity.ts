@@ -13,7 +13,6 @@ export class Questao extends ItemSistemaArquivos {
   dificuldade: DificuldadeQuestaoEnum;
   descricao: string;
   exemploDeResposta: string;
-  pontuacao: number;
   isModelo: boolean;
   tipoQuestao: TipoQuestaoEnum;
   textoRevisao: string;

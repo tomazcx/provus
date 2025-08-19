@@ -35,9 +35,6 @@ export class QuestaoModel {
   exemploResposta: string;
 
   @Column()
-  pontuacao: number;
-
-  @Column()
   isModelo: boolean;
 
   @Column({ name: 'tipo_questao', type: 'enum', enum: TipoQuestaoEnum })
