@@ -12,23 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { Aplicacao, Penalidade } from '../types/Application';
-import mockDataService from '../services/mockDataService';
-import TipoInfracaoEnum from '../enums/TipoInfracaoEnum';
-
-const COLORS = {
-  background: '#F8F9FA',
-  white: '#FFFFFF',
-  textPrimary: '#212529',
-  textSecondary: '#6C757D',
-  primary: '#192A56',
-  green: '#E6F4EA',
-  greenText: '#1E8449',
-  red: '#FADBD8',
-  redText: '#C0392B',
-  border: '#E9ECEF',
-};
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { Aplicacao, Penalidade } from '../../types/Application';
+import mockDataService from '../../services/mockDataService';
+import TipoInfracaoEnum from '../../enums/TipoInfracaoEnum';
+import { COLORS } from '../../constants/colors';
 
 const StatCard = ({
   title,
@@ -103,7 +91,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
           translucent
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.secondary} />
           <Text style={styles.loadingText}>Carregando detalhes...</Text>
         </View>
       </SafeAreaView>
@@ -150,7 +138,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color={COLORS.primary} />
+            <Icon name="arrow-left" size={24} color={COLORS.secondary} />
           </TouchableOpacity>
           <View style={styles.headerIcons}>
             <Icon name="bell" size={22} color={COLORS.textSecondary} />
@@ -166,7 +154,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
 
         <View style={styles.card}>
           <View style={styles.titleContainer}>
-            <Icon name="file-text" size={24} color={COLORS.primary} />
+            <Icon name="file-text" size={24} color={COLORS.secondary} />
             <View style={styles.titleTextContainer}>
               <Text style={styles.mainTitle} numberOfLines={2}>
                 {application.titulo}
@@ -301,7 +289,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 16,
@@ -329,7 +317,7 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.greenBackground,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -419,7 +407,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   backButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secundary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
