@@ -46,8 +46,6 @@ export class QuestaoRepository extends Repository<QuestaoModel> {
   ): Promise<(RawQuestaoResult & { alternativas: AlternativaModel[] }) | null> {
     const query = `
       WITH RECURSIVE parent_path AS (
-        -- Ponto de Partida (Anchor): Começa no PAI DIRETO do item que queremos.
-        -- Se não houver pai, esta parte não retorna nada.
         SELECT
           pai_id,
           CAST(titulo AS TEXT) as path
@@ -56,7 +54,6 @@ export class QuestaoRepository extends Repository<QuestaoModel> {
 
         UNION ALL
 
-        -- Parte Recursiva: Sobe na árvore a partir do pai encontrado.
         SELECT
           i.pai_id,
           i.titulo || '/' || p.path
@@ -68,8 +65,6 @@ export class QuestaoRepository extends Repository<QuestaoModel> {
         i.titulo,
         i.criado_em,
         i.atualizado_em,
-        -- Pega o caminho mais longo (o completo) da nossa CTE.
-        -- Se a CTE estiver vazia (sem pais), COALESCE retorna uma string vazia ''.
         COALESCE((SELECT path FROM parent_path ORDER BY LENGTH(path) DESC LIMIT 1), '') as path
       FROM questao q
       JOIN item_sistema_arquivos i ON q.id = i.id
