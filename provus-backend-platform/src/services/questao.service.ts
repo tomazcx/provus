@@ -1,35 +1,46 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AlternativaModel } from 'src/database/config/models/alternativa.model';
-import {
-  QuestaoRepository,
-  RawQuestaoWithPath,
-} from 'src/database/repositories/questao.repository';
+import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { AlternativaResultDto } from 'src/dto/result/alternativa/alternativa.result';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
+import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class QuestaoService {
-  constructor(private readonly questaoRepository: QuestaoRepository) {}
+  constructor(
+    @InjectRepository(QuestaoModel)
+    private readonly questaoRepository: Repository<QuestaoModel>,
+    private readonly itemSistemaArquivosRepository: ItemSistemaArquivosRepository,
+  ) {}
 
-  private mapRawToDto(
-    raw: RawQuestaoWithPath & { alternativas: AlternativaModel[] },
-  ): QuestaoResultDto {
+  async findById(id: number): Promise<QuestaoResultDto> {
+    const questaoModel = await this.questaoRepository.findOne({
+      where: { id },
+      relations: ['alternativas', 'item'],
+    });
+
+    if (!questaoModel) {
+      throw new NotFoundException('Questão não encontrada');
+    }
+
+    const path = await this.itemSistemaArquivosRepository.findPathById(id);
+
     const dto = new QuestaoResultDto();
+    dto.id = questaoModel.id;
+    dto.titulo = questaoModel.item.titulo;
+    dto.path = path;
+    dto.criadoEm = questaoModel.item.criadoEm.toISOString();
+    dto.atualizadoEm = questaoModel.item.atualizadoEm.toISOString();
+    dto.descricao = questaoModel.descricao;
+    dto.dificuldade = questaoModel.dificuldade;
+    dto.exemploRespostaIa = questaoModel.exemploRespostaIa;
+    dto.pontuacao = questaoModel.pontuacao;
+    dto.isModelo = questaoModel.isModelo;
+    dto.tipoQuestao = questaoModel.tipoQuestao;
+    dto.textoRevisao = questaoModel.textoRevisao;
 
-    dto.id = raw.id;
-    dto.titulo = raw.titulo;
-    dto.path = raw.path;
-    dto.criadoEm = raw.criado_em.toISOString();
-    dto.atualizadoEm = raw.atualizado_em.toISOString();
-    dto.descricao = raw.descricao;
-    dto.dificuldade = raw.dificuldade;
-    dto.exemploRespostaIa = raw.exemploRespostaIa;
-    dto.pontuacao = raw.pontuacao;
-    dto.isModelo = raw.isModelo;
-    dto.tipoQuestao = raw.tipo_questao;
-    dto.textoRevisao = raw.textoRevisao;
-
-    dto.alternativas = (raw.alternativas || []).map((altModel) => {
+    dto.alternativas = (questaoModel.alternativas || []).map((altModel) => {
       const altDto = new AlternativaResultDto();
       altDto.id = altModel.id;
       altDto.descricao = altModel.descricao;
@@ -38,15 +49,5 @@ export class QuestaoService {
     });
 
     return dto;
-  }
-
-  async findById(id: number): Promise<QuestaoResultDto> {
-    const questaoComAlternativas =
-      await this.questaoRepository.findByIdComPath(id);
-
-    if (!questaoComAlternativas) {
-      throw new NotFoundException('Questão não encontrada');
-    }
-    return this.mapRawToDto(questaoComAlternativas);
   }
 }

@@ -14,7 +14,9 @@ export const QuestoesFactory = setSeederFactory(QuestaoModel, () => {
 
   questao.isModelo = faker.datatype.boolean();
 
-  questao.exemploResposta = faker.datatype.boolean()
+  questao.pontuacao = faker.number.int({ min: 1, max: 10 });
+
+  questao.exemploRespostaIa = faker.datatype.boolean()
     ? faker.lorem.sentence()
     : null;
 

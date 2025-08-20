@@ -32,10 +32,13 @@ export class QuestaoModel {
   descricao: string;
 
   @Column({ type: 'text', nullable: true })
-  exemploResposta: string;
+  exemploRespostaIa: string;
 
   @Column()
   isModelo: boolean;
+
+  @Column()
+  pontuacao: number;
 
   @Column({ name: 'tipo_questao', type: 'enum', enum: TipoQuestaoEnum })
   tipoQuestao: TipoQuestaoEnum;
