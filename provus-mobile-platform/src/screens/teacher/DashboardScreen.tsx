@@ -91,7 +91,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
           translucent
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.secondary} />
           <Text style={styles.loadingText}>Carregando detalhes...</Text>
         </View>
       </SafeAreaView>
@@ -138,7 +138,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color={COLORS.primary} />
+            <Icon name="arrow-left" size={24} color={COLORS.secondary} />
           </TouchableOpacity>
           <View style={styles.headerIcons}>
             <Icon name="bell" size={22} color={COLORS.textSecondary} />
@@ -154,7 +154,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
 
         <View style={styles.card}>
           <View style={styles.titleContainer}>
-            <Icon name="file-text" size={24} color={COLORS.primary} />
+            <Icon name="file-text" size={24} color={COLORS.secondary} />
             <View style={styles.titleTextContainer}>
               <Text style={styles.mainTitle} numberOfLines={2}>
                 {application.titulo}
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 16,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   backButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secundary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,

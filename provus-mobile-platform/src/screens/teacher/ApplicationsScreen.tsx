@@ -130,7 +130,7 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
           translucent
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.secondary} />
           <Text style={styles.loadingText}>Carregando aplicações...</Text>
         </View>
       </SafeAreaView>
@@ -191,13 +191,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.secondary },
   headerIcons: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 16,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   buttonPrimary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,

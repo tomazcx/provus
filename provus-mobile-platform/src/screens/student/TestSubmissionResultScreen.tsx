@@ -285,14 +285,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.secondary,
     borderRadius: 8,
     padding: 12,
   },
   copyButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.secondary,
+    color: COLORS.white,
     marginLeft: 8,
   },
   questionsList: {
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.secondary,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.secondary,
+    color: COLORS.white,
     marginLeft: 8,
   },
   footer: {
