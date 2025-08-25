@@ -4,12 +4,12 @@ import { AlternativaResultDto } from 'src/dto/result/alternativa/alternativa.res
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
 import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { CreateQuestaoRequest } from 'src/http/controllers/backoffice/questao/create-questao/request';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 import { QuestaoRepository } from 'src/database/repositories/questao.repository';
 import { UpdateQuestaoRequest } from 'src/http/controllers/backoffice/questao/update-questao/request';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
 import { DataSource } from 'typeorm';
+import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 
 @Injectable()
 export class QuestaoService {
@@ -58,7 +58,7 @@ export class QuestaoService {
 
   async create(
     dto: CreateQuestaoRequest,
-    avaliador: Avaliador,
+    avaliador: AvaliadorModel,
   ): Promise<QuestaoResultDto> {
     const newQuestaoId = await this.questaoRepository.createQuestao(
       dto,

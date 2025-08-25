@@ -9,13 +9,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { QuestaoService } from 'src/services/questao.service';
 import { UpdateQuestaoRequest } from './request';
 import { UpdateQuestaoDecorators } from './decorators';
+import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 
 @Controller('backoffice/questao')
 @ApiTags('Backoffice - Questão')
@@ -29,7 +29,7 @@ export class UpdateQuestaoController {
   async handle(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateQuestaoRequest,
-    @LoggedAvaliador() avaliador: Avaliador,
+    @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<QuestaoResultDto> {
     return this.questaoService.update(id, avaliador.id, body);
   }

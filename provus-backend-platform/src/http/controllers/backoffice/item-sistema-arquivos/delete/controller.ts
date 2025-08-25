@@ -8,11 +8,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { ItemSistemaArquivosService } from 'src/services/item-sistema-arquivos.service';
 import { DeleteItemDecorators } from './decorators';
+import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 
 @Controller('backoffice/item-sistema-arquivos')
 @ApiTags('Backoffice - Sistema de Arquivos')
@@ -27,7 +27,7 @@ export class DeleteItemController {
   @DeleteItemDecorators()
   async handle(
     @Param('id', ParseIntPipe) id: number,
-    @LoggedAvaliador() avaliador: Avaliador,
+    @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<void> {
     await this.itemSistemaArquivosService.delete(id, avaliador.id);
   }

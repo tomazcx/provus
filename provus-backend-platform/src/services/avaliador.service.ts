@@ -9,7 +9,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { Repository } from 'typeorm';
 import { UpdateAvaliadorDto } from 'src/dto/request/avaliador/update-avaliador.dto';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 
 @Injectable()
 export class AvaliadorService {
@@ -18,7 +17,7 @@ export class AvaliadorService {
     private readonly avaliadorRepository: Repository<AvaliadorModel>,
   ) {}
 
-  async findById(id: number): Promise<Avaliador> {
+  async findById(id: number): Promise<AvaliadorModel> {
     const avaliador = await this.avaliadorRepository.findOne({
       where: { id },
     });
@@ -30,7 +29,7 @@ export class AvaliadorService {
     return avaliador;
   }
 
-  async update(id: number, dto: UpdateAvaliadorDto): Promise<Avaliador> {
+  async update(id: number, dto: UpdateAvaliadorDto): Promise<AvaliadorModel> {
     const avaliador = await this.avaliadorRepository.findOne({
       where: { id },
     });

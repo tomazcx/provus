@@ -20,7 +20,6 @@ import { SignInResultDto } from 'src/dto/result/auth/sign-in.result';
 import { SignInDto } from 'src/dto/request/auth/sign-in.dto';
 import { ResetPasswordDto } from 'src/dto/request/auth/reset-password.dto';
 import { RecoverPasswordDto } from 'src/dto/request/auth/recover-password.dto';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 import { AvaliadorRecuperarSenhaModel } from 'src/database/config/models/avaliador-recuperar-senha.model';
 import { AvaliadorConfirmarEmailModel } from 'src/database/config/models/avaliador-confirmar-email.model';
 
@@ -210,7 +209,7 @@ export class AuthService {
     );
   }
 
-  async validateToken(token: string): Promise<Avaliador> {
+  async validateToken(token: string): Promise<AvaliadorModel> {
     try {
       const decoded = await this.jwtProvider.verify(token);
 

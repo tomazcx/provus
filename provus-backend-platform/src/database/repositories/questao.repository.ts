@@ -3,8 +3,9 @@ import { DataSource, Repository } from 'typeorm';
 import { QuestaoModel } from '../config/models/questao.model';
 import { AlternativaModel } from '../config/models/alternativa.model';
 import { CreateQuestaoRequest } from 'src/http/controllers/backoffice/questao/create-questao/request';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
+
 import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
+import { AvaliadorModel } from '../config/models/avaliador.model';
 
 @Injectable()
 export class QuestaoRepository extends Repository<QuestaoModel> {
@@ -14,7 +15,7 @@ export class QuestaoRepository extends Repository<QuestaoModel> {
 
   async createQuestao(
     dto: CreateQuestaoRequest,
-    avaliador: Avaliador,
+    avaliador: AvaliadorModel,
   ): Promise<number> {
     const query = `
       WITH novo_item AS (

@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 
 export class AvaliadorResponse {
   @ApiProperty({
@@ -31,14 +30,4 @@ export class AvaliadorResponse {
     example: '2021-01-01',
   })
   atualizadoEm: Date;
-
-  static fromEntity(entity: Avaliador): AvaliadorResponse {
-    return {
-      id: entity.id,
-      nome: entity.nome,
-      email: entity.email,
-      criadoEm: entity.criadoEm,
-      atualizadoEm: entity.atualizadoEm,
-    };
-  }
 }

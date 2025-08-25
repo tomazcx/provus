@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ItemSistemaArquivosModel } from './item-sistema-arquivos.model';
+import { AvaliadorResponse } from 'src/http/models/avaliador.response';
 
 @Entity('avaliador')
 export class AvaliadorModel {
@@ -30,4 +31,15 @@ export class AvaliadorModel {
 
   @OneToMany(() => ItemSistemaArquivosModel, (item) => item.avaliador)
   itemSistemaArquivos: ItemSistemaArquivosModel[];
+
+  static fromModel(model: AvaliadorModel): AvaliadorResponse {
+    const response = new AvaliadorResponse();
+    response.id = model.id;
+    response.nome = model.nome;
+    response.email = model.email;
+    response.criadoEm = model.criadoEm;
+    response.atualizadoEm = model.atualizadoEm;
+
+    return response;
+  }
 }

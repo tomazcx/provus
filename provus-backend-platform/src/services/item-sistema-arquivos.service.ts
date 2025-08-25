@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
-import { Avaliador } from 'src/domain/entities/avaliador.entity';
 import { CreateItemDto } from 'src/dto/request/item-sistema-arquivos/create-item.dto';
 import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
 import { ArquivoModel } from 'src/database/config/models/arquivo.model';
@@ -13,6 +12,7 @@ import { AvaliacaoModel } from 'src/database/config/models/avaliacao.model';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { DataSource, EntityManager } from 'typeorm';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
+import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 
 @Injectable()
 export class ItemSistemaArquivosService {
@@ -23,7 +23,7 @@ export class ItemSistemaArquivosService {
 
   async create(
     dto: CreateItemDto,
-    avaliador: Avaliador,
+    avaliador: AvaliadorModel,
   ): Promise<ItemSistemaArquivosModel> {
     let pai: ItemSistemaArquivosModel | null = null;
     if (dto.paiId) {
