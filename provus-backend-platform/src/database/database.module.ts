@@ -18,6 +18,8 @@ import { SubmissaoRespostasModel } from './config/models/submissao-respostas.mod
 import { AplicacaoModel } from './config/models/aplicacao.model';
 import { AlternativaModel } from './config/models/alternativa.model';
 import { DatabaseConfigModule } from './config/database-config.module';
+import { ItemSistemaArquivosRepository } from './repositories/item-sistema-arquivos.repository';
+import { QuestaoRepository } from './repositories/questao.repository';
 
 @Module({
   imports: [
@@ -42,6 +44,12 @@ import { DatabaseConfigModule } from './config/database-config.module';
       AplicacaoModel,
     ]),
   ],
-  exports: [TypeOrmModule, DatabaseConfigModule],
+  providers: [ItemSistemaArquivosRepository, QuestaoRepository],
+  exports: [
+    TypeOrmModule,
+    DatabaseConfigModule,
+    ItemSistemaArquivosRepository,
+    QuestaoRepository,
+  ],
 })
 export class DatabaseModule {}
