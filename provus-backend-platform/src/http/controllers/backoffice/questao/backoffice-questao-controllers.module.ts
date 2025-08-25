@@ -1,14 +1,21 @@
 import { Module } from '@nestjs/common';
-import { FindQuestaoController } from './index';
+import { CreateQuestaoController, FindQuestaoController } from './index';
 import { ServiceModule } from 'src/services/services.module';
-import { QuestaoService } from 'src/services/questao.service';
-import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { UpdateQuestaoController } from './update-questao/controller';
+import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
-  providers: [QuestaoService, ItemSistemaArquivosRepository],
-  imports: [ServiceModule, TypeOrmModule.forFeature([QuestaoModel])],
-  controllers: [FindQuestaoController],
+  imports: [
+    ServiceModule,
+    TypeOrmModule.forFeature([QuestaoModel]),
+    DatabaseModule,
+  ],
+  controllers: [
+    FindQuestaoController,
+    CreateQuestaoController,
+    UpdateQuestaoController,
+  ],
 })
 export class BackofficeQuestaoControllersModule {}

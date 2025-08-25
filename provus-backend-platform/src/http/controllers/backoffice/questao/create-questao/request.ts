@@ -12,7 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
 import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
-import { CreateAlternativaRequest } from '../../alternativa/request';
+import { CreateAlternativaRequest } from '../../alternativa/create-alternativa.request';
 
 export class CreateQuestaoRequest {
   @ApiProperty({
@@ -78,6 +78,15 @@ export class CreateQuestaoRequest {
   @IsString()
   @IsOptional()
   exemploRespostaIa?: string;
+
+  @ApiProperty({
+    description: 'Pontuação da questão.',
+    example: 5,
+    required: false,
+  })
+  @IsInt()
+  @IsOptional()
+  pontuacao?: number;
 
   @ApiProperty({
     description: 'Texto de apoio para o avaliador durante a correção manual.',

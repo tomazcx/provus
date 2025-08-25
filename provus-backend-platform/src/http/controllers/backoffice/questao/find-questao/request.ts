@@ -12,7 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
 import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
-import { CreateAlternativaRequest } from '../../alternativa/request';
+import { CreateAlternativaRequest } from '../../alternativa/create-alternativa.request';
 
 export class CreateQuestaoRequest {
   @ApiProperty({
