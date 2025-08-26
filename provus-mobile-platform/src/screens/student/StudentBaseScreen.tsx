@@ -102,14 +102,15 @@ const StudentBaseScreen: React.FC<Props> = ({ navigation }) => {
     ]
   };
 
-  // TODO: Remove this temporary navigation function after implementing proper student flow
+  // TODO: Remove these temporary navigation functions after implementing proper student flow
   const navigateToTestResult = () => {
-    navigation.navigate('TestSubmissionResult', { submissionData: mockSubmissionData });
+    const submissionId = mockSubmissionResponse.submissoes[0].id;
+    navigation.navigate('TestSubmissionResult', { submissionId });
   };
 
-  // TODO: Remove this temporary navigation function after implementing proper student flow
   const navigateToTestReview = () => {
-    navigation.navigate('TestReview', { testData: mockTestReviewData });
+    const submissionId = mockSubmissionResponse.submissoes[0].id;
+    navigation.navigate('TestReview', { submissionId });
   };
   return (
     <SafeAreaView style={styles.container}>

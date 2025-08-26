@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,83 +7,105 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS } from '../../constants/colors';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import studentMockDataService, { IStudentTestReview } from '../../services/studentMockDataService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TestReview'>;
 
 const TestReviewScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { testData } = route.params;
+  const { submissionId } = route.params;
+  const [testData, setTestData] = useState<IStudentTestReview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
+  
 
-  const renderQuestionMenu = () => (
-    <Modal
-      visible={menuVisible}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setMenuVisible(false)}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setMenuVisible(false)}
-      >
-        <View style={styles.menuContainer}>
-          <View style={styles.menuHeader}>
-            <Text style={styles.menuTitle}>Questões</Text>
-            <TouchableOpacity onPress={() => setMenuVisible(false)}>
-              <Icon name="x" size={24} color={COLORS.secondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.questionsList}>
-            {testData.questions.map((question, index) => (
-              <TouchableOpacity
-                key={question.id}
-                style={[
-                  styles.questionMenuItem,
-                  currentQuestion === index && styles.questionMenuItemActive
-                ]}
-                onPress={() => {
-                  setCurrentQuestion(index);
-                  setMenuVisible(false);
-                }}
-              >
-                <View style={styles.questionMenuItemContent}>
-                  <Text style={[
-                    styles.questionMenuItemText,
-                    currentQuestion === index && styles.questionMenuItemTextActive
-                  ]}>
-                    Questão {index + 1}
-                  </Text>
-                  <View style={[
-                    styles.statusIndicator,
-                    { backgroundColor: question.isCorrect ? COLORS.success : COLORS.danger }
-                  ]}>
-                    <Icon 
-                      name={question.isCorrect ? "check" : "x"} 
-                      size={12} 
-                      color={COLORS.white} 
-                    />
-                  </View>
-                </View>
-                <Text style={styles.questionMenuScore}>
-                  {question.points}/{question.totalPoints} pontos
-                </Text>
+  useEffect(() => {
+    loadTestReview();
+  }, [submissionId]);
+
+  const loadTestReview = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await studentMockDataService.getTestReview(submissionId);
+      setTestData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar revisão do teste');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderQuestionMenu = () => {
+    if (!menuVisible) return null;
+    
+    return (
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <TouchableOpacity style={styles.menuContainer} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.menuHeader}>
+              <Text style={styles.menuTitle}>Questões</Text>
+              <TouchableOpacity onPress={() => setMenuVisible(false)}>
+                <Icon name="x" size={24} color={COLORS.secondary} />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
+            </View>
+            
+            <ScrollView style={styles.questionsList}>
+              {testData?.questions.map((question, index) => (
+                <TouchableOpacity
+                  key={question.id}
+                  style={[
+                    styles.questionMenuItem,
+                    currentQuestion === index && styles.questionMenuItemActive
+                  ]}
+                  onPress={() => {
+                    setCurrentQuestion(index);
+                    setMenuVisible(false);
+                  }}
+                >
+                  <View style={styles.questionMenuItemContent}>
+                    <Text style={[
+                      styles.questionMenuItemText,
+                      currentQuestion === index && styles.questionMenuItemTextActive
+                    ]}>
+                      Questão {index + 1}
+                    </Text>
+                    <View style={[
+                      styles.statusIndicator,
+                      { backgroundColor: question.isCorrect ? COLORS.success : COLORS.danger }
+                    ]}>
+                      <Icon 
+                        name={question.isCorrect ? "check" : "x"} 
+                        size={12} 
+                        color={COLORS.white} 
+                      />
+                    </View>
+                  </View>
+                  <Text style={styles.questionMenuScore}>
+                    {question.points}/{question.totalPoints} pontos
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderCurrentQuestion = () => {
+    if (!testData) return null;
     const question = testData.questions[currentQuestion];
     if (!question) return null;
 
@@ -199,16 +221,16 @@ const TestReviewScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <Text style={styles.questionCounter}>
-            {currentQuestion + 1} / {testData.questions.length}
+            {currentQuestion + 1} / {testData?.questions.length || 0}
           </Text>
 
           <TouchableOpacity
             style={[
               styles.navButton, 
-              currentQuestion === testData.questions.length - 1 && styles.navButtonDisabled
+              currentQuestion === (testData?.questions.length || 0) - 1 && styles.navButtonDisabled
             ]}
-            onPress={() => setCurrentQuestion(Math.min(testData.questions.length - 1, currentQuestion + 1))}
-            disabled={currentQuestion === testData.questions.length - 1}
+            onPress={() => setCurrentQuestion(Math.min((testData?.questions.length || 0) - 1, currentQuestion + 1))}
+            disabled={currentQuestion === (testData?.questions.length || 0) - 1}
           >
             <Text style={styles.navButtonText}>Próximo</Text>
             <Icon name="chevron-right" size={20} color={COLORS.white} />
@@ -218,12 +240,39 @@ const TestReviewScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.white} />
+          <Text style={styles.loadingText}>Carregando revisão...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !testData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle" size={48} color={COLORS.white} />
+          <Text style={styles.errorText}>{error || 'Dados não encontrados'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadTestReview}>
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.menuButton}
-          onPress={() => setMenuVisible(true)}
+          onPress={() => {
+            setMenuVisible(!menuVisible);
+          }}
         >
           <Icon name="menu" size={24} color={COLORS.white} />
         </TouchableOpacity>
@@ -241,14 +290,14 @@ const TestReviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('StudentBase')}
         >
           <Icon name="arrow-left" size={20} color={COLORS.white} />
           <Text style={styles.backButtonText}>Voltar ao Dashboard</Text>
         </TouchableOpacity>
       </View>
 
-      {renderQuestionMenu()}
+{renderQuestionMenu()}
     </SafeAreaView>
   );
 };
@@ -487,9 +536,14 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   modalOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    zIndex: 1000,
   },
   menuContainer: {
     backgroundColor: COLORS.white,
@@ -547,6 +601,43 @@ const styles = StyleSheet.create({
   questionMenuScore: {
     fontSize: 12,
     color: COLORS.textSecondary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: COLORS.white,
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.white,
+    textAlign: 'center',
+    marginVertical: 16,
+    lineHeight: 24,
+  },
+  retryButton: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.secondary,
   },
 });
 

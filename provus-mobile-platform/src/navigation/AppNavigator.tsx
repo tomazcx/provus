@@ -15,40 +15,10 @@ export type RootStackParamList = {
   Dashboard: { applicationId?: number };
   StudentBase: undefined;
   TestSubmissionResult: {
-    submissionData: {
-      testName: string;
-      professor: string;
-      submissionTime: string;
-      timeTaken: string;
-      score: number;
-      totalPoints: number;
-      percentage: number;
-      confirmationCode: string;
-      questions: Array<{
-        id: number;
-        points: number;
-        totalPoints: number;
-        isCorrect: boolean;
-      }>;
-    };
+    submissionId: number;
   };
   TestReview: {
-    testData: {
-      testName: string;
-      questions: Array<{
-        id: number;
-        question?: string;
-        points: number;
-        totalPoints: number;
-        isCorrect: boolean;
-        options?: Array<{
-          text: string;
-          isSelected: boolean;
-          isCorrect: boolean;
-        }>;
-        feedback?: string;
-      }>;
-    };
+    submissionId: number;
   };
 };
 
@@ -58,7 +28,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName="StudentBase"
         screenOptions={{
           headerShown: false,
         }}

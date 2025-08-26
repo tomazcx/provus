@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,50 +7,43 @@ import {
   ScrollView,
   TouchableOpacity,
   Clipboard,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS } from '../../constants/colors';
-import { StudentStackParamList } from '../../types/StudentTypes';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import studentMockDataService, { IStudentSubmissionResult } from '../../services/studentMockDataService';
 
-type Props = NativeStackScreenProps<StudentStackParamList, 'TestSubmissionResult'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'TestSubmissionResult'>;
 
 const TestSubmissionResultScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { submissionData } = route.params;
+  const { submissionId } = route.params;
+  const [submissionData, setSubmissionData] = useState<IStudentSubmissionResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const copyToClipboard = () => {
-    Clipboard.setString(submissionData.confirmationCode);
+  useEffect(() => {
+    loadSubmissionResult();
+  }, [submissionId]);
+
+  const loadSubmissionResult = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await studentMockDataService.getSubmissionResult(submissionId);
+      setSubmissionData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar resultado da submissão');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Create test review data from submission data
-  const mockTestReviewData = {
-    testName: submissionData.testName,
-    questions: submissionData.questions.map((question, index) => ({
-      id: question.id,
-      question: index === 0 ? "Qual é o resultado de 15 + 27?" : 
-                index === 1 ? "A raiz quadrada de 144 é 12." :
-                "Selecione todos os números primos da lista:",
-      points: question.points,
-      totalPoints: question.totalPoints,
-      isCorrect: question.isCorrect,
-      options: index === 0 ? [
-        { text: "32 (Sua resposta)", isSelected: true, isCorrect: true },
-        { text: "42", isSelected: false, isCorrect: false },
-        { text: "52", isSelected: false, isCorrect: false },
-        { text: "35", isSelected: false, isCorrect: false }
-      ] : index === 1 ? [
-        { text: "Verdadeiro (Sua resposta)", isSelected: true, isCorrect: true },
-        { text: "Falso", isSelected: false, isCorrect: false }
-      ] : [
-        { text: "2 (Sua resposta)", isSelected: true, isCorrect: true },
-        { text: "4 (Não selecionado)", isSelected: false, isCorrect: false },
-        { text: "7 (Sua resposta)", isSelected: true, isCorrect: true },
-        { text: "9 (Não selecionado)", isSelected: false, isCorrect: false }
-      ],
-      feedback: index === 0 ? "Excelente! Você realizou a adição corretamente." :
-                index === 1 ? "Perfeito! √144 = 12 está correto." :
-                "Boa resposta parcial, mas você perdeu alguns números primos na seleção."
-    }))
+  const copyToClipboard = () => {
+    if (submissionData) {
+      Clipboard.setString(submissionData.confirmationCode);
+    }
   };
 
   const getQuestionStatusColor = (isCorrect: boolean, points: number, totalPoints: number) => {
@@ -60,6 +53,7 @@ const TestSubmissionResultScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const renderQuestionBreakdown = () => {
+    if (!submissionData) return null;
     return submissionData.questions.map((question, index) => (
       <View key={question.id} style={styles.questionRow}>
         <Text style={styles.questionNumber}>Questão {index + 1}</Text>
@@ -72,6 +66,31 @@ const TestSubmissionResultScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
     ));
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.secondary} />
+          <Text style={styles.loadingText}>Carregando resultado...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !submissionData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle" size={48} color={COLORS.danger} />
+          <Text style={styles.errorText}>{error || 'Dados não encontrados'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadSubmissionResult}>
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -145,7 +164,7 @@ const TestSubmissionResultScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={styles.actionButtons}>
             <TouchableOpacity
                 style={styles.reviewButton}
-                onPress={() => navigation.navigate('TestReview', { testData: mockTestReviewData })}
+                onPress={() => navigation.navigate('TestReview', { submissionId })}
             >
               <Icon name="eye" size={20} color={COLORS.white} />
               <Text style={styles.reviewButtonText}>Revisar Respostas</Text>
@@ -405,6 +424,43 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     marginLeft: 8,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: COLORS.white,
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.white,
+    textAlign: 'center',
+    marginVertical: 16,
+    lineHeight: 24,
+  },
+  retryButton: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.secondary,
   },
 });
 
