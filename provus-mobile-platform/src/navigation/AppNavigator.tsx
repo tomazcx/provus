@@ -7,13 +7,49 @@ import ApplicationsScreen from '../screens/teacher/ApplicationsScreen';
 import DashboardScreen from '../screens/teacher/DashboardScreen';
 import StudentBaseScreen from '../screens/student/StudentBaseScreen';
 import TestSubmissionResultScreen from '../screens/student/TestSubmissionResultScreen';
+import TestReviewScreen from '../screens/student/TestReviewScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   Applications: undefined;
   Dashboard: { applicationId?: number };
   StudentBase: undefined;
-  TestSubmissionResult: { submissionId?: number };
+  TestSubmissionResult: {
+    submissionData: {
+      testName: string;
+      professor: string;
+      submissionTime: string;
+      timeTaken: string;
+      score: number;
+      totalPoints: number;
+      percentage: number;
+      confirmationCode: string;
+      questions: Array<{
+        id: number;
+        points: number;
+        totalPoints: number;
+        isCorrect: boolean;
+      }>;
+    };
+  };
+  TestReview: {
+    testData: {
+      testName: string;
+      questions: Array<{
+        id: number;
+        question?: string;
+        points: number;
+        totalPoints: number;
+        isCorrect: boolean;
+        options?: Array<{
+          text: string;
+          isSelected: boolean;
+          isCorrect: boolean;
+        }>;
+        feedback?: string;
+      }>;
+    };
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,6 +68,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="StudentBase" component={StudentBaseScreen} />
         <Stack.Screen name="TestSubmissionResult" component={TestSubmissionResultScreen} />
+        <Stack.Screen name="TestReview" component={TestReviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

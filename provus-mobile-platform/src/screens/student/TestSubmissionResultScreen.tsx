@@ -22,6 +22,37 @@ const TestSubmissionResultScreen: React.FC<Props> = ({ navigation, route }) => {
     Clipboard.setString(submissionData.confirmationCode);
   };
 
+  // Create test review data from submission data
+  const mockTestReviewData = {
+    testName: submissionData.testName,
+    questions: submissionData.questions.map((question, index) => ({
+      id: question.id,
+      question: index === 0 ? "Qual é o resultado de 15 + 27?" : 
+                index === 1 ? "A raiz quadrada de 144 é 12." :
+                "Selecione todos os números primos da lista:",
+      points: question.points,
+      totalPoints: question.totalPoints,
+      isCorrect: question.isCorrect,
+      options: index === 0 ? [
+        { text: "32 (Sua resposta)", isSelected: true, isCorrect: true },
+        { text: "42", isSelected: false, isCorrect: false },
+        { text: "52", isSelected: false, isCorrect: false },
+        { text: "35", isSelected: false, isCorrect: false }
+      ] : index === 1 ? [
+        { text: "Verdadeiro (Sua resposta)", isSelected: true, isCorrect: true },
+        { text: "Falso", isSelected: false, isCorrect: false }
+      ] : [
+        { text: "2 (Sua resposta)", isSelected: true, isCorrect: true },
+        { text: "4 (Não selecionado)", isSelected: false, isCorrect: false },
+        { text: "7 (Sua resposta)", isSelected: true, isCorrect: true },
+        { text: "9 (Não selecionado)", isSelected: false, isCorrect: false }
+      ],
+      feedback: index === 0 ? "Excelente! Você realizou a adição corretamente." :
+                index === 1 ? "Perfeito! √144 = 12 está correto." :
+                "Boa resposta parcial, mas você perdeu alguns números primos na seleção."
+    }))
+  };
+
   const getQuestionStatusColor = (isCorrect: boolean, points: number, totalPoints: number) => {
     if (isCorrect) return COLORS.success;
     if (points > 0) return COLORS.warning;
@@ -112,7 +143,10 @@ const TestSubmissionResultScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.reviewButton}>
+            <TouchableOpacity
+                style={styles.reviewButton}
+                onPress={() => navigation.navigate('TestReview', { testData: mockTestReviewData })}
+            >
               <Icon name="eye" size={20} color={COLORS.white} />
               <Text style={styles.reviewButtonText}>Revisar Respostas</Text>
             </TouchableOpacity>
