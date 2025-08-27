@@ -77,6 +77,8 @@ npm install
 
 ```bash
 # No diretório provus-mobile-platform
+npm start
+# Abra outro terminal e rode
 npx react-native run-android
 ```
 
