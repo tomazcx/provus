@@ -78,7 +78,11 @@ async function handleLoginSubmit(userData: {
         senha: userData.password,
       },
     });
-    console.log("Login bem-sucedido:", response);
+
+    useCookie("accessToken", {
+      default: () => response.token,
+      watch: false,
+    });
   } catch (error) {
     toast.add({
       title: "Falha no login",
