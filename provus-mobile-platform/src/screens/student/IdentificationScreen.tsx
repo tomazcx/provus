@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import LinearGradient from 'react-native-linear-gradient';
-import Icon from 'react-native-vector-icons/Feather';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS } from '../../constants/colors';
@@ -51,7 +51,7 @@ const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.iconContainer}>
-              <Icon name="award" size={28} color={COLORS.white} />
+              <Icon name="graduation-cap" size={28} color={COLORS.white} />
             </View>
 
             <View style={styles.card}>
