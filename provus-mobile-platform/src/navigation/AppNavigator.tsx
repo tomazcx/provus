@@ -8,12 +8,14 @@ import DashboardScreen from '../screens/teacher/DashboardScreen';
 import IdentificationScreen from '../screens/student/IdentificationScreen';
 import TestSubmissionResultScreen from '../screens/student/TestSubmissionResultScreen';
 import TestReviewScreen from '../screens/student/TestReviewScreen';
+import TestScreen from '../screens/student/TestScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   Applications: undefined;
   Dashboard: { applicationId?: number };
   StudentBase: undefined;
+  Test: { assesmentId: string };
   TestSubmissionResult: {
     submissionId: number;
   };
@@ -28,7 +30,8 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="StudentBase"
+        initialRouteName="StudentIdentification"
+        //initialRouteName="Login"
         screenOptions={{
           headerShown: false,
         }}
@@ -36,7 +39,11 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Applications" component={ApplicationsScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="StudentBase" component={IdentificationScreen} />
+        <Stack.Screen
+          name="StudentIdentification"
+          component={IdentificationScreen}
+        />
+        <Stack.Screen name="Test" component={TestScreen} />
         <Stack.Screen
           name="TestSubmissionResult"
           component={TestSubmissionResultScreen}

@@ -32,6 +32,8 @@ const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Campos incompletos', 'Por favor, preencha todos os campos.');
       return;
     }
+
+    navigation.navigate('Test', { assessmentId: assessmentCode });
   };
 
   return (
