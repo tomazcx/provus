@@ -24,18 +24,24 @@ export default {
       meta: { layout: false },
     },
 
-        {
+    {
       name: "aluno-avaliacao-revisao",
       path: "/aluno/avaliacao/:codigo/revisao",
       component: () => import("~/pages/Aluno/Avaliacao/[codigo]/revisao.vue"),
-      meta: { layout: 'assessment-student' },
+      meta: { layout: "assessment-student" },
     },
-
 
     {
       name: "auth",
       path: "/auth",
       component: () => import("~/pages/Auth/index.vue"),
+      meta: { layout: false },
+    },
+
+    {
+      name: "confirmar-email",
+      path: "/confirmar-email/:hash",
+      component: () => import("~/pages/Auth/ConfirmarEmail.vue"),
       meta: { layout: false },
     },
 

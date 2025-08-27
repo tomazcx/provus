@@ -14,13 +14,16 @@
       </div>
 
       <UCard>
-        <UTabs :items="tabItems" class="w-full">
+        <UTabs v-model="active" :items="tabItems" class="w-full">
           <template #login="{}">
-            <LoginForm />
+            <LoginForm :is-loading="isLoading" @submit="handleLoginSubmit" />
           </template>
 
           <template #cadastro="{}">
-            <RegisterForm />
+            <RegisterForm
+              :is-loading="isLoading"
+              @submit="handleRegisterSubmit"
+            />
           </template>
         </UTabs>
       </UCard>
@@ -38,8 +41,89 @@ definePageMeta({
   layout: false,
 });
 
+const toast = useToast();
+const route = useRoute();
+const router = useRouter();
+const { $api } = useNuxtApp();
+const isLoading = ref(false);
+
 const tabItems = [
   { key: "login", label: "Login", slot: "login" },
   { key: "cadastro", label: "Cadastro", slot: "cadastro" },
 ];
+
+const active = computed({
+  get() {
+    return (route.query.tab as string) || "0";
+  },
+  set(tab) {
+    router.push({
+      path: "/auth",
+      query: { tab },
+    });
+  },
+});
+
+async function handleLoginSubmit(userData: {
+  email: string;
+  password: string;
+}) {
+  try {
+    isLoading.value = true;
+
+    const response = await $api("/auth/sign-in", {
+      method: "POST",
+      body: {
+        email: userData.email,
+        senha: userData.password,
+      },
+    });
+    console.log("Login bem-sucedido:", response);
+  } catch (error) {
+    toast.add({
+      title: "Falha no login",
+      description: error._data.message,
+      icon: "i-lucide-x",
+      color: "error",
+    });
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function handleRegisterSubmit(userData: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  try {
+    isLoading.value = true;
+    await $api("/auth/sign-up", {
+      method: "POST",
+      body: {
+        nome: userData.name,
+        email: userData.email,
+        senha: userData.password,
+      },
+    });
+
+    active.value = "0";
+
+    toast.add({
+      title: "Conta criada com sucesso!",
+      description: "Verifique seu e-mail para ativar sua conta.",
+      icon: "i-lucide-at-sign",
+      color: "secondary",
+    });
+  } catch (error) {
+    toast.add({
+      title: "Falha no cadastro",
+      description: error._data.message,
+      icon: "i-lucide-x",
+      color: "error",
+    });
+  } finally {
+    isLoading.value = false;
+  }
+}
 </script>

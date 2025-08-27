@@ -1,7 +1,10 @@
 <template>
   <div class="p-4">
     <h2 class="text-2xl font-bold text-primary mb-6">Crie sua conta!</h2>
-    <form class="space-y-5" @submit.prevent>
+    <form
+      class="space-y-5"
+      @submit.prevent="$emit('submit', { name, email, password })"
+    >
       <UFormField label="Nome completo" name="name" required>
         <UInput
           v-model="name"
@@ -71,15 +74,34 @@
         size="xl"
         block
         class="flex justify-center items-center gap-x-2"
+        :disabled="isLoading"
       >
-        <span>Criar Conta</span>
-        <Icon name="i-heroicons-user-plus-20-solid" class="h-5 w-5" />
+        <Icon
+          v-if="isLoading"
+          name="i-lucide-loader-2"
+          class="animate-spin h-8 w-8"
+        />
+        <template v-else>
+          <span>Criar Conta</span>
+          <Icon name="i-heroicons-user-plus-20-solid" class="h-5 w-5" />
+        </template>
       </UButton>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+withDefaults(
+  defineProps<{
+    isLoading?: boolean;
+  }>(),
+  {
+    isLoading: false,
+  }
+);
+
+defineEmits(["submit"]);
+
 const name = ref("");
 const email = ref("");
 const password = ref("");
