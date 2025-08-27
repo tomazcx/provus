@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import {
+  StyleSheet,
   View,
   Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  StatusBar,
   TextInput,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
   Alert,
   KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 
 import LinearGradient from 'react-native-linear-gradient';
@@ -30,11 +32,6 @@ const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Campos incompletos', 'Por favor, preencha todos os campos.');
       return;
     }
-    console.log({ fullName, email, assessmentCode });
-    Alert.alert(
-      'Identidade Verificada',
-      'Você será redirecionado para a avaliação.',
-    );
   };
 
   return (
@@ -45,65 +42,86 @@ const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar barStyle="dark-content" backgroundColor={'#E9F7F9'} />
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
-          contentContainerStyle={styles.scrollContainer}
-          bounces={false}
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.iconContainer}>
-            <Icon name="award" size={28} color={COLORS.white} />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Identificação</Text>
-            <Text style={styles.subtitle}>
-              Insira seus dados para acessar a avaliação
-            </Text>
-
-            <Text style={styles.label}>Nome Completo *</Text>
-            <View style={styles.inputContainer}>
-              <Icon name="user" size={20} color={COLORS.textSecondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="Digite seu nome completo"
-                placeholderTextColor={COLORS.textSecondary}
-                value={fullName}
-                onChangeText={setFullName}
-              />
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.iconContainer}>
+              <Icon name="award" size={28} color={COLORS.white} />
             </View>
 
-            <Text style={styles.label}>E-mail *</Text>
-            <View style={styles.inputContainer}>
-              <Icon name="mail" size={20} color={COLORS.textSecondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="seu.email@instituicao.edu"
-                placeholderTextColor={COLORS.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-              />
-            </View>
+            <View style={styles.card}>
+              <Text style={styles.title}>Identificação</Text>
+              <Text style={styles.subtitle}>
+                Insira seus dados para acessar a avaliação
+              </Text>
 
-            <Text style={styles.label}>Código da Avaliação *</Text>
-            <View style={styles.inputContainer}>
-              <Icon name="hash" size={20} color={COLORS.textSecondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="000000"
-                placeholderTextColor={COLORS.textSecondary}
-                value={assessmentCode}
-                onChangeText={setAssessmentCode}
-                keyboardType="number-pad"
-              />
-            </View>
+              <Text style={styles.label}>Nome Completo *</Text>
+              <View style={styles.inputContainer}>
+                <Icon
+                  name="user"
+                  size={20}
+                  color={COLORS.textSecondary}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Digite seu nome completo"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={fullName}
+                  onChangeText={setFullName}
+                />
+              </View>
 
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVerifyIdentity}
-            >
-              <Icon name="check-circle" size={20} color={COLORS.white} />
-              <Text style={styles.buttonText}>Verificar Identidade</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.label}>E-mail *</Text>
+              <View style={styles.inputContainer}>
+                <Icon
+                  name="mail"
+                  size={20}
+                  color={COLORS.textSecondary}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="seu.email@instituicao.edu"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                />
+              </View>
+
+              <Text style={styles.label}>Código da Avaliação *</Text>
+              <View style={styles.inputContainer}>
+                <Icon
+                  name="hash"
+                  size={20}
+                  color={COLORS.textSecondary}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="000000"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={assessmentCode}
+                  onChangeText={setAssessmentCode}
+                  keyboardType="number-pad"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVerifyIdentity}
+              >
+                <Icon name="check-circle" size={20} color={COLORS.white} />
+                <Text style={styles.buttonText}>Verificar Identidade</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
@@ -117,16 +135,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: -36,
+    marginBottom: -34,
     zIndex: 1,
     elevation: 10,
     borderWidth: 2,
@@ -136,7 +155,7 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: COLORS.white,
     padding: 24,
-    paddingTop: 48,
+    paddingTop: 52,
     borderRadius: 20,
     elevation: 5,
     alignItems: 'center',
@@ -158,7 +177,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     alignSelf: 'flex-start',
     marginBottom: 8,
-    marginTop: 12,
+    marginTop: 16,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -189,7 +208,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 40,
     elevation: 3,
   },
   buttonText: {
