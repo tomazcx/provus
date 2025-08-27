@@ -12,20 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { Aplicacao } from '../types/Application';
-import mockDataService from '../services/mockDataService';
-
-const COLORS = {
-  background: '#F8F9FA',
-  white: '#FFFFFF',
-  textPrimary: '#212529',
-  textSecondary: '#6C757D',
-  primary: '#192A56',
-  green: '#27AE60',
-  yellow: '#F2C94C',
-  border: '#E9ECEF',
-};
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { Aplicacao } from '../../types/Application';
+import mockDataService from '../../services/mockDataService';
+import { COLORS } from '../../constants/colors';
 
 const ApplicationCard = ({ 
   application, 
@@ -140,7 +130,7 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
           translucent
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.secondary} />
           <Text style={styles.loadingText}>Carregando aplicações...</Text>
         </View>
       </SafeAreaView>
@@ -201,13 +191,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.secondary },
   headerIcons: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 16,
@@ -265,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   buttonPrimary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
