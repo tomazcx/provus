@@ -56,18 +56,74 @@ const StudentBaseScreen: React.FC<Props> = ({ navigation }) => {
     })) || [],
   };
 
-  // TODO: Remove this temporary navigation function after implementing proper student flow
+  const mockTestReviewData = {
+    testName: mockSubmissionResponse.titulo,
+    questions: [
+      {
+        id: 1,
+        question: "15 + 27?",
+        points: 20,
+        totalPoints: 20,
+        isCorrect: true,
+        options: [
+          { text: "32 (Sua resposta)", isSelected: true, isCorrect: true },
+          { text: "42", isSelected: false, isCorrect: false },
+          { text: "52", isSelected: false, isCorrect: false },
+          { text: "35", isSelected: false, isCorrect: false }
+        ],
+        feedback: "Boa."
+      },
+      {
+        id: 2,
+        question: "raiz quadrada de 144 é 12.",
+        points: 15,
+        totalPoints: 15,
+        isCorrect: true,
+        options: [
+          { text: "verdadeira (sua resposta)", isSelected: true, isCorrect: true },
+          { text: "falso", isSelected: false, isCorrect: false }
+        ],
+        feedback: "boa!"
+      },
+      {
+        id: 3,
+        question: "Selecione os numeros primos:",
+        points: 15,
+        totalPoints: 25,
+        isCorrect: false,
+        options: [
+          { text: "2 (Sua resposta)", isSelected: true, isCorrect: true },
+          { text: "4 (nao selecionado)", isSelected: false, isCorrect: false },
+          { text: "7 (sua resposta)", isSelected: true, isCorrect: true },
+          { text: "9 (não selecionado)", isSelected: false, isCorrect: false }
+        ],
+        feedback: "Quase. faltou selecionar alguns"
+      }
+    ]
+  };
+
+  // TODO: Remove these temporary navigation functions after implementing proper student flow
   const navigateToTestResult = () => {
-    navigation.navigate('TestSubmissionResult', { submissionData: mockSubmissionData });
+    const submissionId = mockSubmissionResponse.submissoes[0].id;
+    navigation.navigate('TestSubmissionResult', { submissionId });
+  };
+
+  const navigateToTestReview = () => {
+    const submissionId = mockSubmissionResponse.submissoes[0].id;
+    navigation.navigate('TestReview', { submissionId });
   };
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Estudante tela inicial teste ajeitar depois</Text>
 
-        {/* TODO: Remove this temporary test button after implementing proper student flow */}
+        {/* TODO: Remove these temporary test buttons after implementing proper student flow */}
         <TouchableOpacity style={styles.testButton} onPress={navigateToTestResult}>
           <Text style={styles.testButtonText}>Ver Resultado do Teste (TEMP)</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.reviewButton} onPress={navigateToTestReview}>
+          <Text style={styles.reviewButtonText}>Revisar Teste (TEMP)</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -104,8 +160,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
+    marginBottom: 12,
   },
   testButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  reviewButton: {
+    backgroundColor: COLORS.success,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  reviewButtonText: {
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
