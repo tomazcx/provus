@@ -1,7 +1,7 @@
 import { setSeederFactory } from 'typeorm-extension';
 import { faker } from '@faker-js/faker';
-import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
-import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
+import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import { QuestaoModel } from '../config/models/questao.model';
 
 export const QuestoesFactory = setSeederFactory(QuestaoModel, () => {

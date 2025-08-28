@@ -6,13 +6,14 @@ import {
 import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
 import { CreateItemDto } from 'src/dto/request/item-sistema-arquivos/create-item.dto';
-import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 import { ArquivoModel } from 'src/database/config/models/arquivo.model';
 import { AvaliacaoModel } from 'src/database/config/models/avaliacao.model';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { DataSource, EntityManager } from 'typeorm';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
+import { ItemSistemaArquivosResponse } from 'src/http/models/item-sitema-arquivos.response';
 
 @Injectable()
 export class ItemSistemaArquivosService {
@@ -46,6 +47,15 @@ export class ItemSistemaArquivosService {
     });
 
     return this.itemRepository.save(newItem);
+  }
+
+  async findByFolder(
+    paiId: number | null,
+    avaliadorId: number,
+  ): Promise<ItemSistemaArquivosResponse[]> {
+    const items = await this.itemRepository.findByParent(paiId, avaliadorId);
+
+    return items.map((item) => ItemSistemaArquivosResponse.fromModel(item));
   }
 
   async getFullPath(itemId: number): Promise<string> {
@@ -94,5 +104,15 @@ export class ItemSistemaArquivosService {
     }
 
     await manager.delete(ItemSistemaArquivosModel, { id: itemId });
+  }
+
+  async findAllQuestionIdsInFolders(
+    folderIds: number[],
+    avaliadorId: number,
+  ): Promise<number[]> {
+    return this.itemRepository.findAllQuestionIdsInFolders(
+      folderIds,
+      avaliadorId,
+    );
   }
 }

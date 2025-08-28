@@ -1,34 +1,24 @@
 import type DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import type EstadoRespostaEnum from "~/enums/EstadoRespostaEnum";
 import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { ItemSistemaDeArquivos } from "./IBank";
 import type EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
+import type { IQuestaoListItem } from "./IBank";
 
-interface IQuestaoBase extends ItemSistemaDeArquivos {
-  id?: number;
-  titulo: string;
-  descricao?: string;
-  dificuldade?: DificuldadeQuestaoEnum;
-  exemploDeResposta?: string;
-  pontuacao?: number;
-  isModelo?: boolean;
-  textoRevisao?: string;
-  alternativas?: IAlternativa[];
-}
-
-export interface IQuestaoDiscursiva extends IQuestaoBase {
-  tipo: TipoQuestaoEnum.DISCURSIVA;
+export interface IQuestaoDiscursiva extends IQuestaoListItem {
+  tipoQuestao: TipoQuestaoEnum.DISCURSIVA;
   resposta?: IRespostaDiscursiva;
 }
 
-export interface IQuestaoObjetiva extends IQuestaoBase {
-  tipo: TipoQuestaoEnum.OBJETIVA;
+export interface IQuestaoObjetiva extends IQuestaoListItem {
+  tipoQuestao: TipoQuestaoEnum.OBJETIVA;
   resposta?: IRespostaObjetiva;
 }
 
 export interface IQuestaoMultiplaEscolhaOuVerdadeiroOuFalso
-  extends IQuestaoBase {
-  tipo: TipoQuestaoEnum.MULTIPLA_ESCOLHA | TipoQuestaoEnum.VERDADEIRO_FALSO;
+  extends IQuestaoListItem {
+  tipoQuestao:
+    | TipoQuestaoEnum.MULTIPLA_ESCOLHA
+    | TipoQuestaoEnum.VERDADEIRO_FALSO;
   resposta?: IRespostaMultiplaEscolha;
 }
 
@@ -73,10 +63,10 @@ export interface IRespostaMultiplaEscolha extends IResposta {
 export type TQuestionForm = {
   titulo: string;
   descricao?: string;
-  tipo: TipoQuestaoEnum;
+  tipoQuestao: TipoQuestaoEnum;
   dificuldade: DificuldadeQuestaoEnum;
   pontuacao: number;
   alternativas: IAlternativa[];
-  exemploDeResposta?: string;
-  explicacao?: string;
+  exemploRespostaIa?: string;
+  textoRevisao?: string;
 };

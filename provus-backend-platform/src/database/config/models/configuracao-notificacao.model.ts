@@ -1,6 +1,6 @@
 import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { ConfiguracoesSegurancaModel } from './configuracoes-seguranca.model';
-import TipoNotificacaoEnum from 'src/domain/enums/tipo-notificacao.enum';
+import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 
 @Entity('configuracao_notificacao')
 export class ConfiguracaoNotificacaoModel {

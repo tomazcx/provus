@@ -1,4 +1,4 @@
-import TipoInfracaoEnum from 'src/domain/enums/tipo-infracao.enum';
+import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import {
   Column,
   Entity,
@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ConfiguracoesSegurancaModel } from './configuracoes-seguranca.model';
-import TipoPenalidadeEnum from 'src/domain/enums/tipo-penalidade.enum';
+import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 
 @Entity('punicao_por_ocorrencia')
 export class PunicaoPorOcorrenciaModel {

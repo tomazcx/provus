@@ -11,7 +11,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { AvaliadorModel } from './avaliador.model';
-import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 @Entity('item_sistema_arquivos')
 @Tree('adjacency-list')

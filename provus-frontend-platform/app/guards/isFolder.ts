@@ -1,10 +1,6 @@
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import type { IFolder } from "~/types/IBank";
-import type { IFile } from "~/types/IFile";
-import type { IQuestao } from "~/types/IQuestao";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+import type { IFolderListItem, TBankItem } from "~/types/IBank";
 
-export default function isFolder(
-  item: IFolder | IQuestao | IFile | IAvaliacaoImpl
-): item is IFolder {
-  return "filhos" in item;
+export default function isFolder(item: TBankItem): item is IFolderListItem {
+  return item.tipo === TipoItemEnum.PASTA;
 }

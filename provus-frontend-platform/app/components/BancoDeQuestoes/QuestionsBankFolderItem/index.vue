@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import Item from "@/components/ui/BankItem/index.vue";
-import type { IFolder } from "~/types/IBank";
+import type { IFolderListItem } from "~/types/IBank";
 
 defineProps<{
-  item: IFolder;
-  childCount: number;
+  item: IFolderListItem;
   isSelected?: boolean;
   selectable?: boolean;
 }>();
 
 const emit = defineEmits(["edit", "delete", "select"]);
-</script>
 
+function formatDate(dateString: string) {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+</script>
 <template>
   <Item
     :id="String(item.id)"
@@ -35,8 +42,7 @@ const emit = defineEmits(["edit", "delete", "select"]);
     <div>
       <h3 class="font-medium text-gray-900">{{ item.titulo }}</h3>
       <p class="text-sm text-gray-600">
-        {{ childCount }} itens • Modificado
-        {{ formatDate(item.atualizadoEm) }}
+        Modificado em {{ formatDate(item.atualizadoEm) }}
       </p>
     </div>
   </Item>

@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import TipoAplicacaoEnum from 'src/domain/enums/tipo-aplicacao.enum';
+import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import { setSeederFactory } from 'typeorm-extension';
 import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.model';
 

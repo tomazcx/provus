@@ -1,9 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateTables1755712462960 implements MigrationInterface {
-    name = 'CreateTables1755712462960'
+export class BancoDeConteudo1756327270931 implements MigrationInterface {
+    name = 'BancoDeConteudo1756327270931'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`CREATE TABLE "estudante" ("submissao_id" integer NOT NULL, "email" character varying NOT NULL, "nome" character varying NOT NULL, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_21bb44cb9d553a2cba626a773e1" PRIMARY KEY ("submissao_id", "email"))`);
         await queryRunner.query(`CREATE TABLE "avaliador" ("id" SERIAL NOT NULL, "nome" character varying NOT NULL, "email" character varying NOT NULL, "senha" character varying NOT NULL, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_1f655583638c061d59adb39beae" UNIQUE ("email"), CONSTRAINT "PK_54f398c3b24bde90ffe41702709" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."item_sistema_arquivos_tipo_enum" AS ENUM('PASTA', 'ARQUIVO', 'QUESTAO', 'AVALIACAO')`);
         await queryRunner.query(`CREATE TABLE "item_sistema_arquivos" ("id" SERIAL NOT NULL, "titulo" character varying NOT NULL, "tipo" "public"."item_sistema_arquivos_tipo_enum" NOT NULL, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), "pai_id" integer, "avaliador_id" integer, CONSTRAINT "PK_376775f66555e2878f47c3b8128" PRIMARY KEY ("id"))`);
@@ -21,9 +22,6 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE "ips_permitidos" ("ip" character varying NOT NULL, "configuracoes_seguranca_id" integer NOT NULL, CONSTRAINT "PK_bcb11c5dcfc46bfa4d84def5383" PRIMARY KEY ("ip", "configuracoes_seguranca_id"))`);
         await queryRunner.query(`CREATE TABLE "configuracoes_seguranca" ("id" SERIAL NOT NULL, "proibir_trocar_abas" boolean NOT NULL, "proibir_print_screen" boolean NOT NULL, "proibir_copiar_colar" boolean NOT NULL, "proibir_devtools" boolean NOT NULL, "quantidade_tentativas" integer NOT NULL, "quantidade_acessos_simultaneos" integer NOT NULL, "ativar_controle_ip" boolean NOT NULL, "duracao_alertas" integer NOT NULL, "permitir_fechar_alertas" boolean NOT NULL, "ativar_correcao_discursiva_via_ia" boolean NOT NULL, CONSTRAINT "PK_412fa86b868acf93a3dc980545b" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "configuracao_avaliacao" ("id" SERIAL NOT NULL, "configuracoes_gerais_id" integer, "configuracoes_seguranca_id" integer, CONSTRAINT "REL_4b88235e2bf7f29042804db146" UNIQUE ("configuracoes_gerais_id"), CONSTRAINT "REL_1ba465a3cf7d58bb507dc27cd9" UNIQUE ("configuracoes_seguranca_id"), CONSTRAINT "PK_4a7838c10c9c208a52d9547d16e" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "estudante" ("submissao_id" integer NOT NULL, "email" character varying NOT NULL, "nome" character varying NOT NULL, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_21bb44cb9d553a2cba626a773e1" PRIMARY KEY ("submissao_id", "email"))`);
-        await queryRunner.query(`CREATE TYPE "public"."submissao_estado_enum" AS ENUM('Iniciada', 'Enviada', 'Avaliada', 'Encerrada', 'Abandonada', 'Reaberta', 'Pausada', 'Cancelada')`);
-        await queryRunner.query(`CREATE TABLE "submissao" ("id" SERIAL NOT NULL, "hash" character varying NOT NULL, "estado" "public"."submissao_estado_enum" NOT NULL, "pontuacao_total" numeric(5,2), "finalizado_em" TIMESTAMP NOT NULL, "codigo_entrega" integer, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), "aplicacao_id" integer, CONSTRAINT "PK_35a66af3f442d03a993a2c62d14" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."aplicacao_estado_enum" AS ENUM('Criada', 'Concluída', 'Em Andamento', 'Agendada', 'Finalizada', 'Pausada', 'Cancelada')`);
         await queryRunner.query(`CREATE TABLE "aplicacao" ("id" SERIAL NOT NULL, "codigo_acesso" character varying NOT NULL, "data_inicio" TIMESTAMP NOT NULL, "data_fim" TIMESTAMP NOT NULL, "estado" "public"."aplicacao_estado_enum" NOT NULL, "avaliacao_id" integer, CONSTRAINT "PK_63e408f7295772632c64efec127" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "avaliacao" ("id" integer NOT NULL, "descricao" character varying NOT NULL, "is_modelo" boolean NOT NULL, "configuracao_avaliacao_id" integer, CONSTRAINT "REL_bff2796b4b0f95e3e1e38e9b07" UNIQUE ("configuracao_avaliacao_id"), CONSTRAINT "PK_fd3e156019eb4b68c6c9f746d51" PRIMARY KEY ("id"))`);
@@ -32,12 +30,17 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`CREATE TYPE "public"."questao_tipo_questao_enum" AS ENUM('Objetiva', 'Discursiva', 'Múltipla escolha', 'Verdadeiro ou falso')`);
         await queryRunner.query(`CREATE TABLE "questao" ("id" integer NOT NULL, "dificuldade" "public"."questao_dificuldade_enum" NOT NULL, "descricao" text, "exemploRespostaIa" text, "isModelo" boolean NOT NULL, "pontuacao" integer NOT NULL, "tipo_questao" "public"."questao_tipo_questao_enum" NOT NULL, "texto_revisao" text, CONSTRAINT "PK_e9a143a9a3f4d1187df8a98e847" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "submissao_respostas" ("submissao_id" integer NOT NULL, "questao_id" integer NOT NULL, "dados_resposta" jsonb NOT NULL, "pontuacao" numeric(5,2), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_a007b6464e560b98efca7e27a6d" PRIMARY KEY ("submissao_id", "questao_id"))`);
+        await queryRunner.query(`CREATE TYPE "public"."submissao_estado_enum" AS ENUM('Iniciada', 'Enviada', 'Avaliada', 'Encerrada', 'Abandonada', 'Reaberta', 'Pausada', 'Cancelada')`);
+        await queryRunner.query(`CREATE TABLE "submissao" ("id" SERIAL NOT NULL, "hash" character varying NOT NULL, "estado" "public"."submissao_estado_enum" NOT NULL, "pontuacao_total" numeric(5,2), "finalizado_em" TIMESTAMP NOT NULL, "codigo_entrega" integer, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), "atualizado_em" TIMESTAMP NOT NULL DEFAULT now(), "aplicacao_id" integer, CONSTRAINT "PK_35a66af3f442d03a993a2c62d14" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TYPE "public"."banco_de_conteudo_tipo_banco_enum" AS ENUM('QUESTOES', 'AVALIACOES', 'MATERIAIS')`);
+        await queryRunner.query(`CREATE TABLE "banco_de_conteudo" ("tipo_banco" "public"."banco_de_conteudo_tipo_banco_enum" NOT NULL, "avaliador_id" integer NOT NULL, "pasta_raiz_id" integer, CONSTRAINT "REL_6d9e7de7a7ef434bf0a32d7ba3" UNIQUE ("pasta_raiz_id"), CONSTRAINT "PK_480740099a9b47d85b3eeb8e4d1" PRIMARY KEY ("tipo_banco", "avaliador_id"))`);
         await queryRunner.query(`CREATE TABLE "avaliador_recuperar_senha" ("id" SERIAL NOT NULL, "email" character varying NOT NULL, "hash" character varying NOT NULL, "expira_em" TIMESTAMP NOT NULL, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_de0f3dee629f758586fd5ea761d" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "avaliador_confirmar_email" ("id" SERIAL NOT NULL, "avaliador_id" integer NOT NULL, "hash" character varying NOT NULL, "is_confirmado" boolean NOT NULL, "expira_em" TIMESTAMP NOT NULL, "criado_em" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_cb904f9d653e20cf7c911132a4a" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "arquivo" ("id" integer NOT NULL, "url" character varying NOT NULL, "descricao" text, "tamanho_em_bytes" integer NOT NULL, CONSTRAINT "PK_956a4593ecc7963784e642c1b10" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "pool_questoes_randomizacao" ("questao_id" integer NOT NULL, "configuracao_randomizacao_id" integer NOT NULL, CONSTRAINT "PK_3bf97f32f4a3d99f6484e9d51c0" PRIMARY KEY ("questao_id", "configuracao_randomizacao_id"))`);
         await queryRunner.query(`CREATE INDEX "IDX_9a0bf30899f74b6f5cf08bc461" ON "pool_questoes_randomizacao" ("questao_id") `);
         await queryRunner.query(`CREATE INDEX "IDX_8db4052e79263e2aa3949ea45a" ON "pool_questoes_randomizacao" ("configuracao_randomizacao_id") `);
+        await queryRunner.query(`ALTER TABLE "estudante" ADD CONSTRAINT "FK_9d3a15016bfe2c4cfd039275b1a" FOREIGN KEY ("submissao_id") REFERENCES "submissao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "item_sistema_arquivos" ADD CONSTRAINT "FK_76eefa7bec1705e732d333823f6" FOREIGN KEY ("pai_id") REFERENCES "item_sistema_arquivos"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "item_sistema_arquivos" ADD CONSTRAINT "FK_faa5c5c2093e612ed4fa9791e98" FOREIGN KEY ("avaliador_id") REFERENCES "avaliador"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "alternativa" ADD CONSTRAINT "FK_36be2693f8254dbba0e04820a7d" FOREIGN KEY ("questao_id") REFERENCES "questao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -47,8 +50,6 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "ips_permitidos" ADD CONSTRAINT "FK_184c863da8121f56aaf86fb8c10" FOREIGN KEY ("configuracoes_seguranca_id") REFERENCES "configuracoes_seguranca"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "configuracao_avaliacao" ADD CONSTRAINT "FK_4b88235e2bf7f29042804db1466" FOREIGN KEY ("configuracoes_gerais_id") REFERENCES "configuracoes_gerais"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "configuracao_avaliacao" ADD CONSTRAINT "FK_1ba465a3cf7d58bb507dc27cd9f" FOREIGN KEY ("configuracoes_seguranca_id") REFERENCES "configuracoes_seguranca"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "estudante" ADD CONSTRAINT "FK_9d3a15016bfe2c4cfd039275b1a" FOREIGN KEY ("submissao_id") REFERENCES "submissao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "submissao" ADD CONSTRAINT "FK_b9c5c616f3054b8c42775600500" FOREIGN KEY ("aplicacao_id") REFERENCES "aplicacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "aplicacao" ADD CONSTRAINT "FK_35fb9acd0c3a4b56c0c2258241a" FOREIGN KEY ("avaliacao_id") REFERENCES "avaliacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "avaliacao" ADD CONSTRAINT "FK_fd3e156019eb4b68c6c9f746d51" FOREIGN KEY ("id") REFERENCES "item_sistema_arquivos"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "avaliacao" ADD CONSTRAINT "FK_bff2796b4b0f95e3e1e38e9b07c" FOREIGN KEY ("configuracao_avaliacao_id") REFERENCES "configuracao_avaliacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -57,6 +58,9 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "questao" ADD CONSTRAINT "FK_e9a143a9a3f4d1187df8a98e847" FOREIGN KEY ("id") REFERENCES "item_sistema_arquivos"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "submissao_respostas" ADD CONSTRAINT "FK_5099a73f2731363d15b5087e14d" FOREIGN KEY ("submissao_id") REFERENCES "submissao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "submissao_respostas" ADD CONSTRAINT "FK_87f1b88727df86d50fa1b3335ce" FOREIGN KEY ("questao_id") REFERENCES "questao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "submissao" ADD CONSTRAINT "FK_b9c5c616f3054b8c42775600500" FOREIGN KEY ("aplicacao_id") REFERENCES "aplicacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "banco_de_conteudo" ADD CONSTRAINT "FK_c9762c2f2c34872bc513f49b031" FOREIGN KEY ("avaliador_id") REFERENCES "avaliador"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "banco_de_conteudo" ADD CONSTRAINT "FK_6d9e7de7a7ef434bf0a32d7ba37" FOREIGN KEY ("pasta_raiz_id") REFERENCES "item_sistema_arquivos"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "arquivo" ADD CONSTRAINT "FK_956a4593ecc7963784e642c1b10" FOREIGN KEY ("id") REFERENCES "item_sistema_arquivos"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "pool_questoes_randomizacao" ADD CONSTRAINT "FK_9a0bf30899f74b6f5cf08bc461b" FOREIGN KEY ("questao_id") REFERENCES "questao"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE "pool_questoes_randomizacao" ADD CONSTRAINT "FK_8db4052e79263e2aa3949ea45a9" FOREIGN KEY ("configuracao_randomizacao_id") REFERENCES "configuracoes_randomizacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -66,6 +70,9 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "pool_questoes_randomizacao" DROP CONSTRAINT "FK_8db4052e79263e2aa3949ea45a9"`);
         await queryRunner.query(`ALTER TABLE "pool_questoes_randomizacao" DROP CONSTRAINT "FK_9a0bf30899f74b6f5cf08bc461b"`);
         await queryRunner.query(`ALTER TABLE "arquivo" DROP CONSTRAINT "FK_956a4593ecc7963784e642c1b10"`);
+        await queryRunner.query(`ALTER TABLE "banco_de_conteudo" DROP CONSTRAINT "FK_6d9e7de7a7ef434bf0a32d7ba37"`);
+        await queryRunner.query(`ALTER TABLE "banco_de_conteudo" DROP CONSTRAINT "FK_c9762c2f2c34872bc513f49b031"`);
+        await queryRunner.query(`ALTER TABLE "submissao" DROP CONSTRAINT "FK_b9c5c616f3054b8c42775600500"`);
         await queryRunner.query(`ALTER TABLE "submissao_respostas" DROP CONSTRAINT "FK_87f1b88727df86d50fa1b3335ce"`);
         await queryRunner.query(`ALTER TABLE "submissao_respostas" DROP CONSTRAINT "FK_5099a73f2731363d15b5087e14d"`);
         await queryRunner.query(`ALTER TABLE "questao" DROP CONSTRAINT "FK_e9a143a9a3f4d1187df8a98e847"`);
@@ -74,8 +81,6 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "avaliacao" DROP CONSTRAINT "FK_bff2796b4b0f95e3e1e38e9b07c"`);
         await queryRunner.query(`ALTER TABLE "avaliacao" DROP CONSTRAINT "FK_fd3e156019eb4b68c6c9f746d51"`);
         await queryRunner.query(`ALTER TABLE "aplicacao" DROP CONSTRAINT "FK_35fb9acd0c3a4b56c0c2258241a"`);
-        await queryRunner.query(`ALTER TABLE "submissao" DROP CONSTRAINT "FK_b9c5c616f3054b8c42775600500"`);
-        await queryRunner.query(`ALTER TABLE "estudante" DROP CONSTRAINT "FK_9d3a15016bfe2c4cfd039275b1a"`);
         await queryRunner.query(`ALTER TABLE "configuracao_avaliacao" DROP CONSTRAINT "FK_1ba465a3cf7d58bb507dc27cd9f"`);
         await queryRunner.query(`ALTER TABLE "configuracao_avaliacao" DROP CONSTRAINT "FK_4b88235e2bf7f29042804db1466"`);
         await queryRunner.query(`ALTER TABLE "ips_permitidos" DROP CONSTRAINT "FK_184c863da8121f56aaf86fb8c10"`);
@@ -85,12 +90,17 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "alternativa" DROP CONSTRAINT "FK_36be2693f8254dbba0e04820a7d"`);
         await queryRunner.query(`ALTER TABLE "item_sistema_arquivos" DROP CONSTRAINT "FK_faa5c5c2093e612ed4fa9791e98"`);
         await queryRunner.query(`ALTER TABLE "item_sistema_arquivos" DROP CONSTRAINT "FK_76eefa7bec1705e732d333823f6"`);
+        await queryRunner.query(`ALTER TABLE "estudante" DROP CONSTRAINT "FK_9d3a15016bfe2c4cfd039275b1a"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_8db4052e79263e2aa3949ea45a"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_9a0bf30899f74b6f5cf08bc461"`);
         await queryRunner.query(`DROP TABLE "pool_questoes_randomizacao"`);
         await queryRunner.query(`DROP TABLE "arquivo"`);
         await queryRunner.query(`DROP TABLE "avaliador_confirmar_email"`);
         await queryRunner.query(`DROP TABLE "avaliador_recuperar_senha"`);
+        await queryRunner.query(`DROP TABLE "banco_de_conteudo"`);
+        await queryRunner.query(`DROP TYPE "public"."banco_de_conteudo_tipo_banco_enum"`);
+        await queryRunner.query(`DROP TABLE "submissao"`);
+        await queryRunner.query(`DROP TYPE "public"."submissao_estado_enum"`);
         await queryRunner.query(`DROP TABLE "submissao_respostas"`);
         await queryRunner.query(`DROP TABLE "questao"`);
         await queryRunner.query(`DROP TYPE "public"."questao_tipo_questao_enum"`);
@@ -99,9 +109,6 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "avaliacao"`);
         await queryRunner.query(`DROP TABLE "aplicacao"`);
         await queryRunner.query(`DROP TYPE "public"."aplicacao_estado_enum"`);
-        await queryRunner.query(`DROP TABLE "submissao"`);
-        await queryRunner.query(`DROP TYPE "public"."submissao_estado_enum"`);
-        await queryRunner.query(`DROP TABLE "estudante"`);
         await queryRunner.query(`DROP TABLE "configuracao_avaliacao"`);
         await queryRunner.query(`DROP TABLE "configuracoes_seguranca"`);
         await queryRunner.query(`DROP TABLE "ips_permitidos"`);
@@ -119,6 +126,7 @@ export class CreateTables1755712462960 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "item_sistema_arquivos"`);
         await queryRunner.query(`DROP TYPE "public"."item_sistema_arquivos_tipo_enum"`);
         await queryRunner.query(`DROP TABLE "avaliador"`);
+        await queryRunner.query(`DROP TABLE "estudante"`);
     }
 
 }

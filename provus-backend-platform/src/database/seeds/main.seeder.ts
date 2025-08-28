@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager, runSeeder } from 'typeorm-extension';
 import 'reflect-metadata';
 import { AppDataSource } from '../config/data-source';
-import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 import { ArquivoModel } from '../config/models/arquivo.model';
 import { EstudanteModel } from '../config/models/estudante.model';
 import { AlternativaModel } from '../config/models/alternativa.model';
@@ -17,6 +17,8 @@ import { ItemSistemaArquivosModel } from '../config/models/item-sistema-arquivos
 import { QuestaoModel } from '../config/models/questao.model';
 import { QuestoesAvaliacoesModel } from '../config/models/questoes-avaliacoes.model';
 import { SubmissaoModel } from '../config/models/submissao.model';
+import { BancoDeConteudoModel } from '../config/models/banco-de-conteudo.model';
+import { TipoBancoEnum } from 'src/enums/tipo-banco';
 
 export default class MainSeeder implements Seeder {
   public async run(
@@ -34,6 +36,7 @@ export default class MainSeeder implements Seeder {
       ConfiguracaoAvaliacaoModel,
     );
 
+    const bancoRepo = dataSource.getRepository(BancoDeConteudoModel);
     const avaliadorFactory = factoryManager.get(AvaliadorModel);
     const alternativaFactory = factoryManager.get(AlternativaModel);
     const aplicacaoFactory = factoryManager.get(AplicacaoModel);
@@ -55,6 +58,41 @@ export default class MainSeeder implements Seeder {
       await avaliadorFactory.saveMany(2);
 
     // =========================================================================
+    // 1.1 CRIAÇÃO DOS BANCOS DE CONTEÚDO PARA O AVALIADOR PRINCIPAL
+    // =========================================================================
+    console.log('Criando bancos de conteúdo para o avaliador principal...');
+
+    const pastaQuestoes = itemRepo.create({
+      titulo: 'Banco de Questões',
+      tipo: TipoItemEnum.PASTA,
+      avaliador: avaliadorPrincipal,
+      pai: null,
+    });
+    await itemRepo.save(pastaQuestoes);
+
+    const bancoQuestoes = bancoRepo.create({
+      tipoBanco: TipoBancoEnum.QUESTOES,
+      avaliador: avaliadorPrincipal,
+      pastaRaiz: pastaQuestoes,
+    });
+    await bancoRepo.save(bancoQuestoes);
+
+    const pastaAvaliacoesRaiz = itemRepo.create({
+      titulo: 'Banco de Avaliações',
+      tipo: TipoItemEnum.PASTA,
+      avaliador: avaliadorPrincipal,
+      pai: null,
+    });
+    await itemRepo.save(pastaAvaliacoesRaiz);
+
+    const bancoAvaliacoes = bancoRepo.create({
+      tipoBanco: TipoBancoEnum.AVALIACOES,
+      avaliador: avaliadorPrincipal,
+      pastaRaiz: pastaAvaliacoesRaiz,
+    });
+    await bancoRepo.save(bancoAvaliacoes);
+
+    // =========================================================================
     // 2. CRIAÇÃO DE UM "BANCO DE QUESTÕES" COM ALTERNATIVAS
     // =========================================================================
     console.log('Criando um banco de 20 questões...');
@@ -64,6 +102,7 @@ export default class MainSeeder implements Seeder {
         titulo: faker.lorem.sentence(5),
         avaliador: avaliadorPrincipal,
         tipo: TipoItemEnum.QUESTAO,
+        pai: pastaQuestoes,
       });
       await itemRepo.save(itemBase);
 

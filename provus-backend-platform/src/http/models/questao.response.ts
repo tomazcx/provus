@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
-import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
+import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import { AlternativaResponse } from './alternativa.response';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
 

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { QuestaoModel } from '../config/models/questao.model';
 import { AlternativaModel } from '../config/models/alternativa.model';
 import { CreateQuestaoRequest } from 'src/http/controllers/backoffice/questao/create-questao/request';
 
-import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 import { AvaliadorModel } from '../config/models/avaliador.model';
 
 @Injectable()
@@ -63,6 +63,22 @@ export class QuestaoRepository extends Repository<QuestaoModel> {
       }
 
       return newQuestaoId;
+    });
+  }
+
+  async findAllByPasta(
+    pastaId: number | null,
+    avaliadorId: number,
+  ): Promise<QuestaoModel[]> {
+    return this.find({
+      where: {
+        item: {
+          tipo: TipoItemEnum.QUESTAO,
+          avaliador: { id: avaliadorId },
+          pai: pastaId === null ? IsNull() : { id: pastaId },
+        },
+      },
+      relations: ['alternativas', 'item'],
     });
   }
 }

@@ -1,14 +1,15 @@
 <script setup lang="ts">
+import { onMounted, computed, ref, reactive } from "vue";
 import QuestionsBankFolderItem from "~/components/BancoDeQuestoes/QuestionsBankFolderItem/index.vue";
 import QuestionsBankQuestionItem from "~/components/BancoDeQuestoes/QuestionsBankQuestionItem/index.vue";
-import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
 import isFolder from "~/guards/isFolder";
 import { useQuestionBankStore } from "~/store/questionBankstore";
-import type { IFolder } from "~/types/IBank";
+import type { TQuestionForm } from "~/types/IQuestao";
+import type { IFolderListItem, TBankItem } from "~/types/IBank";
 
 const props = defineProps({
   mode: {
@@ -16,150 +17,93 @@ const props = defineProps({
     default: "browse",
   },
 });
-const emit = defineEmits(["path-changed"]);
 
 const questionBankStore = useQuestionBankStore();
+
+onMounted(() => {
+  questionBankStore.initialize();
+});
+
 const showCreateFolder = ref(false);
 const showCreateQuestion = ref(false);
-const editingQuestion = ref<IQuestao | null>(null);
-const editingFolder = ref<IFolder | null>(null);
-const internalCurrentPath = ref("/");
+const editingItem = ref<TBankItem | null>(null);
 const selectedItems = ref({
   folders: new Set<number>(),
   questions: new Set<number>(),
 });
-
-function handleItemClick(item: IFolder | IQuestao) {
-  if (isFolder(item)) {
-    const newPath =
-      internalCurrentPath.value === "/"
-        ? `/${item.titulo}`
-        : `${internalCurrentPath.value}/${item.titulo}`;
-    internalCurrentPath.value = newPath;
-  } else if (props.mode === "select" && item.id) {
-    handleSelectItem(item);
-  }
-}
-
-function handleSelectItem(item: IFolder | IQuestao) {
-  const targetSet = isFolder(item)
-    ? selectedItems.value.folders
-    : selectedItems.value.questions;
-  const isSelected = targetSet.has(item.id!);
-
-  if (isSelected) {
-    targetSet.delete(item.id!);
-  } else {
-    targetSet.add(item.id!);
-  }
-}
-
-watch(internalCurrentPath, (newPath) => {
-  emit("path-changed", newPath);
-});
-
-function handleCreateFolder(data: { titulo: string }) {
-  questionBankStore.createFolder({
-    titulo: data.titulo,
-    path: internalCurrentPath.value,
-  });
-  showCreateFolder.value = false;
-}
-
-function handleCreateQuestion(formData: TQuestionForm) {
-  questionBankStore.createQuestion({
-    formData,
-    path: internalCurrentPath.value,
-  });
-  showCreateQuestion.value = false;
-}
-
-function handleUpdateFolder({ newTitle }: { newTitle: string }) {
-  if (!editingFolder.value) return;
-  questionBankStore.updateItem({ item: editingFolder.value, newTitle });
-  editingFolder.value = null;
-}
-
-function handleUpdateQuestion(updatedData: TQuestionForm) {
-  if (!editingQuestion.value) return;
-  questionBankStore.updateItem({ item: editingQuestion.value, updatedData });
-  editingQuestion.value = null;
-}
-
-function handleDelete(itemToDelete: IFolder | IQuestao) {
-  questionBankStore.deleteItem(itemToDelete);
-}
-
-const pathSegments = computed(() => {
-  if (internalCurrentPath.value === "/") return [];
-  return internalCurrentPath.value.substring(1).split("/");
-});
-
-const currentPath = computed(() => {
-  if (pathSegments.value.length === 0) return "/";
-  return `/${pathSegments.value.join("/")}`;
-});
-
-const breadcrumbs = computed(() => {
-  const crumbs = [{ label: "Banco de Questões", to: "/banco-de-questoes" }];
-  const currentCrumbPath: string[] = [];
-  for (const segment of pathSegments.value) {
-    currentCrumbPath.push(segment);
-    crumbs.push({
-      label: segment,
-      to: `/banco-de-questoes/${currentCrumbPath.join("/")}`,
-    });
-  }
-  return crumbs;
-});
-
-const currentPathLabel = computed(() => {
-  return breadcrumbs.value.map((crumb) => crumb.label).join(" > ");
-});
-
-const itemsInCurrentFolder = computed(() =>
-  questionBankStore.items
-    .filter((item) => item.path === currentPath.value)
-    .sort((a, b) => {
-      const aIsFolder = isFolder(a);
-      const bIsFolder = isFolder(b);
-      if (aIsFolder && !bIsFolder) return -1;
-      if (!aIsFolder && bIsFolder) return 1;
-      const dateA = new Date(a.atualizadoEm ?? 0).getTime();
-      const dateB = new Date(b.atualizadoEm ?? 0).getTime();
-      return dateB - dateA;
-    })
-);
-
-function getChildCount(folder: IFolder): number {
-  const childPath =
-    folder.path === "/"
-      ? `/${folder.titulo}`
-      : `${folder.path}/${folder.titulo}`;
-  return questionBankStore.items.filter((item) => item.path === childPath)
-    .length;
-}
-
-function navigateFromBreadcrumb(path: string) {
-  if (path === "/banco-de-questoes") {
-    internalCurrentPath.value = "/";
-  } else {
-    internalCurrentPath.value = path.replace("/banco-de-questoes", "");
-  }
-}
-
-function handleEdit(item: IFolder | IQuestao) {
-  if (isFolder(item)) {
-    editingFolder.value = item;
-  } else {
-    editingQuestion.value = item;
-  }
-}
-
 const filters = reactive({
   search: "",
   type: "Todos os tipos",
   sort: "Última modificação",
+});
+
+function handleItemClick(item: TBankItem) {
+  if (isFolder(item)) {
+    questionBankStore.navigateToFolder(item as IFolderListItem);
+  } else if (props.mode === "select") {
+    handleSelectItem(item);
+  }
+}
+
+function handleSelectItem(item: TBankItem) {
+  if (!item.id) return;
+  const targetSet = isFolder(item)
+    ? selectedItems.value.folders
+    : selectedItems.value.questions;
+
+  if (targetSet.has(item.id)) {
+    targetSet.delete(item.id);
+  } else {
+    targetSet.add(item.id);
+  }
+}
+
+function handleCreateFolder(data: { titulo: string }) {
+  questionBankStore.createFolder(data);
+  showCreateFolder.value = false;
+}
+
+function handleCreateQuestion(formData: TQuestionForm) {
+  questionBankStore.createQuestion(formData);
+  showCreateQuestion.value = false;
+}
+
+function handleUpdate(updatedData: { newTitle: string } | TQuestionForm) {
+  if (!editingItem.value) return;
+  const dataToSend =
+    "newTitle" in updatedData ? { titulo: updatedData.newTitle } : updatedData;
+
+  questionBankStore.updateItem(editingItem.value, dataToSend);
+  editingItem.value = null;
+}
+
+function handleDelete(itemToDelete: TBankItem) {
+  questionBankStore.deleteItem(itemToDelete);
+}
+
+const breadcrumbItems = computed(() =>
+  questionBankStore.breadcrumbs.map((crumb, index) => ({
+    label: crumb.titulo,
+    index: index,
+  }))
+);
+
+const currentPathLabel = computed(() =>
+  questionBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
+);
+
+const filteredItems = computed(() => {
+  return [...questionBankStore.items]
+    .filter((item) =>
+      item.titulo.toLowerCase().includes(filters.search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (isFolder(a) && !isFolder(b)) return -1;
+      if (!isFolder(a) && isFolder(b)) return 1;
+      return (
+        new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime()
+      );
+    });
 });
 
 defineExpose({
@@ -174,22 +118,28 @@ defineExpose({
       :current-path-label="currentPathLabel"
       @create="handleCreateFolder"
     />
+
     <CreateQuestionDialog
       v-model="showCreateQuestion"
       @create="handleCreateQuestion"
     />
-    <EditQuestionDialog
-      :model-value="!!editingQuestion"
-      :question="editingQuestion"
-      @update:model-value="editingQuestion = null"
-      @update:question="handleUpdateQuestion"
-    />
-    <EditFolderDialog
-      :model-value="!!editingFolder"
-      :folder="editingFolder"
-      @update:model-value="editingFolder = null"
-      @update="handleUpdateFolder"
-    />
+
+    <template v-if="editingItem">
+      <EditFolderDialog
+        v-if="isFolder(editingItem)"
+        :model-value="true"
+        :folder="editingItem"
+        @update:model-value="editingItem = null"
+        @update="handleUpdate"
+      />
+      <EditQuestionDialog
+        v-else
+        :model-value="true"
+        :question="editingItem"
+        @update:model-value="editingItem = null"
+        @update:question="handleUpdate"
+      />
+    </template>
 
     <div class="flex justify-end mb-8">
       <div class="mt-4 sm:mt-0 space-x-3">
@@ -206,12 +156,12 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="pathSegments.length > 0" class="mb-6">
-      <UBreadcrumb :items="breadcrumbs">
-        <template #item="{ item }">
+    <div v-if="questionBankStore.breadcrumbs.length > 1" class="mb-6">
+      <UBreadcrumb :links="breadcrumbItems">
+        <template #item="{ item, index }">
           <span
             class="cursor-pointer hover:underline"
-            @click.prevent="navigateFromBreadcrumb(item.to)"
+            @click.prevent="questionBankStore.navigateToBreadcrumb(index)"
           >
             {{ item.label }}
           </span>
@@ -260,19 +210,16 @@ defineExpose({
 
     <div class="space-y-4">
       <div
-        v-if="itemsInCurrentFolder.length === 0"
+        v-if="filteredItems.length === 0"
         class="text-center text-gray-500 py-10"
       >
-        Esta pasta está vazia.
+        <span v-if="questionBankStore.isLoading">Carregando...</span>
+        <span v-else>Esta pasta está vazia.</span>
       </div>
       <div
-        v-for="item in itemsInCurrentFolder"
+        v-for="item in filteredItems"
         v-else
         :key="item.id"
-        :class="{
-          'cursor-pointer hover:bg-gray-50':
-            isFolder(item) || mode === 'select',
-        }"
         @click.prevent="handleItemClick(item)"
       >
         <QuestionsBankFolderItem
@@ -280,17 +227,17 @@ defineExpose({
           :item="item"
           :selectable="mode === 'select'"
           :is-selected="selectedItems.folders.has(item.id!)"
-          :child-count="getChildCount(item)"
           @select="handleSelectItem(item)"
-          @edit="handleEdit(item)"
+          @edit="editingItem = item"
           @delete="handleDelete(item)"
         />
         <QuestionsBankQuestionItem
           v-else
           :item="item"
+          :selectable="mode === 'select'"
           :is-selected="selectedItems.questions.has(item.id!)"
           @select="handleSelectItem(item)"
-          @edit="handleEdit(item)"
+          @edit="editingItem = item"
           @delete="handleDelete(item)"
         />
       </div>

@@ -6,7 +6,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import EstadoAplicacaoEnum from 'src/domain/enums/estado-aplicacao.enum';
+import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import { AvaliacaoModel } from './avaliacao.model';
 import { SubmissaoModel } from './submissao.model';
 
