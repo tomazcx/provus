@@ -31,10 +31,10 @@ export class QuestaoModel {
   @Column({ type: 'text', nullable: true })
   descricao: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'exemplo_resposta_ia', type: 'text', nullable: true })
   exemploRespostaIa: string;
 
-  @Column()
+  @Column({ name: 'is_modelo' })
   isModelo: boolean;
 
   @Column()

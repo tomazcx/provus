@@ -5,6 +5,7 @@ import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator'
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { BancoDeConteudoResponse } from 'src/http/models/banco-de-conteudo.response';
 import { BancoDeConteudoService } from 'src/services/banco-de-conteudo.service';
+import { FindAllBancosDecorators } from './decorators';
 
 @Controller('backoffice/bancos-de-conteudo')
 @ApiTags('Backoffice - Bancos de Conteúdo')
@@ -13,6 +14,7 @@ export class FindAllBancosController {
 
   @Get()
   @UseGuards(AvaliadorAuthGuard)
+  @FindAllBancosDecorators()
   async handle(
     @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<BancoDeConteudoResponse[]> {
