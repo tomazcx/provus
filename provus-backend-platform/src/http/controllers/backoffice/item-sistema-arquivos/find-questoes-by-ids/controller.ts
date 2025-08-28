@@ -5,10 +5,8 @@ import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator'
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { QuestaoResponse } from 'src/http/models/questao.response';
 import { QuestaoService } from 'src/services/questao.service';
-
-class FindQuestoesByIdsDto {
-  questionIds: number[];
-}
+import { FindQuestoesByIdsRequest } from './request';
+import { FindQuestoesByIdsDecorators } from './decorators';
 
 @Controller('backoffice/questoes')
 @ApiTags('Backoffice - Questões')
@@ -17,8 +15,9 @@ export class FindQuestoesByIdsController {
 
   @Post('detalhes-por-ids')
   @UseGuards(AvaliadorAuthGuard)
+  @FindQuestoesByIdsDecorators()
   async handle(
-    @Body() body: FindQuestoesByIdsDto,
+    @Body() body: FindQuestoesByIdsRequest,
     @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<QuestaoResponse[]> {
     const questoesDtos = await this.questaoService.findByIds(

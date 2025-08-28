@@ -4,10 +4,9 @@ import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { ItemSistemaArquivosService } from 'src/services/item-sistema-arquivos.service';
-
-class ExpandirQuestoesDto {
-  folderIds: number[];
-}
+import { ExpandirQuestoesRequest } from './request';
+import { ExpandirQuestoesResponse } from './response';
+import { ExpandirQuestoesDecorators } from './decorators';
 
 @Controller('backoffice/pastas')
 @ApiTags('Backoffice - Pastas')
@@ -16,13 +15,16 @@ export class ExpandirQuestoesController {
 
   @Post('expandir-questoes')
   @UseGuards(AvaliadorAuthGuard)
+  @ExpandirQuestoesDecorators()
   async handle(
-    @Body() body: ExpandirQuestoesDto,
+    @Body() body: ExpandirQuestoesRequest,
     @LoggedAvaliador() avaliador: AvaliadorModel,
-  ): Promise<number[]> {
-    return this.itemService.findAllQuestionIdsInFolders(
+  ): Promise<ExpandirQuestoesResponse> {
+    const questionIds = await this.itemService.findAllQuestionIdsInFolders(
       body.folderIds,
       avaliador.id,
     );
+
+    return { questionIds };
   }
 }
