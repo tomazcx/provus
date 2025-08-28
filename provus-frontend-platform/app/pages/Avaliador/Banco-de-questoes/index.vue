@@ -6,7 +6,7 @@ import { useQuestionBankStore } from "~/store/questionBankstore";
 const questionBankStore = useQuestionBankStore();
 
 onMounted(() => {
-  questionBankStore.fetchItems();
+  questionBankStore.initialize();
 });
 
 const pageTitle = "Banco de Questões";

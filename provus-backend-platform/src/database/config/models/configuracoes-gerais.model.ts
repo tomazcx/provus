@@ -1,6 +1,6 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { ConfiguracoesRandomizacaoModel } from './configuracoes-randomizacao.model';
-import TipoAplicacaoEnum from 'src/domain/enums/tipo-aplicacao.enum';
+import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 
 @Entity('configuracoes_gerais')
 export class ConfiguracoesGeraisModel {

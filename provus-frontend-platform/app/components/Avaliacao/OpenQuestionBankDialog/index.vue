@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
 import QuestionBankContent from "@/components/BancoDeQuestoes/QuestionBankContent/index.vue";
 import type { IQuestao } from "~/types/IQuestao";
-import isFolder from "~/guards/isFolder";
 import { useQuestionBankStore } from "~/store/questionBankstore";
 
 defineProps<{ modelValue: boolean }>();
@@ -17,16 +17,15 @@ const emit = defineEmits<{
 }>();
 
 const questionBankStore = useQuestionBankStore();
-
-onMounted(() => {
-  questionBankStore.fetchItems();
-});
-
 const questionContentRef = ref<InstanceType<typeof QuestionBankContent> | null>(
   null
 );
 
-function addSelectedQuestions() {
+onMounted(() => {
+  questionBankStore.initialize();
+});
+
+async function addSelectedQuestions() {
   const selection = questionContentRef.value?.selectedItems;
   if (
     !selection ||
@@ -36,27 +35,19 @@ function addSelectedQuestions() {
     return;
   }
 
-  const finalQuestionIds = new Set<number>(selection.questions);
+  const questionIdsFromFolders =
+    await questionBankStore.fetchAllQuestionIdsInFolders(
+      Array.from(selection.folders)
+    );
 
-  selection.folders.forEach((folderId: number) => {
-    const folder = questionBankStore.items.find((i) => i.id === folderId);
-    if (folder && isFolder(folder)) {
-      const pathPrefix =
-        folder.path === "/"
-          ? `/${folder.titulo}`
-          : `${folder.path}/${folder.titulo}`;
+  const allQuestionIds = new Set([
+    ...Array.from(selection.questions),
+    ...questionIdsFromFolders,
+  ]);
 
-      questionBankStore.items.forEach((item) => {
-        if (item.path?.startsWith(pathPrefix) && !isFolder(item)) {
-          finalQuestionIds.add(item.id!);
-        }
-      });
-    }
-  });
-
-  const questionsToAdd = questionBankStore.items.filter(
-    (item) => item.id && finalQuestionIds.has(item.id)
-  ) as IQuestao[];
+  const questionsToAdd = await questionBankStore.fetchQuestionsByIds(
+    Array.from(allQuestionIds)
+  );
 
   emit("add-questions", {
     questions: questionsToAdd,
@@ -69,7 +60,6 @@ function addSelectedQuestions() {
   emit("update:modelValue", false);
 }
 </script>
-
 <template>
   <UModal
     :open="modelValue"

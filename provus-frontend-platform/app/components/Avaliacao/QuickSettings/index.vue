@@ -7,12 +7,10 @@ const model = defineModel<IConfiguracoes>({ required: true });
 const isRandomizacaoSimplesActive = computed({
   get: () => model.value.tipoRandomizacao === TipoRandomizacaoEnum.SIMPLES,
   set: (value) => {
-    // Se outro tipo de randomização estiver ativo, não faz nada para evitar conflitos.
     if (
       model.value.tipoRandomizacao &&
       model.value.tipoRandomizacao !== TipoRandomizacaoEnum.SIMPLES
     ) {
-      // Opcional: alertar o usuário que outra randomização está ativa.
       return;
     }
     model.value.tipoRandomizacao = value ? TipoRandomizacaoEnum.SIMPLES : null;

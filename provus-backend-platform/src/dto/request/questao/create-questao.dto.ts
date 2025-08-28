@@ -1,5 +1,5 @@
-import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
-import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
+import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import { CreateAlternativaDto } from '../alternativa/create-alternativa.dto';
 
 export interface CreateQuestaoDto {

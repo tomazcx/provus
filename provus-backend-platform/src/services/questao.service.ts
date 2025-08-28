@@ -8,7 +8,7 @@ import { QuestaoRepository } from 'src/database/repositories/questao.repository'
 import { UpdateQuestaoRequest } from 'src/http/controllers/backoffice/questao/update-questao/request';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 
 @Injectable()
@@ -54,6 +54,46 @@ export class QuestaoService {
     });
 
     return dto;
+  }
+
+  async findAllByPasta(
+    pastaId: number | null,
+    avaliadorId: number,
+  ): Promise<QuestaoResultDto[]> {
+    const questoesModels = await this.questaoRepository.findAllByPasta(
+      pastaId,
+      avaliadorId,
+    );
+
+    const dtosPromises = questoesModels.map(async (questaoModel) => {
+      const path = await this.itemSistemaArquivosRepository.findPathById(
+        questaoModel.id,
+      );
+
+      const dto = new QuestaoResultDto();
+      dto.id = questaoModel.id;
+      dto.titulo = questaoModel.item.titulo;
+      dto.path = path;
+      dto.criadoEm = questaoModel.item.criadoEm.toISOString();
+      dto.atualizadoEm = questaoModel.item.atualizadoEm.toISOString();
+      dto.descricao = questaoModel.descricao;
+      dto.dificuldade = questaoModel.dificuldade;
+      dto.exemploRespostaIa = questaoModel.exemploRespostaIa;
+      dto.pontuacao = questaoModel.pontuacao;
+      dto.isModelo = questaoModel.isModelo;
+      dto.tipoQuestao = questaoModel.tipoQuestao;
+      dto.textoRevisao = questaoModel.textoRevisao;
+      dto.alternativas = (questaoModel.alternativas || []).map((altModel) => {
+        const altDto = new AlternativaResultDto();
+        altDto.id = altModel.id;
+        altDto.descricao = altModel.descricao;
+        altDto.isCorreto = altModel.isCorreto;
+        return altDto;
+      });
+      return dto;
+    });
+
+    return Promise.all(dtosPromises);
   }
 
   async create(
@@ -151,5 +191,52 @@ export class QuestaoService {
     });
 
     return resultDto;
+  }
+
+  async findByIds(
+    questionIds: number[],
+    avaliadorId: number,
+  ): Promise<QuestaoResultDto[]> {
+    if (questionIds.length === 0) {
+      return [];
+    }
+
+    const questoesModels = await this.questaoRepository.find({
+      where: {
+        id: In(questionIds),
+        item: { avaliador: { id: avaliadorId } },
+      },
+      relations: ['item', 'alternativas'],
+    });
+
+    const dtosPromises = questoesModels.map(async (questaoModel) => {
+      const path = await this.itemSistemaArquivosRepository.findPathById(
+        questaoModel.id,
+      );
+
+      const dto = new QuestaoResultDto();
+      dto.id = questaoModel.id;
+      dto.titulo = questaoModel.item.titulo;
+      dto.path = path;
+      dto.criadoEm = questaoModel.item.criadoEm.toISOString();
+      dto.atualizadoEm = questaoModel.item.atualizadoEm.toISOString();
+      dto.descricao = questaoModel.descricao;
+      dto.dificuldade = questaoModel.dificuldade;
+      dto.exemploRespostaIa = questaoModel.exemploRespostaIa;
+      dto.pontuacao = questaoModel.pontuacao;
+      dto.isModelo = questaoModel.isModelo;
+      dto.tipoQuestao = questaoModel.tipoQuestao;
+      dto.textoRevisao = questaoModel.textoRevisao;
+      dto.alternativas = (questaoModel.alternativas || []).map((altModel) => {
+        const altDto = new AlternativaResultDto();
+        altDto.id = altModel.id;
+        altDto.descricao = altModel.descricao;
+        altDto.isCorreto = altModel.isCorreto;
+        return altDto;
+      });
+      return dto;
+    });
+
+    return Promise.all(dtosPromises);
   }
 }

@@ -7,8 +7,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { QuestaoModel } from './questao.model';
-import DificuldadeRandomizacaoEnum from 'src/domain/enums/dificuldade-randomizacao.enum';
-import TipoRandomizacaoEnum from 'src/domain/enums/tipo-randomizacao.enum';
+import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
+import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
 import { ConfiguracoesGeraisModel } from './configuracoes-gerais.model';
 
 @Entity('configuracoes_randomizacao')

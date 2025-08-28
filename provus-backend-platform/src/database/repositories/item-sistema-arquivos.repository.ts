@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { ItemSistemaArquivosModel } from '../config/models/item-sistema-arquivos.model';
+import { TipoItemEnum } from 'src/enums/tipo-item.enum';
 
 @Injectable()
 export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivosModel> {
@@ -35,5 +36,47 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
     const result: { path: string }[] = await this.query(query, [id]);
 
     return result[0].path;
+  }
+
+  async findByParent(
+    paiId: number | null,
+    avaliadorId: number,
+  ): Promise<ItemSistemaArquivosModel[]> {
+    return this.find({
+      where: {
+        avaliador: { id: avaliadorId },
+        pai: paiId === null ? IsNull() : { id: paiId },
+      },
+      order: {
+        tipo: 'ASC',
+        titulo: 'ASC',
+      },
+    });
+  }
+
+  async findAllQuestionIdsInFolders(
+    folderIds: number[],
+    avaliadorId: number,
+  ): Promise<number[]> {
+    if (folderIds.length === 0) {
+      return [];
+    }
+
+    const query = `
+      WITH RECURSIVE subfolders AS (
+          SELECT id, tipo FROM item_sistema_arquivos WHERE id = ANY($1) AND avaliador_id = $2
+          UNION ALL
+          SELECT i.id, i.tipo FROM item_sistema_arquivos i
+          INNER JOIN subfolders sf ON i.pai_id = sf.id
+          WHERE i.avaliador_id = $2
+      )
+      SELECT id FROM subfolders WHERE tipo = '${TipoItemEnum.QUESTAO}';
+    `;
+
+    const results: { id: number }[] = await this.query(query, [
+      folderIds,
+      avaliadorId,
+    ]);
+    return results.map((r) => r.id);
   }
 }

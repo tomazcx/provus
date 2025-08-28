@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { EstudanteModel } from './estudante.model';
 import { SubmissaoRespostasModel } from './submissao-respostas.model';
-import EstadoSubmissaoEnum from 'src/domain/enums/estado-submissao.enum';
+import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { AplicacaoModel } from './aplicacao.model';
 
 @Entity('submissao')

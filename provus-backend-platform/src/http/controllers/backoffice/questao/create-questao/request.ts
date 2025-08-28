@@ -10,8 +10,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import DificuldadeQuestaoEnum from 'src/domain/enums/dificuldade-questao.enum';
-import TipoQuestaoEnum from 'src/domain/enums/tipo-questao.enum';
+import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import { CreateAlternativaRequest } from '../../alternativa/create-alternativa.request';
 
 export class CreateQuestaoRequest {

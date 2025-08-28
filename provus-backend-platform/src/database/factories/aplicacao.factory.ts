@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import EstadoAplicacaoEnum from 'src/domain/enums/estado-aplicacao.enum';
+import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import { setSeederFactory } from 'typeorm-extension';
 import { AplicacaoModel } from '../config/models/aplicacao.model';
 

@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import EstadoSubmissaoEnum from 'src/domain/enums/estado-submissao.enum';
+import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { setSeederFactory } from 'typeorm-extension';
 import { SubmissaoModel } from '../config/models/submissao.model';
 

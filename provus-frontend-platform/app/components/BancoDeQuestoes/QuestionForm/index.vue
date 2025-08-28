@@ -15,12 +15,12 @@ const emit = defineEmits<{
 const getBlankForm = (): TQuestionForm => ({
   titulo: "",
   descricao: "",
-  tipo: TipoQuestaoEnum.OBJETIVA,
+  tipoQuestao: TipoQuestaoEnum.OBJETIVA,
   dificuldade: DificuldadeQuestaoEnum.FACIL,
   pontuacao: 5,
   alternativas: [{ descricao: "", isCorreto: true }],
-  exemploDeResposta: "",
-  explicacao: "",
+  exemploRespostaIa: "",
+  textoRevisao: "",
 });
 
 const form = reactive<TQuestionForm>(getBlankForm());
@@ -29,12 +29,21 @@ watch(
   () => props.initialData,
   (newData) => {
     if (newData) {
-      Object.assign(form, newData);
+      form.titulo = newData.titulo;
+      form.descricao = newData.descricao;
+      form.tipoQuestao = newData.tipoQuestao;
+      form.dificuldade = newData.dificuldade;
+      form.pontuacao = newData.pontuacao;
+      form.alternativas = JSON.parse(
+        JSON.stringify(newData.alternativas || [])
+      );
+      form.exemploRespostaIa = newData.exemploRespostaIa || "";
+      form.textoRevisao = newData.textoRevisao || "";
     } else {
       Object.assign(form, getBlankForm());
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 const questionTypeItems: RadioGroupItem[] = [
@@ -49,24 +58,42 @@ const questionDifficultyItems: RadioGroupItem[] = [
   { label: "Difícil", value: "Difícil" },
 ];
 
-const isFreeText = computed(() => form.tipo === TipoQuestaoEnum.DISCURSIVA);
-const isTrueFalse = computed(
-  () => form.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO
+const isFreeText = computed(
+  () => form.tipoQuestao === TipoQuestaoEnum.DISCURSIVA
 );
-const isSingleCorrect = computed(() => form.tipo === TipoQuestaoEnum.OBJETIVA);
+const isTrueFalse = computed(
+  () => form.tipoQuestao === TipoQuestaoEnum.VERDADEIRO_FALSO
+);
+const isSingleCorrect = computed(
+  () => form.tipoQuestao === TipoQuestaoEnum.OBJETIVA
+);
 
 watch(
-  () => form.tipo,
-  (newType) => {
+  () => form.tipoQuestao,
+  (newType, oldType) => {
+    if (newType === TipoQuestaoEnum.DISCURSIVA) {
+      form.alternativas = [];
+    }
     if (
-      newType === TipoQuestaoEnum.OBJETIVA ||
-      newType === TipoQuestaoEnum.MULTIPLA_ESCOLHA
+      oldType === TipoQuestaoEnum.MULTIPLA_ESCOLHA &&
+      newType === TipoQuestaoEnum.OBJETIVA
     ) {
-      form.alternativas = [];
-    } else if (newType === TipoQuestaoEnum.VERDADEIRO_FALSO) {
-      form.alternativas = [];
-    } else if (newType === TipoQuestaoEnum.DISCURSIVA) {
-      form.alternativas = [];
+      let foundFirstCorrect = false;
+      form.alternativas.forEach((alt) => {
+        if (alt.isCorreto) {
+          if (foundFirstCorrect) {
+            alt.isCorreto = false;
+          }
+          foundFirstCorrect = true;
+        }
+      });
+      if (
+        !foundFirstCorrect &&
+        form.alternativas.length > 0 &&
+        form.alternativas[0]
+      ) {
+        form.alternativas[0].isCorreto = true;
+      }
     }
   }
 );
@@ -75,7 +102,7 @@ function addAlternative() {
   form.alternativas.push({
     id: Date.now(),
     descricao: "",
-    isCorreto: false,
+    isCorreto: form.alternativas.length === 0,
     criadoEm: new Date().toISOString(),
     atualizadoEm: new Date().toISOString(),
   });
@@ -136,7 +163,7 @@ function toggleCorrect(alternative: IAlternativa) {
 
         <UFormField class="w-full" label="Tipo da Questão" name="type">
           <URadioGroup
-            v-model="form.tipo"
+            v-model="form.tipoQuestao"
             :items="questionTypeItems"
             color="primary"
             variant="table"
@@ -216,7 +243,7 @@ function toggleCorrect(alternative: IAlternativa) {
             name="exemploDeResposta"
           >
             <UTextarea
-              v-model="form.exemploDeResposta"
+              v-model="form.exemploRespostaIa"
               class="w-full"
               :rows="3"
               placeholder="Digite a resposta ideal..."
@@ -230,7 +257,7 @@ function toggleCorrect(alternative: IAlternativa) {
           name="explicacao"
         >
           <UTextarea
-            v-model="form.explicacao"
+            v-model="form.textoRevisao"
             class="w-full"
             :rows="3"
             placeholder="Explique por que a resposta está correta..."
@@ -286,7 +313,7 @@ function toggleCorrect(alternative: IAlternativa) {
             </label>
           </div>
           <UCard
-            v-if="form.explicacao"
+            v-if="form.textoRevisao"
             class="mt-4 bg-info-50 border-t border-gray-200 dark:border-gray-700"
           >
             <h5
@@ -297,7 +324,7 @@ function toggleCorrect(alternative: IAlternativa) {
             <p
               class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap"
             >
-              {{ form.explicacao }}
+              {{ form.textoRevisao }}
             </p>
           </UCard>
         </div>

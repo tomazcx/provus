@@ -1,4 +1,4 @@
-import TipoItemEnum from 'src/domain/enums/tipo-item.enum';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 export abstract class CreateItemDto {
   titulo: string;

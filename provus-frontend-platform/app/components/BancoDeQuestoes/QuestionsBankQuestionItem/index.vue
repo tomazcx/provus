@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import Item from "@/components/ui/BankItem/index.vue";
-import type { IQuestao } from "~/types/IQuestao";
+import type { IQuestaoListItem } from "~/types/IBank";
 
 defineProps<{
-  item: IQuestao;
+  item: IQuestaoListItem;
   isSelected?: boolean;
+  selectable?: boolean;
 }>();
 
 const emit = defineEmits(["edit", "delete"]);
+
+function formatDate(dateString: string) {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 </script>
 
 <template>

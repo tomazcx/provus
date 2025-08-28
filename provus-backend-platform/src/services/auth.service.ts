@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtProvider } from 'src/providers/jwt.provider';
 import { EmailTemplatesProvider } from 'src/providers/email-templates.provider';
@@ -22,10 +22,16 @@ import { ResetPasswordDto } from 'src/dto/request/auth/reset-password.dto';
 import { RecoverPasswordDto } from 'src/dto/request/auth/recover-password.dto';
 import { AvaliadorRecuperarSenhaModel } from 'src/database/config/models/avaliador-recuperar-senha.model';
 import { AvaliadorConfirmarEmailModel } from 'src/database/config/models/avaliador-confirmar-email.model';
+import { BancoDeConteudoModel } from 'src/database/config/models/banco-de-conteudo.model';
+import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
+import { TipoBancoEnum } from 'src/enums/tipo-banco';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly dataSource: DataSource,
+
     @InjectRepository(AvaliadorModel)
     private readonly avaliadorRepository: Repository<AvaliadorModel>,
 
@@ -41,50 +47,76 @@ export class AuthService {
   ) {}
 
   async signUp(dto: SignUpDto): Promise<void> {
-    const emailExists = await this.avaliadorRepository.findOne({
-      where: { email: dto.email },
+    await this.dataSource.transaction(async (manager) => {
+      try {
+        const avaliadorRepo = manager.getRepository(AvaliadorModel);
+
+        const emailExists = await avaliadorRepo.findOne({
+          where: { email: dto.email },
+        });
+        if (emailExists) {
+          throw new ConflictException('Email já cadastrado');
+        }
+
+        const salt = await bcrypt.genSalt(Env.HASH_SALT);
+        const senha = await bcrypt.hash(dto.senha, salt);
+
+        const novoAvaliador = avaliadorRepo.create({
+          nome: dto.nome,
+          email: dto.email,
+          senha: senha,
+        });
+        await avaliadorRepo.save(novoAvaliador);
+
+        const itemRepo = manager.getRepository(ItemSistemaArquivosModel);
+        const bancoRepo = manager.getRepository(BancoDeConteudoModel);
+
+        const bancosPadrao = [
+          { tipo: TipoBancoEnum.QUESTOES, titulo: 'Banco de Questões' },
+          { tipo: TipoBancoEnum.AVALIACOES, titulo: 'Banco de Avaliações' },
+          { tipo: TipoBancoEnum.MATERIAIS, titulo: 'Banco de Materiais' },
+        ];
+
+        for (const bancoInfo of bancosPadrao) {
+          const novaPasta = itemRepo.create({
+            titulo: bancoInfo.titulo,
+            tipo: TipoItemEnum.PASTA,
+            avaliador: novoAvaliador,
+            pai: null,
+          });
+          await itemRepo.save(novaPasta);
+
+          const novoBanco = bancoRepo.create({
+            tipoBanco: bancoInfo.tipo,
+            avaliadorId: novoAvaliador.id,
+            pastaRaiz: novaPasta,
+          });
+          await bancoRepo.save(novoBanco);
+        }
+
+        const confirmEmailRepo = manager.getRepository(
+          AvaliadorConfirmarEmailModel,
+        );
+        const confirmacao = confirmEmailRepo.create({
+          avaliadorId: novoAvaliador.id,
+          hash: crypto.createHash('md5').update(uuid()).digest('hex'),
+          isConfirmado: false,
+          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+        await confirmEmailRepo.save(confirmacao);
+
+        const url = `${Env.FRONTEND_URL}/confirmar-email/${confirmacao.hash}`;
+        const html = this.emailTemplatesProvider.confirmEmail(url);
+        await this.notificationProvider.sendEmail(
+          dto.email,
+          'Provus - Confirmação de Email',
+          html,
+        );
+      } catch (error) {
+        console.error('ERRO CRÍTICO DENTRO DA TRANSAÇÃO DO SIGNUP:', error);
+        throw error;
+      }
     });
-
-    if (emailExists) {
-      throw new ConflictException('Email já cadastrado');
-    }
-
-    const salt = await bcrypt.genSalt(Env.HASH_SALT);
-    const senha = await bcrypt.hash(dto.senha, salt);
-
-    const avaliador = new AvaliadorModel();
-
-    avaliador.nome = dto.nome;
-    avaliador.email = dto.email;
-    avaliador.senha = senha;
-
-    await this.avaliadorRepository.save(avaliador);
-
-    const avaliadorConfirmacaoEmail = new AvaliadorConfirmarEmailModel();
-
-    avaliadorConfirmacaoEmail.avaliadorId = avaliador.id;
-    avaliadorConfirmacaoEmail.hash = crypto
-      .createHash('md5')
-      .update(uuid())
-      .digest('hex');
-    avaliadorConfirmacaoEmail.isConfirmado = false;
-    avaliadorConfirmacaoEmail.expiraEm = new Date(
-      Date.now() + 24 * 60 * 60 * 1000,
-    );
-
-    await this.avaliadorConfirmacaoEmailRepository.save(
-      avaliadorConfirmacaoEmail,
-    );
-
-    const url = `${Env.FRONTEND_URL}/confirmar-email/${avaliadorConfirmacaoEmail.hash}`;
-
-    const html = this.emailTemplatesProvider.confirmEmail(url);
-
-    await this.notificationProvider.sendEmail(
-      dto.email,
-      'Provus - Confirmação de Email',
-      html,
-    );
   }
 
   async confirmEmail(dto: ConfirmEmailDto): Promise<void> {
@@ -93,22 +125,16 @@ export class AuthService {
         where: { hash: dto.hash },
       });
 
-    if (!avaliadorConfirmacaoEmail) {
-      throw new ForbiddenException('Hash inválido');
-    }
-
-    if (avaliadorConfirmacaoEmail.expiraEm < new Date()) {
-      throw new ForbiddenException('Hash inválido');
-    }
-
-    if (avaliadorConfirmacaoEmail.isConfirmado) {
+    if (!avaliadorConfirmacaoEmail || avaliadorConfirmacaoEmail.isConfirmado) {
       return;
     }
+    if (avaliadorConfirmacaoEmail.expiraEm < new Date()) {
+      throw new ForbiddenException('Hash expirado');
+    }
 
-    avaliadorConfirmacaoEmail.isConfirmado = true;
-
-    await this.avaliadorConfirmacaoEmailRepository.save(
-      avaliadorConfirmacaoEmail,
+    await this.avaliadorConfirmacaoEmailRepository.update(
+      { id: avaliadorConfirmacaoEmail.id },
+      { isConfirmado: true },
     );
   }
 

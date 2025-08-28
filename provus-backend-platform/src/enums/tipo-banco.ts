@@ -1,0 +1,5 @@
+export enum TipoBancoEnum {
+  QUESTOES = 'QUESTOES',
+  AVALIACOES = 'AVALIACOES',
+  MATERIAIS = 'MATERIAIS',
+}

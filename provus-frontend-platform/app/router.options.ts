@@ -151,7 +151,7 @@ export default {
 
     {
       path: "/",
-      redirect: "/aluno/avaliacao/1",
+      redirect: "/banco-de-questoes",
     },
   ],
 } satisfies RouterConfig;
