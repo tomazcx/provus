@@ -27,7 +27,6 @@ export class FindAllQuestaoController {
   ): Promise<QuestaoResponse[]> {
     const paiId = pastaId === 0 ? null : pastaId;
 
-    console.log(avaliador);
     const questoesDtos = await this.questaoService.findAllByPasta(
       paiId,
       avaliador.id,

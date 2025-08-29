@@ -20,6 +20,7 @@ import { AlternativaModel } from './config/models/alternativa.model';
 import { DatabaseConfigModule } from './config/database-config.module';
 import { ItemSistemaArquivosRepository } from './repositories/item-sistema-arquivos.repository';
 import { QuestaoRepository } from './repositories/questao.repository';
+import { ArquivoRepository } from './repositories/arquivo.repository';
 
 @Module({
   imports: [
@@ -44,12 +45,17 @@ import { QuestaoRepository } from './repositories/questao.repository';
       AplicacaoModel,
     ]),
   ],
-  providers: [ItemSistemaArquivosRepository, QuestaoRepository],
+  providers: [
+    ItemSistemaArquivosRepository,
+    QuestaoRepository,
+    ArquivoRepository,
+  ],
   exports: [
     TypeOrmModule,
     DatabaseConfigModule,
     ItemSistemaArquivosRepository,
     QuestaoRepository,
+    ArquivoRepository,
   ],
 })
 export class DatabaseModule {}

@@ -15,6 +15,7 @@ import { AvaliadorRecuperarSenhaModel } from 'src/database/config/models/avaliad
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
 import { BancoDeConteudoModel } from 'src/database/config/models/banco-de-conteudo.model';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
+import { ArquivoService } from './arquivo.service';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { QuestaoModel } from 'src/database/config/models/questao.model';
     QuestaoService,
     ItemSistemaArquivosService,
     BancoDeConteudoService,
+    ArquivoService,
   ],
   exports: [
     AuthService,
@@ -42,6 +44,7 @@ import { QuestaoModel } from 'src/database/config/models/questao.model';
     QuestaoService,
     ItemSistemaArquivosService,
     BancoDeConteudoService,
+    ArquivoService,
   ],
 })
 export class ServiceModule {}
