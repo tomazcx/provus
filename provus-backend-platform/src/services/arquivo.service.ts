@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { UpdateArquivoRequest } from 'src/http/controllers/backoffice/arquivo/update-arquivo/request';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
@@ -6,8 +11,9 @@ import { DataSource, In } from 'typeorm';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { ArquivoRepository } from 'src/database/repositories/arquivo.repository';
 import { ArquivoDto } from 'src/dto/result/arquivo/arquivo.dto';
-import { CreateArquivoRequest } from 'src/http/controllers/backoffice/arquivo/create-arquivo/request';
 import { ArquivoModel } from 'src/database/config/models/arquivo.model';
+import { StorageProvider } from 'src/providers/storage.provider';
+import { CreateAndUploadArquivoDto } from 'src/dto/request/arquivo/create-and-upload-arquivo.dto';
 
 @Injectable()
 export class ArquivoService {
@@ -15,6 +21,7 @@ export class ArquivoService {
     private readonly itemSistemaArquivosRepository: ItemSistemaArquivosRepository,
     private readonly arquivoRepository: ArquivoRepository,
     private readonly dataSource: DataSource,
+    private readonly storageProvider: StorageProvider,
   ) {}
 
   async findById(id: number): Promise<ArquivoDto> {
@@ -53,15 +60,32 @@ export class ArquivoService {
   }
 
   async create(
-    dto: CreateArquivoRequest,
+    dto: CreateAndUploadArquivoDto,
     avaliador: AvaliadorModel,
   ): Promise<ArquivoDto> {
+    const timestamp = Date.now();
+    const fileName = `${timestamp}-${dto.titulo}`;
+
+    const uploadResult = await this.storageProvider.uploadFile(
+      dto.file,
+      fileName,
+      {
+        contentType: dto.contentType,
+      },
+    );
+
+    if (!uploadResult.success) {
+      throw new BadRequestException(
+        `Falha no upload do arquivo: ${uploadResult.error}`,
+      );
+    }
+
     const newArquivoId = await this.arquivoRepository.createArquivo(
       {
         titulo: dto.titulo,
-        url: `https://provus-backend-platform.s3.amazonaws.com/${dto.titulo}`,
+        url: uploadResult.url,
         descricao: dto.descricao,
-        tamanhoEmBytes: 0,
+        tamanhoEmBytes: dto.file.length,
         paiId: dto.paiId,
       },
       avaliador,
