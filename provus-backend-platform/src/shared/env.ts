@@ -68,4 +68,20 @@ export class Env {
   static get SMTP_PASS(): string {
     return process.env.SMTP_PASS || '';
   }
+
+  static get SUPABASE_ACCESS_KEY(): string {
+    return process.env.SUPABASE_ACCESS_KEY || '';
+  }
+
+  static get SUPABASE_SECRET_ACCESS_KEY(): string {
+    return process.env.SUPABASE_SECRET_ACCESS_KEY || '';
+  }
+
+  static get SUPABASE_URL(): string {
+    return process.env.SUPABASE_URL || '';
+  }
+
+  static get SUPABASE_BUCKET(): string {
+    return process.env.SUPABASE_BUCKET || '';
+  }
 }

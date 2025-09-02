@@ -14,12 +14,15 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { ItemSistemaArquivosResponse } from 'src/http/models/item-sitema-arquivos.response';
+import { StorageProvider } from 'src/providers/storage.provider';
+import { ArquivoRepository } from 'src/database/repositories/arquivo.repository';
 
 @Injectable()
 export class ItemSistemaArquivosService {
   constructor(
     private readonly itemRepository: ItemSistemaArquivosRepository,
     private readonly dataSource: DataSource,
+    private readonly storageProvider: StorageProvider,
   ) {}
 
   async create(
@@ -97,7 +100,12 @@ export class ItemSistemaArquivosService {
         await manager.delete(AvaliacaoModel, { id: itemId });
         break;
       case TipoItemEnum.ARQUIVO:
+        const arquivo = await manager.findOne(ArquivoModel, {
+          where: { id: itemId },
+          relations: ['item'],
+        });
         await manager.delete(ArquivoModel, { id: itemId });
+        await this.storageProvider.deleteFile(arquivo.url);
         break;
       case TipoItemEnum.PASTA:
         break;

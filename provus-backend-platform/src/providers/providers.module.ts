@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { JwtProvider } from './jwt.provider';
 import { EmailTemplatesProvider } from './email-templates.provider';
 import { NotificationProvider } from './notification.provider';
+import { StorageProvider } from './storage.provider';
 import { Env } from 'src/shared/env';
 
 @Module({
   providers: [
     JwtProvider,
     EmailTemplatesProvider,
+    StorageProvider,
     {
       provide: NotificationProvider,
       useFactory: () => {
@@ -22,6 +24,11 @@ import { Env } from 'src/shared/env';
       },
     },
   ],
-  exports: [JwtProvider, EmailTemplatesProvider, NotificationProvider],
+  exports: [
+    JwtProvider,
+    EmailTemplatesProvider,
+    StorageProvider,
+    NotificationProvider,
+  ],
 })
 export class ProvidersModule {}
