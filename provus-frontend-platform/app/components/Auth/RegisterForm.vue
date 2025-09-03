@@ -76,7 +76,7 @@
         size="xl"
         block
         class="flex justify-center items-center gap-x-2"
-        :disabled="isLoading"
+        :disabled="isLoading || !isFormValid"
       >
         <Icon
           v-if="isLoading"
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { registerSchema, type RegisterFormData } from '../../utils/authValidation';
 
 withDefaults(
@@ -118,6 +118,11 @@ const form = reactive({
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
+
+const isFormValid = computed(() => {
+  const result = registerSchema.safeParse(form);
+  return result.success;
+});
 
 function onSubmit(event: { data: RegisterFormData }) {
   emit('submit', event.data);

@@ -48,7 +48,7 @@
         size="xl"
         block
         class="flex justify-center items-center gap-x-2"
-        :disabled="isLoading"
+        :disabled="isLoading || !isFormValid"
       >
         <Icon
           v-if="isLoading"
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { loginSchema, type LoginFormData } from '../../utils/authValidation';
 
 withDefaults(
@@ -87,6 +87,11 @@ const show = ref(false);
 const form = reactive({
   email: '',
   password: '',
+});
+
+const isFormValid = computed(() => {
+  const result = loginSchema.safeParse(form);
+  return result.success;
 });
 
 function onSubmit(event: { data: LoginFormData }) {
