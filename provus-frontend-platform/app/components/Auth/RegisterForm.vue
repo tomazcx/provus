@@ -1,13 +1,15 @@
 <template>
   <div class="p-4">
     <h2 class="text-2xl font-bold text-primary mb-6">Crie sua conta!</h2>
-    <form
+    <UForm
+      :schema="registerSchema"
+      :state="form"
       class="space-y-5"
-      @submit.prevent="$emit('submit', { name, email, password })"
+      @submit="onSubmit"
     >
       <UFormField label="Nome completo" name="name" required>
         <UInput
-          v-model="name"
+          v-model="form.name"
           placeholder="John Doe"
           icon="i-heroicons-user"
           size="xl"
@@ -17,7 +19,7 @@
 
       <UFormField label="E-mail" name="email" required>
         <UInput
-          v-model="email"
+          v-model="form.email"
           placeholder="seu@email.com"
           icon="i-heroicons-envelope"
           size="xl"
@@ -27,7 +29,7 @@
 
       <UFormField label="Senha" name="password" required>
         <UInput
-          v-model="password"
+          v-model="form.password"
           :type="showPassword ? 'text' : 'password'"
           :ui="{ trailing: 'pe-1' }"
           placeholder="••••••••"
@@ -49,7 +51,7 @@
 
       <UFormField label="Confirme sua senha" name="confirmPassword" required>
         <UInput
-          v-model="confirmPassword"
+          v-model="form.confirmPassword"
           :type="showConfirmPassword ? 'text' : 'password'"
           :ui="{ trailing: 'pe-1' }"
           placeholder="••••••••"
@@ -86,11 +88,14 @@
           <Icon name="i-heroicons-user-plus-20-solid" class="h-5 w-5" />
         </template>
       </UButton>
-    </form>
+    </UForm>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, reactive } from 'vue';
+import { registerSchema, type RegisterFormData } from '../../utils/authValidation';
+
 withDefaults(
   defineProps<{
     isLoading?: boolean;
@@ -100,13 +105,21 @@ withDefaults(
   }
 );
 
-defineEmits(["submit"]);
+const emit = defineEmits<{
+  (e: 'submit', payload: RegisterFormData): void;
+}>();
 
-const name = ref("");
-const email = ref("");
-const password = ref("");
-const confirmPassword = ref("");
+const form = reactive({
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+});
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
+
+function onSubmit(event: { data: RegisterFormData }) {
+  emit('submit', event.data);
+}
 </script>
