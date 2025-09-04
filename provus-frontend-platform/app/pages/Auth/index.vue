@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import LoginForm from "~/components/Auth/LoginForm.vue";
 import RegisterForm from "~/components/Auth/RegisterForm.vue";
+import type { LoginFormData, RegisterFormData } from '../../utils/authValidation';
 
 definePageMeta({
   layout: false,
@@ -64,10 +65,7 @@ const active = computed({
   },
 });
 
-async function handleLoginSubmit(userData: {
-  email: string;
-  password: string;
-}) {
+async function handleLoginSubmit(userData: LoginFormData) {
   try {
     isLoading.value = true;
 
@@ -95,11 +93,7 @@ async function handleLoginSubmit(userData: {
   }
 }
 
-async function handleRegisterSubmit(userData: {
-  name: string;
-  email: string;
-  password: string;
-}) {
+async function handleRegisterSubmit(userData: RegisterFormData) {
   try {
     isLoading.value = true;
     await $api("/auth/sign-up", {
