@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ArquivoService } from 'src/services/arquivo.service';
 import { UpdateArquivoDecorators } from './decorators';
-import { ArquivoResponse } from 'src/http/models/arquivo.response';
+import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 import { UpdateArquivoRequest } from './request';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';

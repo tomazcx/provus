@@ -5,7 +5,7 @@ import {
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
-import { ArquivoResponse } from 'src/http/models/arquivo.response';
+import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 
 export const FindAllArquivosDecorators = () => {
   return applyDecorators(

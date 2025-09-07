@@ -19,9 +19,12 @@ export class QuestaoService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findById(id: number): Promise<QuestaoResultDto> {
+  async findById(
+    id: number,
+    avaliador: AvaliadorModel,
+  ): Promise<QuestaoResultDto> {
     const questaoModel = await this.questaoRepository.findOne({
-      where: { id },
+      where: { id, item: { avaliador: { id: avaliador.id } } },
       relations: ['alternativas', 'item'],
     });
 
@@ -105,7 +108,7 @@ export class QuestaoService {
       avaliador,
     );
 
-    return this.findById(newQuestaoId);
+    return this.findById(newQuestaoId, avaliador);
   }
 
   async update(

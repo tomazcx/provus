@@ -5,7 +5,7 @@ import { AvaliadorService } from 'src/services/avaliador.service';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { UpdateAvaliadorRequest } from './request';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
-import { AvaliadorResponse } from 'src/http/models/avaliador.response';
+import { AvaliadorResponse } from 'src/http/models/response/avaliador.response';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 
 @Controller('backoffice/avaliador')

@@ -1,18 +1,18 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
+import { AvaliacaoResponse } from 'src/http/models/response/avaliacao.response';
 
-export const FindArquivoDecorators = () => {
+export const CreateAvaliacaoDecorators = () => {
   return applyDecorators(
     ApiBearerAuth(),
     ApiOperation({
-      summary: 'Encontra um arquivo',
-      description: 'Encontra um arquivo',
+      summary: 'Cria uma nova avaliação',
+      description: 'Cria uma nova avaliação',
     }),
     ApiResponse({
       status: HttpStatus.OK,
-      description: 'Arquivo encontrado com sucesso',
-      type: ArquivoResponse,
+      description: 'Avaliação criada com sucesso',
+      type: AvaliacaoResponse,
     }),
     ApiResponse({
       status: HttpStatus.UNAUTHORIZED,
@@ -21,10 +21,6 @@ export const FindArquivoDecorators = () => {
     ApiResponse({
       status: HttpStatus.BAD_REQUEST,
       description: 'Dados inválidos',
-    }),
-    ApiResponse({
-      status: HttpStatus.NOT_FOUND,
-      description: 'Arquivo não encontrado',
     }),
   );
 };

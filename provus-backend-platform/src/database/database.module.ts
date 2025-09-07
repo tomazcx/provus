@@ -21,6 +21,7 @@ import { DatabaseConfigModule } from './config/database-config.module';
 import { ItemSistemaArquivosRepository } from './repositories/item-sistema-arquivos.repository';
 import { QuestaoRepository } from './repositories/questao.repository';
 import { ArquivoRepository } from './repositories/arquivo.repository';
+import { AvaliacaoRepository } from './repositories/avaliacao.repository';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ArquivoRepository } from './repositories/arquivo.repository';
     ItemSistemaArquivosRepository,
     QuestaoRepository,
     ArquivoRepository,
+    AvaliacaoRepository,
   ],
   exports: [
     TypeOrmModule,
@@ -56,6 +58,7 @@ import { ArquivoRepository } from './repositories/arquivo.repository';
     ItemSistemaArquivosRepository,
     QuestaoRepository,
     ArquivoRepository,
+    AvaliacaoRepository,
   ],
 })
 export class DatabaseModule {}

@@ -6,7 +6,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { FindQuestoesByIdsRequest } from './request';
-import { QuestaoResponse } from 'src/http/models/questao.response';
+import { QuestaoResponse } from 'src/http/models/response/questao.response';
 
 export const FindQuestoesByIdsDecorators = () => {
   return applyDecorators(

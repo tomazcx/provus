@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
-import { BancoDeConteudoResponse } from 'src/http/models/banco-de-conteudo.response';
+import { BancoDeConteudoResponse } from 'src/http/models/response/banco-de-conteudo.response';
 import { BancoDeConteudoService } from 'src/services/banco-de-conteudo.service';
 import { FindAllBancosDecorators } from './decorators';
 
