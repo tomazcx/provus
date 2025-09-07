@@ -14,7 +14,42 @@ import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
+import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
+import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
 
+export class CreateConfiguracoesRandomizacaoRequest {
+  @ApiProperty({
+    description: 'Tipo de randomização',
+    example: TipoRandomizacaoEnum.SIMPLES,
+  })
+  @IsEnum(TipoRandomizacaoEnum)
+  @IsNotEmpty()
+  tipo: TipoRandomizacaoEnum;
+
+  @ApiProperty({
+    description: 'Dificuldade de randomização',
+    example: DificuldadeRandomizacaoEnum.FACIL,
+  })
+  @IsEnum(DificuldadeRandomizacaoEnum)
+  @IsNotEmpty()
+  dificuldade: DificuldadeRandomizacaoEnum;
+
+  @ApiProperty({
+    description: 'Quantidade de questões',
+    example: 10,
+  })
+  @IsInt()
+  @IsNotEmpty()
+  quantidade: number;
+
+  @ApiProperty({
+    description: 'Questões',
+    example: [1, 2, 3],
+  })
+  @IsArray()
+  @IsNotEmpty()
+  questoes: number[];
+}
 export class CreateConfiguracoesGeraisRequest {
   @ApiProperty({
     description: 'Tempo máximo da avaliação',
@@ -81,12 +116,12 @@ export class CreateConfiguracoesGeraisRequest {
   exibirPontuacaoQuestoes: boolean;
 
   @ApiProperty({
-    description: 'Permitir consultar anexos',
-    example: true,
+    description: 'Configurações de randomização',
+    type: [CreateConfiguracoesRandomizacaoRequest],
   })
-  @IsBoolean()
-  @IsNotEmpty()
-  permitirConsultarAnexos: boolean;
+  @ValidateNested()
+  @Type(() => CreateConfiguracoesRandomizacaoRequest)
+  configuracoesRandomizacao: CreateConfiguracoesRandomizacaoRequest[];
 }
 
 class CreatePunicaoPorOcorrenciaRequest {

@@ -5,6 +5,13 @@ import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 
+export class CreateConfiguracoesRandomizacaoDto {
+  tipo: TipoRandomizacaoEnum;
+  dificuldade: DificuldadeRandomizacaoEnum;
+  quantidade: number;
+  questoes: number[];
+}
+
 export class CreateConfiguracoesGeraisDto {
   tempoMaximo: number;
   tempoMinimo: number;
@@ -14,7 +21,7 @@ export class CreateConfiguracoesGeraisDto {
   permitirRevisao: boolean;
   permitirMultiplosEnvios: boolean;
   exibirPontuacaoQuestoes: boolean;
-  permitirConsultarAnexos: boolean;
+  configuracoesRandomizacao: CreateConfiguracoesRandomizacaoDto[];
 }
 
 export class CreatePunicaoPorOcorrenciaDto {
@@ -39,12 +46,6 @@ export class CreateConfiguracoesSegurancaDto {
   punicoes: CreatePunicaoPorOcorrenciaDto[];
   ipsPermitidos: string[];
   notificacoes: TipoNotificacaoEnum[];
-}
-
-export class CreateConfiguracoesRandomizacaoDto {
-  tipo: TipoRandomizacaoEnum;
-  dificuldade: DificuldadeRandomizacaoEnum;
-  quantidade: number;
 }
 
 export class CreateConfiguracoesAvaliacaoDto {

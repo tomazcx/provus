@@ -17,7 +17,6 @@ export const ConfiguracoesGeraisFactory = setSeederFactory(
     config.permitirRevisao = faker.datatype.boolean();
     config.permitirMultiplosEnvios = faker.datatype.boolean();
     config.exibirPontuacaoQuestoes = faker.datatype.boolean();
-    config.permitirConsultarAnexos = faker.datatype.boolean();
     return config;
   },
 );

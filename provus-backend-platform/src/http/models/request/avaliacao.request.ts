@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsInt,
   IsNotEmpty,
@@ -9,6 +10,50 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { CreateConfiguracaoAvaliacaoRequest } from './configuracao-avaliacao.request';
+
+export class CreateQuestaoAvaliacaoRequest {
+  @ApiProperty({
+    description: 'ID da questão',
+    example: 1,
+  })
+  @IsInt()
+  @IsNotEmpty()
+  questaoId: number;
+
+  @ApiProperty({
+    description: 'Ordem da questão',
+    example: 1,
+  })
+  @IsInt()
+  @IsNotEmpty()
+  ordem: number;
+
+  @ApiProperty({
+    description: 'Pontuação da questão',
+    example: 1,
+  })
+  @IsInt()
+  @IsNotEmpty()
+  pontuacao: number;
+}
+
+export class CreateArquivoAvaliacaoRequest {
+  @ApiProperty({
+    description: 'ID do arquivo',
+    example: 1,
+  })
+  @IsInt()
+  @IsNotEmpty()
+  arquivoId: number;
+
+  @ApiProperty({
+    description: 'Permitir consulta por estudante',
+    example: true,
+  })
+  @IsBoolean()
+  @IsNotEmpty()
+  permitirConsultaPorEstudante: boolean;
+}
 
 export class CreateAvaliacaoRequest {
   @ApiProperty({
@@ -50,4 +95,22 @@ export class CreateAvaliacaoRequest {
   @ValidateNested()
   @Type(() => CreateConfiguracaoAvaliacaoRequest)
   configuracoesAvaliacao: CreateConfiguracaoAvaliacaoRequest;
+
+  @ApiProperty({
+    description: 'Questões da avaliação',
+    type: [CreateQuestaoAvaliacaoRequest],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateQuestaoAvaliacaoRequest)
+  questoes: CreateQuestaoAvaliacaoRequest[];
+
+  @ApiProperty({
+    description: 'Arquivos da avaliação',
+    type: [CreateArquivoAvaliacaoRequest],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateArquivoAvaliacaoRequest)
+  arquivos: CreateArquivoAvaliacaoRequest[];
 }

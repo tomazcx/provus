@@ -6,12 +6,6 @@ import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 
 class PunicaoPorOcorrenciaResponse {
   @ApiProperty({
-    description: 'ID da punição por ocorrência',
-    example: 1,
-  })
-  id: number;
-
-  @ApiProperty({
     description: 'Tipo de infracção',
     example: 'Troca de Abas',
   })
@@ -43,12 +37,6 @@ class PunicaoPorOcorrenciaResponse {
 }
 
 class ConfiguracaoSegurancaResponse {
-  @ApiProperty({
-    description: 'ID da configuração de segurança',
-    example: 1,
-  })
-  id: number;
-
   @ApiProperty({
     description: 'Proibir trocar abas',
     example: true,
@@ -125,12 +113,6 @@ class ConfiguracaoSegurancaResponse {
 
 class ConfiguracaoGeralResponse {
   @ApiProperty({
-    description: 'ID da configuração geral',
-    example: 1,
-  })
-  id: number;
-
-  @ApiProperty({
     description: 'Tempo máximo',
     example: 100,
   })
@@ -165,21 +147,9 @@ class ConfiguracaoGeralResponse {
     example: true,
   })
   exibirPontuacaoQuestoes: boolean;
-
-  @ApiProperty({
-    description: 'Permitir consultar anexos',
-    example: true,
-  })
-  permitirConsultarAnexos: boolean;
 }
 
 export class ConfiguracaoAvaliacaoResponse {
-  @ApiProperty({
-    description: 'ID da configuração de avaliação',
-    example: 1,
-  })
-  id: number;
-
   @ApiProperty({
     description: 'Configurações gerais',
     type: ConfiguracaoGeralResponse,

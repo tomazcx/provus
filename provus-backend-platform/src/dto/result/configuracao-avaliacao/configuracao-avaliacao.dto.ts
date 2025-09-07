@@ -2,35 +2,54 @@ import { ConfiguracaoAvaliacaoModel } from 'src/database/config/models/configura
 import { ConfiguracoesGeraisModel } from 'src/database/config/models/configuracoes-gerais.model';
 import { ConfiguracoesSegurancaModel } from 'src/database/config/models/configuracoes-seguranca.model';
 import { PunicaoPorOcorrenciaModel } from 'src/database/config/models/punicao-por-ocorrencia.model';
+import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
+import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
+import { ConfiguracoesRandomizacaoModel } from 'src/database/config/models/configuracoes-randomizacao.model';
+import { QuestaoResultDto } from '../questao/questao.result';
+
+export class ConfiguracaoRandomizacaoDto {
+  tipo: TipoRandomizacaoEnum;
+  dificuldade: DificuldadeRandomizacaoEnum;
+  quantidade: number;
+  questoes: QuestaoResultDto[];
+
+  constructor(model: ConfiguracoesRandomizacaoModel) {
+    this.tipo = model.tipo;
+    this.dificuldade = model.dificuldade;
+    this.quantidade = model.quantidade;
+    this.questoes = model.poolDeQuestoes.map(
+      (questao) => new QuestaoResultDto(questao),
+    );
+  }
+}
 
 export class ConfiguracaoGeralDto {
-  id: number;
   tempoMaximo: number;
   tempoMinimo: number;
   tipoAplicacao: TipoAplicacaoEnum;
   dataAgendamento: Date;
   mostrarPontuacao: boolean;
   exibirPontuacaoQuestoes: boolean;
-  permitirConsultarAnexos: boolean;
+  configuracoesRandomizacao: ConfiguracaoRandomizacaoDto[];
 
   constructor(model: ConfiguracoesGeraisModel) {
-    this.id = model.id;
     this.tempoMaximo = model.tempoMaximo;
     this.tempoMinimo = model.tempoMinimo;
     this.tipoAplicacao = model.tipoAplicacao;
     this.dataAgendamento = model.dataAgendamento;
     this.mostrarPontuacao = model.mostrarPontuacao;
     this.exibirPontuacaoQuestoes = model.exibirPontuacaoQuestoes;
-    this.permitirConsultarAnexos = model.permitirConsultarAnexos;
+    this.configuracoesRandomizacao = model.configuracoesRandomizacao.map(
+      (configuracao) => new ConfiguracaoRandomizacaoDto(configuracao),
+    );
   }
 }
 
 export class PunicaoPorOcorrenciaDto {
-  id: number;
   tipoInfracao: TipoInfracaoEnum;
   quantidadeOcorrencias: number;
   tipoPenalidade: TipoPenalidadeEnum;
@@ -38,7 +57,6 @@ export class PunicaoPorOcorrenciaDto {
   tempoReduzido: number;
 
   constructor(model: PunicaoPorOcorrenciaModel) {
-    this.id = model.id;
     this.tipoInfracao = model.tipoInfracao;
     this.quantidadeOcorrencias = model.quantidadeOcorrencias;
     this.tipoPenalidade = model.tipoPenalidade;
@@ -48,7 +66,6 @@ export class PunicaoPorOcorrenciaDto {
 }
 
 export class ConfiguracaoSegurancaDto {
-  id: number;
   proibirTrocarAbas: boolean;
   proibirPrintScreen: boolean;
   proibirCopiarColar: boolean;
@@ -64,7 +81,6 @@ export class ConfiguracaoSegurancaDto {
   notificacoes: TipoNotificacaoEnum[];
 
   constructor(model: ConfiguracoesSegurancaModel) {
-    this.id = model.id;
     this.proibirTrocarAbas = model.proibirTrocarAbas;
     this.proibirPrintScreen = model.proibirPrintScreen;
     this.proibirCopiarColar = model.proibirCopiarColar;
@@ -86,12 +102,10 @@ export class ConfiguracaoSegurancaDto {
 }
 
 export class ConfiguracaoAvaliacaoDto {
-  id: number;
   configuracoesGerais: ConfiguracaoGeralDto;
   configuracoesSeguranca: ConfiguracaoSegurancaDto;
 
   constructor(model: ConfiguracaoAvaliacaoModel) {
-    this.id = model.id;
     this.configuracoesGerais = new ConfiguracaoGeralDto(
       model.configuracoesGerais,
     );

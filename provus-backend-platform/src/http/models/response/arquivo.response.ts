@@ -35,7 +35,7 @@ export class ArquivoResponse {
     description: 'Caminho do arquivo.',
     example: 'Exemplo de caminho',
   })
-  path: string;
+  path?: string;
 
   @ApiProperty({
     description: 'Data de criação do arquivo.',

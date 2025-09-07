@@ -1,5 +1,13 @@
-import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import { ItemSistemaArquivosModel } from './item-sistema-arquivos.model';
+import { ArquivosAvaliacoesModel } from './arquivos-avaliacoes.model';
 
 @Entity('arquivo')
 export class ArquivoModel {
@@ -18,4 +26,7 @@ export class ArquivoModel {
 
   @Column({ name: 'tamanho_em_bytes' })
   tamanhoEmBytes: number;
+
+  @OneToMany(() => ArquivosAvaliacoesModel, (arquivo) => arquivo.arquivo)
+  avaliacoes: ArquivosAvaliacoesModel[];
 }

@@ -10,6 +10,7 @@ import { ConfiguracaoAvaliacaoModel } from './configuracao-avaliacao.model';
 import { QuestoesAvaliacoesModel } from './questoes-avaliacoes.model';
 import { AplicacaoModel } from './aplicacao.model';
 import { ItemSistemaArquivosModel } from './item-sistema-arquivos.model';
+import { ArquivosAvaliacoesModel } from './arquivos-avaliacoes.model';
 
 @Entity('avaliacao')
 export class AvaliacaoModel {
@@ -35,4 +36,7 @@ export class AvaliacaoModel {
 
   @OneToMany(() => AplicacaoModel, (aplicacao) => aplicacao.avaliacao)
   aplicacoes: AplicacaoModel[];
+
+  @OneToMany(() => ArquivosAvaliacoesModel, (arquivo) => arquivo.avaliacao)
+  arquivos: ArquivosAvaliacoesModel[];
 }

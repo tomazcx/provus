@@ -39,9 +39,6 @@ export class ConfiguracoesGeraisModel {
   @Column({ name: 'exibir_pontuacao_questoes' })
   exibirPontuacaoQuestoes: boolean;
 
-  @Column({ name: 'permitir_consultar_anexos' })
-  permitirConsultarAnexos: boolean;
-
   @OneToMany(
     () => ConfiguracoesRandomizacaoModel,
     (configuracao) => configuracao.configuracoesGerais,

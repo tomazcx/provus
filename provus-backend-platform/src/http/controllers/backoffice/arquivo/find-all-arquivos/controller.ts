@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Param,
   ParseIntPipe,
   Query,
   UseGuards,

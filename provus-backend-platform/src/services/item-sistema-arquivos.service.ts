@@ -21,6 +21,7 @@ import { PunicaoPorOcorrenciaModel } from 'src/database/config/models/punicao-po
 import { IpsPermitidosModel } from 'src/database/config/models/ips-permitidos.model';
 import { ConfiguracaoNotificacaoModel } from 'src/database/config/models/configuracao-notificacao.model';
 import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-avaliacoes.model';
+import { ArquivosAvaliacoesModel } from 'src/database/config/models/arquivos-avaliacoes.model';
 import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { StorageProvider } from 'src/providers/storage.provider';
 
@@ -136,6 +137,7 @@ export class ItemSistemaArquivosService {
 
     if (!avaliacao || !avaliacao.configuracaoAvaliacao) {
       await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
+      await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
       await manager.delete(AvaliacaoModel, { id: avaliacaoId });
       return;
     }
@@ -147,8 +149,27 @@ export class ItemSistemaArquivosService {
       avaliacao.configuracaoAvaliacao.configuracoesSeguranca?.id;
 
     await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
+    await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
 
     if (configuracoesGeraisId) {
+      const configuracoesRandomizacao = await manager.find(
+        ConfiguracoesRandomizacaoModel,
+        {
+          where: { configuracoesGerais: { id: configuracoesGeraisId } },
+          relations: ['poolDeQuestoes'],
+        },
+      );
+
+      for (const configRandomizacao of configuracoesRandomizacao) {
+        if (
+          configRandomizacao.poolDeQuestoes &&
+          configRandomizacao.poolDeQuestoes.length > 0
+        ) {
+          configRandomizacao.poolDeQuestoes = [];
+          await manager.save(configRandomizacao);
+        }
+      }
+
       await manager.delete(ConfiguracoesRandomizacaoModel, {
         configuracoesGerais: { id: configuracoesGeraisId },
       });
