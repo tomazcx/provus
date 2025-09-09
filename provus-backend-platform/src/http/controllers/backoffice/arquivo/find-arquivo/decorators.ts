@@ -1,6 +1,6 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ArquivoResponse } from 'src/http/models/arquivo.response';
+import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 
 export const FindArquivoDecorators = () => {
   return applyDecorators(

@@ -24,7 +24,7 @@ export class QuestaoRepository extends Repository<QuestaoModel> {
         RETURNING id
       )
       INSERT INTO "questao" (
-        "id", "dificuldade", "descricao", "exemploResposta", "isModelo", "tipo_questao", "texto_revisao", "pontuacao"
+        "id", "dificuldade", "descricao", "exemplo_resposta_ia", "is_modelo", "tipo_questao", "texto_revisao", "pontuacao"
       )
       SELECT
         id, $5, $6, $7, $8, $9, $10, $11

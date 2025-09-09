@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Param,
   ParseIntPipe,
   Query,
   UseGuards,
@@ -9,7 +8,7 @@ import {
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { ArquivoService } from 'src/services/arquivo.service';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
-import { ArquivoResponse } from 'src/http/models/arquivo.response';
+import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 import { FindAllArquivosDecorators } from './decorators';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { ApiTags } from '@nestjs/swagger';

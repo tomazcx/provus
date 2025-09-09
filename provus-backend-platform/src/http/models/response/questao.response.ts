@@ -22,7 +22,7 @@ export class QuestaoResponse {
       'Caminho completo da questão no sistema de arquivos do avaliador',
     example: '/Filosofia/Questões Discursivas/Qual o sentido da vida?',
   })
-  path: string;
+  path?: string;
 
   @ApiProperty({
     description: 'Data de criação da questão no formato ISO 8601',

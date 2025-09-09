@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
-import { QuestaoResponse } from 'src/http/models/questao.response';
+import { QuestaoResponse } from 'src/http/models/response/questao.response';
 import { QuestaoService } from 'src/services/questao.service';
 import { FindQuestoesByIdsRequest } from './request';
 import { FindQuestoesByIdsDecorators } from './decorators';

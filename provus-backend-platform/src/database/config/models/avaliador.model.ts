@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ItemSistemaArquivosModel } from './item-sistema-arquivos.model';
-import { AvaliadorResponse } from 'src/http/models/avaliador.response';
+import { AvaliadorResponse } from 'src/http/models/response/avaliador.response';
 
 @Entity('avaliador')
 export class AvaliadorModel {

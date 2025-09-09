@@ -16,6 +16,7 @@ import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistem
 import { BancoDeConteudoModel } from 'src/database/config/models/banco-de-conteudo.model';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { ArquivoService } from './arquivo.service';
+import { AvaliacaoService } from './avaliacao.service';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ArquivoService } from './arquivo.service';
     ItemSistemaArquivosService,
     BancoDeConteudoService,
     ArquivoService,
+    AvaliacaoService,
   ],
   exports: [
     AuthService,
@@ -45,6 +47,7 @@ import { ArquivoService } from './arquivo.service';
     ItemSistemaArquivosService,
     BancoDeConteudoService,
     ArquivoService,
+    AvaliacaoService,
   ],
 })
 export class ServiceModule {}

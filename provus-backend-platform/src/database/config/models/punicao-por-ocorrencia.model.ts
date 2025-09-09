@@ -29,6 +29,9 @@ export class PunicaoPorOcorrenciaModel {
   @Column({ name: 'tempo_reduzido' })
   tempoReduzido: number;
 
+  @Column({ name: 'configuracoes_seguranca_id' })
+  configuracoesSegurancaId: number;
+
   @ManyToOne(() => ConfiguracoesSegurancaModel, (config) => config.punicoes)
   @JoinColumn({ name: 'configuracoes_seguranca_id' })
   configuracaoSeguranca: ConfiguracoesSegurancaModel;

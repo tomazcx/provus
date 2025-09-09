@@ -4,7 +4,7 @@ import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { TipoBancoEnum } from 'src/enums/tipo-banco';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
-import { ItemSistemaArquivosResponse } from 'src/http/models/item-sitema-arquivos.response';
+import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { BancoDeConteudoService } from 'src/services/banco-de-conteudo.service';
 import { FindConteudoBancoDecorators } from './decorators';
 

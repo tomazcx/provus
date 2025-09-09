@@ -13,9 +13,17 @@ import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { DataSource, EntityManager } from 'typeorm';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
-import { ItemSistemaArquivosResponse } from 'src/http/models/item-sitema-arquivos.response';
+import { ConfiguracaoAvaliacaoModel } from 'src/database/config/models/configuracao-avaliacao.model';
+import { ConfiguracoesGeraisModel } from 'src/database/config/models/configuracoes-gerais.model';
+import { ConfiguracoesSegurancaModel } from 'src/database/config/models/configuracoes-seguranca.model';
+import { ConfiguracoesRandomizacaoModel } from 'src/database/config/models/configuracoes-randomizacao.model';
+import { PunicaoPorOcorrenciaModel } from 'src/database/config/models/punicao-por-ocorrencia.model';
+import { IpsPermitidosModel } from 'src/database/config/models/ips-permitidos.model';
+import { ConfiguracaoNotificacaoModel } from 'src/database/config/models/configuracao-notificacao.model';
+import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-avaliacoes.model';
+import { ArquivosAvaliacoesModel } from 'src/database/config/models/arquivos-avaliacoes.model';
+import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { StorageProvider } from 'src/providers/storage.provider';
-import { ArquivoRepository } from 'src/database/repositories/arquivo.repository';
 
 @Injectable()
 export class ItemSistemaArquivosService {
@@ -97,7 +105,7 @@ export class ItemSistemaArquivosService {
         await manager.delete(QuestaoModel, { id: itemId });
         break;
       case TipoItemEnum.AVALIACAO:
-        await manager.delete(AvaliacaoModel, { id: itemId });
+        await this._deleteAvaliacaoWithConfigurations(itemId, manager);
         break;
       case TipoItemEnum.ARQUIVO:
         const arquivo = await manager.findOne(ArquivoModel, {
@@ -112,6 +120,90 @@ export class ItemSistemaArquivosService {
     }
 
     await manager.delete(ItemSistemaArquivosModel, { id: itemId });
+  }
+
+  private async _deleteAvaliacaoWithConfigurations(
+    avaliacaoId: number,
+    manager: EntityManager,
+  ): Promise<void> {
+    const avaliacao = await manager.findOne(AvaliacaoModel, {
+      where: { id: avaliacaoId },
+      relations: [
+        'configuracaoAvaliacao',
+        'configuracaoAvaliacao.configuracoesGerais',
+        'configuracaoAvaliacao.configuracoesSeguranca',
+      ],
+    });
+
+    if (!avaliacao || !avaliacao.configuracaoAvaliacao) {
+      await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
+      await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
+      await manager.delete(AvaliacaoModel, { id: avaliacaoId });
+      return;
+    }
+
+    const configuracaoAvaliacaoId = avaliacao.configuracaoAvaliacao.id;
+    const configuracoesGeraisId =
+      avaliacao.configuracaoAvaliacao.configuracoesGerais?.id;
+    const configuracoesSegurancaId =
+      avaliacao.configuracaoAvaliacao.configuracoesSeguranca?.id;
+
+    await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
+    await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
+
+    if (configuracoesGeraisId) {
+      const configuracoesRandomizacao = await manager.find(
+        ConfiguracoesRandomizacaoModel,
+        {
+          where: { configuracoesGerais: { id: configuracoesGeraisId } },
+          relations: ['poolDeQuestoes'],
+        },
+      );
+
+      for (const configRandomizacao of configuracoesRandomizacao) {
+        if (
+          configRandomizacao.poolDeQuestoes &&
+          configRandomizacao.poolDeQuestoes.length > 0
+        ) {
+          configRandomizacao.poolDeQuestoes = [];
+          await manager.save(configRandomizacao);
+        }
+      }
+
+      await manager.delete(ConfiguracoesRandomizacaoModel, {
+        configuracoesGerais: { id: configuracoesGeraisId },
+      });
+    }
+
+    if (configuracoesSegurancaId) {
+      await manager.delete(PunicaoPorOcorrenciaModel, {
+        configuracoesSegurancaId,
+      });
+      await manager.delete(IpsPermitidosModel, {
+        configuracoesSegurancaId,
+      });
+      await manager.delete(ConfiguracaoNotificacaoModel, {
+        configuracoesSegurancaId,
+      });
+    }
+
+    await manager.delete(AvaliacaoModel, { id: avaliacaoId });
+
+    await manager.delete(ConfiguracaoAvaliacaoModel, {
+      id: configuracaoAvaliacaoId,
+    });
+
+    if (configuracoesGeraisId) {
+      await manager.delete(ConfiguracoesGeraisModel, {
+        id: configuracoesGeraisId,
+      });
+    }
+
+    if (configuracoesSegurancaId) {
+      await manager.delete(ConfiguracoesSegurancaModel, {
+        id: configuracoesSegurancaId,
+      });
+    }
   }
 
   async findAllQuestionIdsInFolders(

@@ -1,7 +1,15 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { PunicaoPorOcorrenciaModel } from './punicao-por-ocorrencia.model';
 import { ConfiguracaoNotificacaoModel } from './configuracao-notificacao.model';
 import { IpsPermitidosModel } from './ips-permitidos.model';
+import { ConfiguracaoAvaliacaoModel } from './configuracao-avaliacao.model';
 
 @Entity('configuracoes_seguranca')
 export class ConfiguracoesSegurancaModel {

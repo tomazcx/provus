@@ -1,6 +1,6 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { QuestaoResponse } from 'src/http/models/questao.response';
+import { QuestaoResponse } from 'src/http/models/response/questao.response';
 
 export const FindAllQuestaoDecorators = () => {
   return applyDecorators(

@@ -1,6 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
-import { AlternativaResultDto } from 'src/dto/result/alternativa/alternativa.result';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
 import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { CreateQuestaoRequest } from 'src/http/controllers/backoffice/questao/create-questao/request';
@@ -10,6 +13,7 @@ import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
 import { DataSource, In } from 'typeorm';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 @Injectable()
 export class QuestaoService {
@@ -19,9 +23,12 @@ export class QuestaoService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findById(id: number): Promise<QuestaoResultDto> {
+  async findById(
+    id: number,
+    avaliador: AvaliadorModel,
+  ): Promise<QuestaoResultDto> {
     const questaoModel = await this.questaoRepository.findOne({
-      where: { id },
+      where: { id, item: { avaliador: { id: avaliador.id } } },
       relations: ['alternativas', 'item'],
     });
 
@@ -31,29 +38,7 @@ export class QuestaoService {
 
     const path = await this.itemSistemaArquivosRepository.findPathById(id);
 
-    const dto = new QuestaoResultDto();
-    dto.id = questaoModel.id;
-    dto.titulo = questaoModel.item.titulo;
-    dto.path = path;
-    dto.criadoEm = questaoModel.item.criadoEm.toISOString();
-    dto.atualizadoEm = questaoModel.item.atualizadoEm.toISOString();
-    dto.descricao = questaoModel.descricao;
-    dto.dificuldade = questaoModel.dificuldade;
-    dto.exemploRespostaIa = questaoModel.exemploRespostaIa;
-    dto.pontuacao = questaoModel.pontuacao;
-    dto.isModelo = questaoModel.isModelo;
-    dto.tipoQuestao = questaoModel.tipoQuestao;
-    dto.textoRevisao = questaoModel.textoRevisao;
-
-    dto.alternativas = (questaoModel.alternativas || []).map((altModel) => {
-      const altDto = new AlternativaResultDto();
-      altDto.id = altModel.id;
-      altDto.descricao = altModel.descricao;
-      altDto.isCorreto = altModel.isCorreto;
-      return altDto;
-    });
-
-    return dto;
+    return new QuestaoResultDto(questaoModel, path);
   }
 
   async findAllByPasta(
@@ -70,27 +55,7 @@ export class QuestaoService {
         questaoModel.id,
       );
 
-      const dto = new QuestaoResultDto();
-      dto.id = questaoModel.id;
-      dto.titulo = questaoModel.item.titulo;
-      dto.path = path;
-      dto.criadoEm = questaoModel.item.criadoEm.toISOString();
-      dto.atualizadoEm = questaoModel.item.atualizadoEm.toISOString();
-      dto.descricao = questaoModel.descricao;
-      dto.dificuldade = questaoModel.dificuldade;
-      dto.exemploRespostaIa = questaoModel.exemploRespostaIa;
-      dto.pontuacao = questaoModel.pontuacao;
-      dto.isModelo = questaoModel.isModelo;
-      dto.tipoQuestao = questaoModel.tipoQuestao;
-      dto.textoRevisao = questaoModel.textoRevisao;
-      dto.alternativas = (questaoModel.alternativas || []).map((altModel) => {
-        const altDto = new AlternativaResultDto();
-        altDto.id = altModel.id;
-        altDto.descricao = altModel.descricao;
-        altDto.isCorreto = altModel.isCorreto;
-        return altDto;
-      });
-      return dto;
+      return new QuestaoResultDto(questaoModel, path);
     });
 
     return Promise.all(dtosPromises);
@@ -100,12 +65,26 @@ export class QuestaoService {
     dto: CreateQuestaoRequest,
     avaliador: AvaliadorModel,
   ): Promise<QuestaoResultDto> {
+    const pai = await this.itemSistemaArquivosRepository.findOne({
+      where: {
+        id: dto.paiId,
+        tipo: TipoItemEnum.PASTA,
+        avaliador: { id: avaliador.id },
+      },
+    });
+
+    if (!pai) {
+      throw new BadRequestException(
+        `Pasta com id ${dto.paiId} não encontrada.`,
+      );
+    }
+
     const newQuestaoId = await this.questaoRepository.createQuestao(
       dto,
       avaliador,
     );
 
-    return this.findById(newQuestaoId);
+    return this.findById(newQuestaoId, avaliador);
   }
 
   async update(
@@ -163,31 +142,7 @@ export class QuestaoService {
 
       const path = await this.itemSistemaArquivosRepository.findPathById(id);
 
-      const responseDto = new QuestaoResultDto();
-      responseDto.id = questaoAtualizada.id;
-      responseDto.titulo = questaoAtualizada.item.titulo;
-      responseDto.path = path;
-      responseDto.criadoEm = questaoAtualizada.item.criadoEm.toISOString();
-      responseDto.atualizadoEm =
-        questaoAtualizada.item.atualizadoEm.toISOString();
-      responseDto.descricao = questaoAtualizada.descricao;
-      responseDto.dificuldade = questaoAtualizada.dificuldade;
-      responseDto.exemploRespostaIa = questaoAtualizada.exemploRespostaIa;
-      responseDto.pontuacao = questaoAtualizada.pontuacao;
-      responseDto.isModelo = questaoAtualizada.isModelo;
-      responseDto.tipoQuestao = questaoAtualizada.tipoQuestao;
-      responseDto.textoRevisao = questaoAtualizada.textoRevisao;
-      responseDto.alternativas = (questaoAtualizada.alternativas || []).map(
-        (altModel) => {
-          const altDto = new AlternativaResultDto();
-          altDto.id = altModel.id;
-          altDto.descricao = altModel.descricao;
-          altDto.isCorreto = altModel.isCorreto;
-          return altDto;
-        },
-      );
-
-      return responseDto;
+      return new QuestaoResultDto(questaoAtualizada, path);
     });
 
     return resultDto;
@@ -214,27 +169,7 @@ export class QuestaoService {
         questaoModel.id,
       );
 
-      const dto = new QuestaoResultDto();
-      dto.id = questaoModel.id;
-      dto.titulo = questaoModel.item.titulo;
-      dto.path = path;
-      dto.criadoEm = questaoModel.item.criadoEm.toISOString();
-      dto.atualizadoEm = questaoModel.item.atualizadoEm.toISOString();
-      dto.descricao = questaoModel.descricao;
-      dto.dificuldade = questaoModel.dificuldade;
-      dto.exemploRespostaIa = questaoModel.exemploRespostaIa;
-      dto.pontuacao = questaoModel.pontuacao;
-      dto.isModelo = questaoModel.isModelo;
-      dto.tipoQuestao = questaoModel.tipoQuestao;
-      dto.textoRevisao = questaoModel.textoRevisao;
-      dto.alternativas = (questaoModel.alternativas || []).map((altModel) => {
-        const altDto = new AlternativaResultDto();
-        altDto.id = altModel.id;
-        altDto.descricao = altModel.descricao;
-        altDto.isCorreto = altModel.isCorreto;
-        return altDto;
-      });
-      return dto;
+      return new QuestaoResultDto(questaoModel, path);
     });
 
     return Promise.all(dtosPromises);

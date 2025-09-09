@@ -1,6 +1,6 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { BancoDeConteudoResponse } from 'src/http/models/banco-de-conteudo.response';
+import { BancoDeConteudoResponse } from 'src/http/models/response/banco-de-conteudo.response';
 
 export const FindAllBancosDecorators = () => {
   return applyDecorators(
