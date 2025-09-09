@@ -1,13 +1,15 @@
 <template>
   <div class="p-4">
     <h2 class="text-2xl font-bold text-primary mb-6">Bem vindo de volta!</h2>
-    <form
+    <UForm
+      :schema="loginSchema"
+      :state="form"
       class="space-y-6"
-      @submit.prevent="$emit('submit', { email, password })"
+      @submit="onSubmit"
     >
       <UFormField label="E-mail" name="email" required>
         <UInput
-          v-model="email"
+          v-model="form.email"
           placeholder="seu@email.com"
           icon="i-heroicons-envelope"
           size="xl"
@@ -17,7 +19,7 @@
 
       <UFormField label="Senha" name="password" required>
         <UInput
-          v-model="password"
+          v-model="form.password"
           :type="show ? 'text' : 'password'"
           :ui="{ trailing: 'pe-1' }"
           placeholder="••••••••"
@@ -46,7 +48,7 @@
         size="xl"
         block
         class="flex justify-center items-center gap-x-2"
-        :disabled="isLoading"
+        :disabled="isLoading || !isFormValid"
       >
         <Icon
           v-if="isLoading"
@@ -59,11 +61,14 @@
           <Icon name="i-heroicons-arrow-right-20-solid" class="h-5 w-5" />
         </template>
       </UButton>
-    </form>
+    </UForm>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, reactive, computed } from 'vue';
+import { loginSchema, type LoginFormData } from '../../utils/authValidation';
+
 withDefaults(
   defineProps<{
     isLoading?: boolean;
@@ -73,9 +78,23 @@ withDefaults(
   }
 );
 
-defineEmits(["submit"]);
+const emit = defineEmits<{
+  (e: 'submit', payload: LoginFormData): void;
+}>();
 
 const show = ref(false);
-const email = ref("");
-const password = ref("");
+
+const form = reactive({
+  email: '',
+  password: '',
+});
+
+const isFormValid = computed(() => {
+  const result = loginSchema.safeParse(form);
+  return result.success;
+});
+
+function onSubmit(event: { data: LoginFormData }) {
+  emit('submit', event.data);
+}
 </script>
