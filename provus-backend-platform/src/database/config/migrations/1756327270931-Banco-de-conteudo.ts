@@ -137,10 +137,10 @@ export class BancoDeConteudo1756327270931 implements MigrationInterface {
       `ALTER TABLE "ips_permitidos" ADD CONSTRAINT "FK_184c863da8121f56aaf86fb8c10" FOREIGN KEY ("configuracoes_seguranca_id") REFERENCES "configuracoes_seguranca"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
-      `ALTER TABLE "configuracao_avaliacao" ADD CONSTRAINT "FK_4b88235e2bf7f29042804db1466" FOREIGN KEY ("configuracoes_gerais_id") REFERENCES "configuracoes_gerais"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+      `ALTER TABLE "configuracao_avaliacao" ADD CONSTRAINT "FK_4b88235e2bf7f29042804db1466" FOREIGN KEY ("configuracoes_gerais_id") REFERENCES "configuracoes_gerais"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
-      `ALTER TABLE "configuracao_avaliacao" ADD CONSTRAINT "FK_1ba465a3cf7d58bb507dc27cd9f" FOREIGN KEY ("configuracoes_seguranca_id") REFERENCES "configuracoes_seguranca"("id") ON DELETE ON UPDATE NO ACTION`,
+      `ALTER TABLE "configuracao_avaliacao" ADD CONSTRAINT "FK_1ba465a3cf7d58bb507dc27cd9f" FOREIGN KEY ("configuracoes_seguranca_id") REFERENCES "configuracoes_seguranca"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
       `ALTER TABLE "aplicacao" ADD CONSTRAINT "FK_35fb9acd0c3a4b56c0c2258241a" FOREIGN KEY ("avaliacao_id") REFERENCES "avaliacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
