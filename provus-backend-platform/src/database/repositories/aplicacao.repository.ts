@@ -86,7 +86,23 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           },
         },
       },
-      relations: ['avaliacao', 'avaliacao.item'],
+      relations: [
+        'avaliacao',
+        'avaliacao.item',
+        'avaliacao.arquivos',
+        'avaliacao.questoes',
+        'avaliacao.questoes.questao',
+        'avaliacao.arquivos.arquivo',
+        'avaliacao.configuracaoAvaliacao',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
+      ],
     });
   }
 }

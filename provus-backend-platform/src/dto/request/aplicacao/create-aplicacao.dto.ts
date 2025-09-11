@@ -4,4 +4,3 @@ export class CreateAplicacaoDto {
   avaliacaoId: number;
   estado: EstadoAplicacaoEnum;
 }
- 
