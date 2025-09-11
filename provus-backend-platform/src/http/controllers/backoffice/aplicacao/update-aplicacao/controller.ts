@@ -6,7 +6,7 @@ import { UpdateAplicacaoDecorators } from './decorators';
 import { LoggedAvaliador } from 'src/http/decorators/logged-avaliador.decorator';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { AplicacaoResponse } from 'src/http/models/response/aplicacao.response';
-import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
+import { UpdateAplicacaoDto } from 'src/dto/request/aplicacao/update-aplicacao.dto';
 
 @Controller('backoffice/aplicacao')
 @ApiTags('Backoffice - Aplicação')
@@ -18,9 +18,9 @@ export class UpdateAplicacaoController {
   @UpdateAplicacaoDecorators()
   async update(
     @Param('id') id: number,
-    @Body() estado: EstadoAplicacaoEnum,
+    @Body() dto: UpdateAplicacaoDto,
     @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<AplicacaoResponse> {
-    return this.aplicacaoService.update(id, estado, avaliador);
+    return this.aplicacaoService.update(id, dto.estado, avaliador);
   }
 }
