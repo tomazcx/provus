@@ -1,13 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ArquivoResponse } from './arquivo.response';
-import { QuestaoResponse } from './questao.response';
-import { AvaliacaoResponse } from './avaliacao.response';
+import { AvaliacaoDto } from '../../../dto/result/avaliacao/avaliacao.dto';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
 import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
-import { Type } from 'class-transformer';
-import { CreateConfiguracaoAvaliacaoRequest } from '../request/configuracao-avaliacao.request';
-import { ValidateNested } from 'class-validator';
 import EstadoAplicacaoEnum from '../../../enums/estado-aplicacao.enum';
 
 export class ArquivoAplicacaoResponse {
@@ -24,7 +20,7 @@ export class ArquivoAplicacaoResponse {
   permitirConsultaPorEstudante: boolean;
 }
 
-export class aplicacaoResponse {
+export class AplicacaoResponse {
   @ApiProperty({
     description: 'ID da aplicação',
     example: 1,
@@ -83,39 +79,7 @@ export class aplicacaoResponse {
       ],
     },
   })
-  avaliacao: AvaliacaoResponse;
-
-  @ApiProperty({
-    description: 'Título da aplicação',
-    example: 'Avaliação de Matemática',
-  })
-  titulo: string;
-
-  @ApiProperty({
-    description: 'Descrição da aplicação',
-    example: 'Avaliação de Matemática',
-  })
-  descricao: string;
-
-  @ApiProperty({
-    description: 'Configurações da aplicação',
-    type: CreateConfiguracaoAvaliacaoRequest,
-  })
-  @ValidateNested()
-  @Type(() => CreateConfiguracaoAvaliacaoRequest)
-  configuracoesAplicacao: CreateConfiguracaoAvaliacaoRequest;
-
-  @ApiProperty({
-    description: 'Questões da aplicação',
-    type: [QuestaoResponse],
-  })
-  questoes: QuestaoResponse[];
-
-  @ApiProperty({
-    description: 'Arquivos da aplicação',
-    type: [ArquivoAplicacaoResponse],
-  })
-  arquivos: ArquivoAplicacaoResponse[];
+  avaliacao: AvaliacaoDto;
 
   @ApiProperty({
     description: 'Código de acesso da aplicação',

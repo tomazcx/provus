@@ -15,7 +15,7 @@ export class AplicacaoDto {
     this.avaliacao = new AvaliacaoDto(model.avaliacao, '');
     this.codigoAcesso = model.codigoAcesso;
     this.estado = model.estado;
-    this.dataInicio = model.dataInicio.toISOString();
-    this.dataFim = model.dataFim.toISOString();
+    this.dataInicio = model.dataInicio?.toISOString();
+    this.dataFim = model.dataFim?.toISOString();
   }
 }

@@ -17,6 +17,7 @@ import { BancoDeConteudoModel } from 'src/database/config/models/banco-de-conteu
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { ArquivoService } from './arquivo.service';
 import { AvaliacaoService } from './avaliacao.service';
+import { AplicacaoService } from './aplicacao.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AvaliacaoService } from './avaliacao.service';
     BancoDeConteudoService,
     ArquivoService,
     AvaliacaoService,
+    AplicacaoService,
   ],
   exports: [
     AuthService,
@@ -48,6 +50,7 @@ import { AvaliacaoService } from './avaliacao.service';
     BancoDeConteudoService,
     ArquivoService,
     AvaliacaoService,
+    AplicacaoService,
   ],
 })
 export class ServiceModule {}
