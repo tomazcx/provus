@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { AvaliadorModel } from '../config/models/avaliador.model';
 import { AplicacaoModel } from '../config/models/aplicacao.model';
@@ -21,39 +21,29 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
 
       const avaliacaoEntity = await manager.findOne(AvaliacaoModel, {
         where: { id: dto.avaliacaoId },
+        relations: [
+          'configuracaoAvaliacao',
+          'configuracaoAvaliacao.configuracoesGerais',
+        ],
       });
+
       if (!avaliacaoEntity) {
-        throw new Error(`Avaliacao base ${dto.avaliacaoId} não encontrada`);
+        throw new BadRequestException(
+          `Avaliação com ID ${dto.avaliacaoId} não encontrada`,
+        );
       }
+
+      const tempoMaximoMs =
+        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais.tempoMaximo *
+        60 *
+        1000;
+      aplicacao.dataFim = new Date(
+        aplicacao.dataInicio.getTime() + tempoMaximoMs,
+      );
+
       aplicacao.avaliacao = avaliacaoEntity;
 
       const savedAplicacao = await manager.save(aplicacao);
-
-      //   if (dto.avaliacao.questoes && dto.avaliacao.questoes.length > 0) {
-      //     const questoesAplicacoes = dto.avaliacao.questoes.map((questaoDto) => {
-      //       const questaoAplicacao = new QuestoesAvaliacoesModel();
-      //       questaoAplicacao.questaoId = questaoDto.id;
-      //       questaoAplicacao.avaliacaoId = savedAplicacao.avaliacao.id;
-      //       questaoAplicacao.ordem = questaoDto.;
-      //       questaoAplicacao.pontuacao = questaoDto.pontuacao;
-      //       return questaoAplicacao;
-      //     });
-
-      //     await manager.save(questoesAplicacoes);
-      //   }
-
-      //   if (dto.avaliacao.arquivos && dto.avaliacao.arquivos.length > 0) {
-      //     const arquivosAplicacoes = dto.avaliacao.arquivos.map((arquivoDto) => {
-      //       const arquivoAplicacao = new ArquivosAvaliacoesModel();
-      //       arquivoAplicacao.arquivoId = arquivoDto.arquivoId;
-      //       arquivoAplicacao.avaliacaoId = savedAplicacao.avaliacao.id;
-      //       arquivoAplicacao.permitirConsultaPorEstudante =
-      //         arquivoDto.permitirConsultaPorEstudante;
-      //       return arquivoAplicacao;
-      //     });
-
-      //     await manager.save(arquivosAplicacoes);
-      //   }
 
       return savedAplicacao.id;
     });
