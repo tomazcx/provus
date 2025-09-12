@@ -93,7 +93,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const estadoAnterior = aplicacao.estado;
       aplicacao.estado = estado;
 
-      // Handle transitions to EM_ANDAMENTO (manual start)
       if (
         estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
         estadoAnterior !== EstadoAplicacaoEnum.EM_ANDAMENTO
