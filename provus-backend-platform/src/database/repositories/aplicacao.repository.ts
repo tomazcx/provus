@@ -108,6 +108,26 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
       }
 
+      if (
+        estado === EstadoAplicacaoEnum.AGENDADA &&
+        estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
+      ) {
+        const tempoMaximoMs =
+          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
+            .tempoMaximo *
+          60 *
+          1000;
+        const dataAgendamento =
+          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
+            .dataAgendamento;
+        if (!dataAgendamento) {
+          throw new BadRequestException(
+            'Data de agendamento não configurada para avaliação agendada',
+          );
+        }
+        aplicacao.dataInicio = dataAgendamento;
+        aplicacao.dataFim = new Date(dataAgendamento.getTime() + tempoMaximoMs);
+      }
       const updatedAplicacao = await manager.save(aplicacao);
 
       return updatedAplicacao.id;

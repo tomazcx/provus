@@ -125,6 +125,27 @@ export class AplicacaoService {
       estado !== EstadoAplicacaoEnum.AGENDADA
     ) {
       this.aplicacaoSchedulerService.cancelScheduledStart(id);
+    } else if (
+      estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
+      estado === EstadoAplicacaoEnum.CANCELADA
+    ) {
+      this.aplicacaoSchedulerService.cancelScheduledStart(id);
+    }
+
+    if (
+      estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+      estadoAnterior !== EstadoAplicacaoEnum.EM_ANDAMENTO
+    ) {
+      const updatedAplicacao = await this.aplicacaoRepository.findOne({
+        where: { id },
+      });
+
+      if (updatedAplicacao?.dataFim) {
+        this.aplicacaoSchedulerService.scheduleFinish(
+          id,
+          updatedAplicacao.dataFim,
+        );
+      }
     }
 
     return this.findById(aplicacaoId, avaliador);

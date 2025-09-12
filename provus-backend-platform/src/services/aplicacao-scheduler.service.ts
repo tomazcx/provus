@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
@@ -23,9 +23,16 @@ export class AplicacaoSchedulerService {
   }
 
   cancelScheduledStart(aplicacaoId: number): void {
-    const jobName = `start-aplicacao-${aplicacaoId}`;
-
-    this.schedulerRegistry.deleteTimeout(jobName);
+    try {
+      this.schedulerRegistry.deleteTimeout(`start-aplicacao-${aplicacaoId}`);
+    } catch {
+      Logger.log('Erro tentando criar scheduler');
+    }
+    try {
+      this.schedulerRegistry.deleteTimeout(`finish-aplicacao-${aplicacaoId}`);
+    } catch {
+      Logger.log('Erro tentando criar scheduler');
+    }
   }
 
   private async startScheduledApplication(aplicacaoId: number): Promise<void> {
@@ -54,6 +61,34 @@ export class AplicacaoSchedulerService {
       aplicacao.dataInicio = now;
       aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
 
+      await manager.save(aplicacao);
+
+      this.scheduleFinish(aplicacaoId, aplicacao.dataFim);
+    });
+  }
+
+  scheduleFinish(aplicacaoId: number, finishDate: Date): void {
+    const finishJobName = `finish-aplicacao-${aplicacaoId}`;
+
+    const finishTimeout = setTimeout(() => {
+      this.finishApplication(aplicacaoId).catch(() => {});
+      this.schedulerRegistry.deleteTimeout(finishJobName);
+    }, finishDate.getTime() - Date.now());
+
+    this.schedulerRegistry.addTimeout(finishJobName, finishTimeout);
+  }
+
+  private async finishApplication(aplicacaoId: number): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const aplicacao = await manager.findOne(AplicacaoModel, {
+        where: { id: aplicacaoId, estado: EstadoAplicacaoEnum.EM_ANDAMENTO },
+      });
+
+      if (!aplicacao) {
+        return;
+      }
+
+      aplicacao.estado = EstadoAplicacaoEnum.FINALIZADA;
       await manager.save(aplicacao);
     });
   }
