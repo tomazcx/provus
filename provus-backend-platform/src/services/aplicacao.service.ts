@@ -12,7 +12,7 @@ export class AplicacaoService {
 
   async findById(id: number, avaliador: AvaliadorModel): Promise<AplicacaoDto> {
     const aplicacao = await this.aplicacaoRepository.findOne({
-      where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } }, // TODO: Ver se realtions estao certas
+      where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
       relations: [
         'avaliacao',
         'avaliacao.item',
@@ -75,5 +75,9 @@ export class AplicacaoService {
     );
 
     return this.findById(aplicacaoId, avaliador);
+  }
+
+  async delete(id: number, avaliador: AvaliadorModel): Promise<void> {
+    await this.aplicacaoRepository.deleteAplicacao(id, avaliador);
   }
 }

@@ -5,6 +5,7 @@ import {
   FindAllAplicacoesController,
   FindAplicacaoByIdController,
   UpdateAplicacaoController,
+  DeleteAplicacaoController,
 } from './';
 
 @Module({
@@ -14,6 +15,7 @@ import {
     FindAplicacaoByIdController,
     FindAllAplicacoesController,
     UpdateAplicacaoController,
+    DeleteAplicacaoController,
   ],
 })
 export class BackofficeAplicacaoControllersModule {}

@@ -16,7 +16,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
     return this.dataSource.transaction(async (manager) => {
       const aplicacao = new AplicacaoModel();
       aplicacao.codigoAcesso = '123456'; // TODO - logica de novo código
-      aplicacao.dataInicio = new Date(); // TODO - talvez se ela for do tipo instantanea, coocar um new Date()?;
+      aplicacao.dataInicio = new Date();
       aplicacao.estado = dto.estado;
 
       const avaliacaoEntity = await manager.findOne(AvaliacaoModel, {
@@ -60,7 +60,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
       });
 
-      aplicacao.estado = estado; // TODO: Veirifcar se essa é a lógica certa para dar update. O update deve ser feito na avaliação, então talvez aqui mude bastante a lógica
+      aplicacao.estado = estado;
       const updatedAplicacao = await manager.save(aplicacao);
 
       return updatedAplicacao.id;
@@ -93,6 +93,20 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
         'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
       ],
+    });
+  }
+
+  async deleteAplicacao(id: number, avaliador: AvaliadorModel): Promise<void> {
+    return this.dataSource.transaction(async (manager) => {
+      const aplicacao = await manager.findOne(AplicacaoModel, {
+        where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
+      });
+
+      if (!aplicacao) {
+        throw new BadRequestException('Aplicação não encontrada');
+      }
+
+      await manager.delete(AplicacaoModel, { id });
     });
   }
 }

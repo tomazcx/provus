@@ -18,6 +18,6 @@ export class FindAllAplicacoesController {
   async findAll(
     @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<FindAllAplicacoesResponse[]> {
-    return await this.aplicacaoService.findAll(avaliador.id); // TODO: Alterar aqui também para nao receber pasta, mas sim retornar todas aplicações
+    return await this.aplicacaoService.findAll(avaliador.id);
   }
 }
