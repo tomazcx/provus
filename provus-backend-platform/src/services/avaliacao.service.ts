@@ -108,18 +108,20 @@ export class AvaliacaoService {
     dto: CreateAvaliacaoDto,
     avaliador: AvaliadorModel,
   ): Promise<void> {
-    const pai = await this.itemSistemaArquivosRepository.findOne({
-      where: {
-        id: dto.paiId,
-        tipo: TipoItemEnum.PASTA,
-        avaliador: { id: avaliador.id },
-      },
-    });
+    if (dto.isModelo) {
+      const pai = await this.itemSistemaArquivosRepository.findOne({
+        where: {
+          id: dto.paiId,
+          tipo: TipoItemEnum.PASTA,
+          avaliador: { id: avaliador.id },
+        },
+      });
 
-    if (!pai) {
-      throw new BadRequestException(
-        `Pasta com id ${dto.paiId} não encontrada.`,
-      );
+      if (!pai) {
+        throw new BadRequestException(
+          `Pasta com id ${dto.paiId} não encontrada.`,
+        );
+      }
     }
 
     for (const questao of dto.questoes) {
