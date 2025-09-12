@@ -51,18 +51,17 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         );
       }
 
-      if (dto.estado === EstadoAplicacaoEnum.AGENDADA) {
-        const dataAgendamento =
-          avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais
-            .dataAgendamento;
-        if (!dataAgendamento) {
-          throw new BadRequestException(
-            'Data de agendamento não configurada para avaliação agendada',
-          );
-        }
-        aplicacao.dataInicio = dataAgendamento;
-        aplicacao.dataFim = new Date(dataAgendamento.getTime() + tempoMaximoMs);
-      } else if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
+      const dataAgendamento =
+        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais
+          .dataAgendamento;
+      if (!dataAgendamento) {
+        throw new BadRequestException(
+          'Data de agendamento não configurada para avaliação agendada',
+        );
+      }
+      aplicacao.dataInicio = dataAgendamento;
+      aplicacao.dataFim = new Date(dataAgendamento.getTime() + tempoMaximoMs);
+      if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
         const now = new Date();
         aplicacao.dataInicio = now;
         aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
