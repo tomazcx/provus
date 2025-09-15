@@ -14,7 +14,7 @@ export class FindAllAplicacaoDto {
     this.id = model.id;
     this.avaliacao = new AvaliacaoDto(model.avaliacao, '');
     this.estado = model.estado;
-    this.dataInicio = model.dataInicio.toISOString();
-    this.dataFim = model.dataFim.toISOString();
+    this.dataInicio = model.dataInicio ? model.dataInicio.toISOString() : '';
+    this.dataFim = model.dataFim ? model.dataFim.toISOString() : '';
   }
 }
