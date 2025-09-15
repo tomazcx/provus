@@ -5,6 +5,10 @@ import { NotificationProvider } from './notification.provider';
 import { StorageProvider } from './storage.provider';
 import { Env } from 'src/shared/env';
 
+import GeminiProvider from './ai/gemini.provider';
+
+export const AI_PROVIDER = 'AI_PROVIDER';
+
 @Module({
   providers: [
     JwtProvider,
@@ -23,12 +27,18 @@ import { Env } from 'src/shared/env';
         });
       },
     },
+    GeminiProvider,
+    {
+      provide: AI_PROVIDER,
+      useClass: GeminiProvider,
+    },
   ],
   exports: [
     JwtProvider,
     EmailTemplatesProvider,
     StorageProvider,
     NotificationProvider,
+    AI_PROVIDER,
   ],
 })
 export class ProvidersModule {}

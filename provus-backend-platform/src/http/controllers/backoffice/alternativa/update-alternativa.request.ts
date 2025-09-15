@@ -17,7 +17,7 @@ export class UpdateAlternativaDto {
   })
   @IsString()
   @IsOptional()
-  titulo?: string;
+  descricao: string;
 
   @ApiProperty({
     description: 'O novo status de "correta" para a alternativa.',
