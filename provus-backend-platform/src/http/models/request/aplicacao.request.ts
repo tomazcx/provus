@@ -20,3 +20,14 @@ export class CreateAplicacaoRequest {
   @IsNotEmpty()
   estado: EstadoAplicacaoEnum;
 }
+
+export class UpdateAplicacaoRequest {
+  @ApiProperty({
+    description: 'Estado da aplicação',
+    example: EstadoAplicacaoEnum.EM_ANDAMENTO,
+    enum: EstadoAplicacaoEnum,
+  })
+  @IsEnum(EstadoAplicacaoEnum)
+  @IsNotEmpty()
+  estado: EstadoAplicacaoEnum;
+}
