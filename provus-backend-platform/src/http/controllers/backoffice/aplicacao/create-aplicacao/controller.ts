@@ -6,7 +6,7 @@ import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { AplicacaoResponse } from 'src/http/models/response/aplicacao.response';
 import { AplicacaoService } from 'src/services/aplicacao.service';
 import { CreateAplicacaoDecorators } from './decorators';
-import { CreateAplicacaoDto } from 'src/dto/request/aplicacao/create-aplicacao.dto';
+import { CreateAplicacaoRequest } from 'src/http/models/request/aplicacao.request';
 
 @Controller('backoffice/aplicacao')
 @ApiTags('Backoffice - Aplicação')
@@ -17,7 +17,7 @@ export class CreateAplicacaoController {
   @UseGuards(AvaliadorAuthGuard)
   @CreateAplicacaoDecorators()
   async create(
-    @Body() dto: CreateAplicacaoDto,
+    @Body() dto: CreateAplicacaoRequest,
     @LoggedAvaliador() avaliador: AvaliadorModel,
   ): Promise<AplicacaoResponse> {
     return this.aplicacaoService.createAplicacao(dto, avaliador);

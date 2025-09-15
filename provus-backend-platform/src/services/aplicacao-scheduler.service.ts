@@ -39,7 +39,6 @@ export class AplicacaoSchedulerService {
           aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
 
           await manager.save(aplicacao);
-          this.logger.log(`Application ${aplicacao.id} started automatically`);
         }
       });
     } catch (error) {
@@ -62,7 +61,6 @@ export class AplicacaoSchedulerService {
         for (const aplicacao of finishingApplications) {
           aplicacao.estado = EstadoAplicacaoEnum.FINALIZADA;
           await manager.save(aplicacao);
-          this.logger.log(`Application ${aplicacao.id} finished automatically`);
         }
       });
     } catch (error) {
