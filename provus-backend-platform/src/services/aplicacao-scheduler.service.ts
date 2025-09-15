@@ -15,7 +15,9 @@ export class AplicacaoSchedulerService {
     const jobName = `start-aplicacao-${aplicacaoId}`;
 
     const timeout = setTimeout(() => {
-      this.startScheduledApplication(aplicacaoId).catch(() => {});
+      this.startScheduledApplication(aplicacaoId).catch(() => {
+        Logger.log('Erro tentando criar scheduler');
+      });
       this.schedulerRegistry.deleteTimeout(jobName);
     }, startDate.getTime() - Date.now());
 
