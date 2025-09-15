@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+import { EntityManager, DataSource } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { AplicacaoSchedulerService } from './aplicacao-scheduler.service';
@@ -6,12 +8,14 @@ import { CreateAplicacaoDto } from 'src/dto/request/aplicacao/create-aplicacao.d
 import { AplicacaoDto } from 'src/dto/result/aplicacao/aplicacao.dto';
 import { FindAllAplicacaoDto } from 'src/dto/result/aplicacao/find-all-aplicacao.dto';
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
+import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
 
 @Injectable()
 export class AplicacaoService {
   constructor(
     private readonly aplicacaoRepository: AplicacaoRepository,
     private readonly aplicacaoSchedulerService: AplicacaoSchedulerService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number, avaliador: AvaliadorModel): Promise<AplicacaoDto> {
@@ -53,31 +57,37 @@ export class AplicacaoService {
     dto: CreateAplicacaoDto,
     avaliador: AvaliadorModel,
   ): Promise<AplicacaoDto> {
-    const aplicacaoId = await this.aplicacaoRepository.createAplicacao(dto);
+    return this.dataSource.transaction(async (manager) => {
+      const codigoAcesso = await this.generateUniqueAccessCode(manager);
 
-    if (dto.estado === EstadoAplicacaoEnum.AGENDADA) {
-      const aplicacao = await this.aplicacaoRepository.findOne({
-        where: { id: aplicacaoId },
-        relations: [
-          'avaliacao',
-          'avaliacao.configuracaoAvaliacao',
-          'avaliacao.configuracaoAvaliacao.configuracoesGerais',
-        ],
-      });
+      const aplicacaoId = await this.aplicacaoRepository.createAplicacao(
+        dto,
+        codigoAcesso,
+      );
+      if (dto.estado === EstadoAplicacaoEnum.AGENDADA) {
+        const aplicacao = await this.aplicacaoRepository.findOne({
+          where: { id: aplicacaoId },
+          relations: [
+            'avaliacao',
+            'avaliacao.configuracaoAvaliacao',
+            'avaliacao.configuracaoAvaliacao.configuracoesGerais',
+          ],
+        });
 
-      if (
-        aplicacao?.avaliacao.configuracaoAvaliacao.configuracoesGerais
-          .dataAgendamento
-      ) {
-        this.aplicacaoSchedulerService.scheduleApplicationStart(
-          aplicacaoId,
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-            .dataAgendamento,
-        );
+        if (
+          aplicacao?.avaliacao.configuracaoAvaliacao.configuracoesGerais
+            .dataAgendamento
+        ) {
+          this.aplicacaoSchedulerService.scheduleApplicationStart(
+            aplicacaoId,
+            aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
+              .dataAgendamento,
+          );
+        }
       }
-    }
 
-    return this.findById(aplicacaoId, avaliador);
+      return this.findById(aplicacaoId, avaliador);
+    });
   }
 
   async update(
@@ -161,5 +171,30 @@ export class AplicacaoService {
     }
 
     await this.aplicacaoRepository.deleteAplicacao(id, avaliador);
+  }
+
+  private async generateUniqueAccessCode(
+    manager: EntityManager,
+  ): Promise<string> {
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const existingAplicacao = await manager.findOne(AplicacaoModel, {
+        where: { codigoAcesso: code },
+      });
+
+      if (!existingAplicacao) {
+        return code;
+      }
+
+      attempts++;
+    }
+
+    throw new BadRequestException(
+      'Não foi possível gerar um código de acesso único após várias tentativas',
+    );
   }
 }

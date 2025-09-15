@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { DataSource, Repository, EntityManager } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AvaliadorModel } from '../config/models/avaliador.model';
 import { AplicacaoModel } from '../config/models/aplicacao.model';
 import { CreateAplicacaoDto } from 'src/dto/request/aplicacao/create-aplicacao.dto';
@@ -13,10 +13,13 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
     super(AplicacaoModel, dataSource.createEntityManager());
   }
 
-  async createAplicacao(dto: CreateAplicacaoDto): Promise<number> {
+  async createAplicacao(
+    dto: CreateAplicacaoDto,
+    codigoAcesso: string,
+  ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       const aplicacao = new AplicacaoModel();
-      aplicacao.codigoAcesso = await this.generateUniqueAccessCode(manager);
+      aplicacao.codigoAcesso = codigoAcesso;
       aplicacao.estado = dto.estado;
 
       const avaliacaoEntity = await manager.findOne(AvaliacaoModel, {
@@ -174,30 +177,5 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
 
       await manager.delete(AplicacaoModel, { id });
     });
-  }
-
-  private async generateUniqueAccessCode(
-    manager: EntityManager,
-  ): Promise<string> {
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (attempts < maxAttempts) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-      const existingAplicacao = await manager.findOne(AplicacaoModel, {
-        where: { codigoAcesso: code },
-      });
-
-      if (!existingAplicacao) {
-        return code;
-      }
-
-      attempts++;
-    }
-
-    throw new BadRequestException(
-      'Não foi possível gerar um código de acesso único após várias tentativas',
-    );
   }
 }
