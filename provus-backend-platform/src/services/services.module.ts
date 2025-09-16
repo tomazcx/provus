@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ProvidersModule } from 'src/providers/providers.module';
 import { DatabaseModule } from 'src/database/database.module';
 
@@ -17,11 +18,14 @@ import { BancoDeConteudoModel } from 'src/database/config/models/banco-de-conteu
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { ArquivoService } from './arquivo.service';
 import { AvaliacaoService } from './avaliacao.service';
+import { AplicacaoService } from './aplicacao.service';
+import { AplicacaoSchedulerService } from './aplicacao-scheduler.service';
 
 @Module({
   imports: [
     ProvidersModule,
     DatabaseModule,
+    ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([
       AvaliadorModel,
       AvaliadorConfirmarEmailModel,
@@ -39,6 +43,8 @@ import { AvaliacaoService } from './avaliacao.service';
     BancoDeConteudoService,
     ArquivoService,
     AvaliacaoService,
+    AplicacaoService,
+    AplicacaoSchedulerService,
   ],
   exports: [
     AuthService,
@@ -48,6 +54,8 @@ import { AvaliacaoService } from './avaliacao.service';
     BancoDeConteudoService,
     ArquivoService,
     AvaliacaoService,
+    AplicacaoService,
+    AplicacaoSchedulerService,
   ],
 })
 export class ServiceModule {}

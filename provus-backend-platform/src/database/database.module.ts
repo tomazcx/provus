@@ -22,6 +22,7 @@ import { ItemSistemaArquivosRepository } from './repositories/item-sistema-arqui
 import { QuestaoRepository } from './repositories/questao.repository';
 import { ArquivoRepository } from './repositories/arquivo.repository';
 import { AvaliacaoRepository } from './repositories/avaliacao.repository';
+import { AplicacaoRepository } from './repositories/aplicacao.repository';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { AvaliacaoRepository } from './repositories/avaliacao.repository';
     QuestaoRepository,
     ArquivoRepository,
     AvaliacaoRepository,
+    AplicacaoRepository,
   ],
   exports: [
     TypeOrmModule,
@@ -59,6 +61,7 @@ import { AvaliacaoRepository } from './repositories/avaliacao.repository';
     QuestaoRepository,
     ArquivoRepository,
     AvaliacaoRepository,
+    AplicacaoRepository,
   ],
 })
 export class DatabaseModule {}
