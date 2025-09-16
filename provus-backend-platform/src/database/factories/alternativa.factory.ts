@@ -5,11 +5,7 @@ import { faker } from '@faker-js/faker';
 export const AlternativasFactory = setSeederFactory(AlternativaModel, () => {
   const alternativa = new AlternativaModel();
 
-  alternativa.titulo = faker.lorem.sentence({ min: 5, max: 10 });
-
-  alternativa.descricao = faker.datatype.boolean()
-    ? faker.lorem.paragraph(2)
-    : null;
+  alternativa.descricao = faker.lorem.sentence();
 
   alternativa.isCorreto = faker.datatype.boolean();
 

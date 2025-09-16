@@ -18,6 +18,7 @@ import { BancoDeConteudoModel } from 'src/database/config/models/banco-de-conteu
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { ArquivoService } from './arquivo.service';
 import { AvaliacaoService } from './avaliacao.service';
+import { TextExtractorService } from 'src/providers/text-extractor.provider';
 import { AplicacaoService } from './aplicacao.service';
 import { AplicacaoSchedulerService } from './aplicacao-scheduler.service';
 
@@ -43,6 +44,7 @@ import { AplicacaoSchedulerService } from './aplicacao-scheduler.service';
     BancoDeConteudoService,
     ArquivoService,
     AvaliacaoService,
+    TextExtractorService,
     AplicacaoService,
     AplicacaoSchedulerService,
   ],

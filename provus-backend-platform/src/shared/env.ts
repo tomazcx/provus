@@ -84,4 +84,12 @@ export class Env {
   static get SUPABASE_BUCKET(): string {
     return process.env.SUPABASE_BUCKET || '';
   }
+
+  static get GEMINI_API_KEY(): string {
+    return process.env.GEMINI_API_KEY || '';
+  }
+
+  static get GEMINI_MODEL(): string {
+    return process.env.GEMINI_MODEL || '';
+  }
 }

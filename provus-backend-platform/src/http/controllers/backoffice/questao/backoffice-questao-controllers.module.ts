@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UpdateQuestaoController } from './update-questao/controller';
 import { DatabaseModule } from 'src/database/database.module';
 import { FindAllQuestaoController } from './find-all-questao/controller';
+import { GenerateByAiController } from './generate-by-ai/controller';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FindAllQuestaoController } from './find-all-questao/controller';
     CreateQuestaoController,
     UpdateQuestaoController,
     FindAllQuestaoController,
+    GenerateByAiController,
   ],
 })
 export class BackofficeQuestaoControllersModule {}

@@ -14,9 +14,6 @@ export class AlternativaModel {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  titulo: string;
-
   @Column({ type: 'text', nullable: true })
   descricao: string;
 
