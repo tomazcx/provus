@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
 import ApplicationsScreen from '../screens/teacher/ApplicationsScreen';
 import DashboardScreen from '../screens/teacher/DashboardScreen';
-import StudentBaseScreen from '../screens/student/StudentBaseScreen';
+import IdentificationScreen from '../screens/student/IdentificationScreen';
 import TestSubmissionResultScreen from '../screens/student/TestSubmissionResultScreen';
 import TestReviewScreen from '../screens/student/TestReviewScreen';
 
@@ -36,8 +36,11 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Applications" component={ApplicationsScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="StudentBase" component={StudentBaseScreen} />
-        <Stack.Screen name="TestSubmissionResult" component={TestSubmissionResultScreen} />
+        <Stack.Screen name="StudentBase" component={IdentificationScreen} />
+        <Stack.Screen
+          name="TestSubmissionResult"
+          component={TestSubmissionResultScreen}
+        />
         <Stack.Screen name="TestReview" component={TestReviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>
