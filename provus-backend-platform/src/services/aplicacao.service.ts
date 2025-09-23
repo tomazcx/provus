@@ -45,6 +45,18 @@ export class AplicacaoService {
     return new AplicacaoDto(aplicacao);
   }
 
+  async findByCode(codigoAcesso: string): Promise<AplicacaoModel> {
+    const aplicacao = await this.aplicacaoRepository.findOne({
+      where: { codigoAcesso },
+    });
+
+    if (!aplicacao) {
+      throw new NotFoundException('Aplicação não encontrada');
+    }
+
+    return aplicacao;
+  }
+
   async findAll(avaliadorId: number): Promise<FindAllAplicacaoDto[]> {
     const aplicacoes = await this.aplicacaoRepository.findAll(avaliadorId);
 
