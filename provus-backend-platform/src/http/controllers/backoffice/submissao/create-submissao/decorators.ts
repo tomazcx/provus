@@ -1,5 +1,6 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { CreateSubmissaoDto } from 'src/dto/result/submissao/submissao.result';
 
 export const CreateSubmissaoDecorators = () => {
   return applyDecorators(
@@ -9,8 +10,9 @@ export const CreateSubmissaoDecorators = () => {
       description: 'Cria uma submissão',
     }),
     ApiResponse({
-      status: HttpStatus.OK,
+      status: HttpStatus.CREATED,
       description: 'Submissão criada com sucesso.',
+      type: CreateSubmissaoDto,
     }),
     ApiResponse({
       status: HttpStatus.NOT_FOUND,

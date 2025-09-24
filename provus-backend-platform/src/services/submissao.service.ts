@@ -6,11 +6,13 @@ import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import * as crypto from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
+import { EstudanteService } from './estudante.service';
 
 @Injectable()
 export class SubmissaoService {
   constructor(
     private readonly aplicacaoService: AplicacaoService,
+    private readonly estudanteService: EstudanteService,
     private readonly dataSource: DataSource,
     @InjectRepository(SubmissaoModel)
     private readonly submissaoRepository: Repository<SubmissaoModel>,
@@ -23,12 +25,17 @@ export class SubmissaoService {
       );
 
       return this.dataSource.transaction(async (manager) => {
+        const estudanteInstance = this.estudanteService.createInstance({
+          nome: body.nome,
+          email: body.email,
+        });
         const codigoEntrega = await this._generateUniqueAccessCode(manager);
         const hash = this._createSHA256Hash(body.codigoAcesso);
 
         const submissao = this.submissaoRepository.create({
           aplicacao: aplicacao,
           codigoEntrega: codigoEntrega,
+          estudante: estudanteInstance,
           hash: hash,
           estado: EstadoSubmissaoEnum.INICIADA,
           pontuacaoTotal: 0,
