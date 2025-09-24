@@ -35,7 +35,8 @@ export class SubmissaoService {
             email: body.email,
           });
 
-          const codigoEntrega = await this._generateUniqueAccessCode(manager);
+          const codigoEntrega =
+            await this._generateUniqueSubmissionCode(manager);
           const hash = this._createShortHash(body.codigoAcesso);
 
           const novaSubmissao = this.submissaoRepository.create({
@@ -56,7 +57,7 @@ export class SubmissaoService {
     }
   }
 
-  private async _generateUniqueAccessCode(
+  private async _generateUniqueSubmissionCode(
     manager: EntityManager,
   ): Promise<number> {
     let attempts = 0;
