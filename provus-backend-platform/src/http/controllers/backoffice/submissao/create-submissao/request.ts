@@ -19,7 +19,7 @@ export class CreateSubmissaoRequest {
   email: string;
 
   @ApiProperty({
-    description: 'Código da entrega.',
+    description: 'Código da acesso.',
     example: 'ABCR132',
   })
   @IsString()
