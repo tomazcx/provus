@@ -1,12 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import * as crypto from 'crypto';
+
 import { CreateSubmissaoRequest } from 'src/http/controllers/backoffice/submissao/create-submissao/request';
 import { AplicacaoService } from './aplicacao.service';
-import { DataSource, EntityManager, Repository } from 'typeorm';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
-import * as crypto from 'crypto';
-import { InjectRepository } from '@nestjs/typeorm';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { EstudanteService } from './estudante.service';
+import { SubmissaoResultDto } from 'src/dto/result/submissao/submissao.result';
 
 @Injectable()
 export class SubmissaoService {
@@ -18,35 +20,39 @@ export class SubmissaoService {
     private readonly submissaoRepository: Repository<SubmissaoModel>,
   ) {}
 
-  async createSubmissao(body: CreateSubmissaoRequest) {
+  async createSubmissao(
+    body: CreateSubmissaoRequest,
+  ): Promise<SubmissaoResultDto> {
     try {
       const aplicacao = await this.aplicacaoService.findByCode(
         body.codigoAcesso,
       );
 
-      return this.dataSource.transaction(async (manager) => {
-        const estudanteInstance = this.estudanteService.createInstance({
-          nome: body.nome,
-          email: body.email,
-        });
-        const codigoEntrega = await this._generateUniqueAccessCode(manager);
-        const hash = this._createSHA256Hash(body.codigoAcesso);
+      const submissaoSalva = await this.dataSource.transaction(
+        async (manager) => {
+          const estudanteInstance = this.estudanteService.createInstance({
+            nome: body.nome,
+            email: body.email,
+          });
 
-        const submissao = this.submissaoRepository.create({
-          aplicacao: aplicacao,
-          codigoEntrega: codigoEntrega,
-          estudante: estudanteInstance,
-          hash: hash,
-          estado: EstadoSubmissaoEnum.INICIADA,
-          pontuacaoTotal: 0,
-        });
+          const codigoEntrega = await this._generateUniqueAccessCode(manager);
+          const hash = this._createShortHash(body.codigoAcesso);
 
-        await this.submissaoRepository.save(submissao);
-
-        await this.dataSource.destroy();
-      });
+          const novaSubmissao = this.submissaoRepository.create({
+            aplicacao: aplicacao,
+            codigoEntrega: codigoEntrega,
+            estudante: estudanteInstance,
+            hash: hash,
+            estado: EstadoSubmissaoEnum.INICIADA,
+            pontuacaoTotal: 0,
+          });
+          return manager.save(novaSubmissao);
+        },
+      );
+      return new SubmissaoResultDto(submissaoSalva);
     } catch (error) {
-      console.log(error);
+      console.log('Falha ao criar a submissão', error);
+      throw error;
     }
   }
 
@@ -74,9 +80,11 @@ export class SubmissaoService {
     );
   }
 
-  private _createSHA256Hash(data: string): string {
-    const hash = crypto.createHash('sha256');
-    hash.update(data);
-    return hash.digest('hex');
+  private _createShortHash(data: string): string {
+    return crypto
+      .createHash('sha256')
+      .update(data)
+      .digest('hex')
+      .substring(0, 16);
   }
 }

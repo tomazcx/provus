@@ -14,16 +14,20 @@ export class EstudanteModel {
   @PrimaryColumn({ name: 'submissao_id' })
   id: number;
 
-  @PrimaryColumn()
+  @Column()
   email: string;
 
   @Column()
   nome: string;
 
-  @CreateDateColumn({ name: 'criado_em' })
+  @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm: Date;
 
-  @UpdateDateColumn({ name: 'atualizado_em' })
+  @UpdateDateColumn({
+    name: 'atualizado_em',
+    type: 'timestamp',
+    nullable: true,
+  })
   atualizadoEm: Date;
 
   @OneToOne(() => SubmissaoModel, (submissao) => submissao.estudante)

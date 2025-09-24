@@ -1,7 +1,7 @@
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 
-export class CreateSubmissaoDto {
+export class SubmissaoResultDto {
   id: number;
   aplicacao_id: number;
   codigoEntrega: number;
