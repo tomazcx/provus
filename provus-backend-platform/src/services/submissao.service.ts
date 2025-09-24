@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository, In } from 'typeorm';
 import * as crypto from 'crypto';
 
 import { CreateSubmissaoRequest } from 'src/http/controllers/backoffice/submissao/create-submissao/request';
@@ -62,11 +62,18 @@ export class SubmissaoService {
     let attempts = 0;
     const maxAttempts = 10;
 
+    const activeStates = [
+      EstadoSubmissaoEnum.INICIADA,
+      EstadoSubmissaoEnum.ENVIADA,
+      EstadoSubmissaoEnum.REABERTA,
+      EstadoSubmissaoEnum.PAUSADA,
+    ];
+
     while (attempts < maxAttempts) {
       const code = Math.floor(100000 + Math.random() * 900000);
 
       const existingSubmissao = await manager.findOne(SubmissaoModel, {
-        where: { codigoEntrega: code },
+        where: { codigoEntrega: code, estado: In(activeStates) },
       });
 
       if (!existingSubmissao) {
