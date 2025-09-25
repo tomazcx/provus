@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { EntityManager, DataSource } from 'typeorm';
+import { EntityManager, DataSource, In } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { AplicacaoRepository } from 'src/database/repositories/aplicacao.repository';
@@ -43,6 +43,18 @@ export class AplicacaoService {
     }
 
     return new AplicacaoDto(aplicacao);
+  }
+
+  async findByCode(codigoAcesso: string): Promise<AplicacaoModel> {
+    const aplicacao = await this.aplicacaoRepository.findOne({
+      where: { codigoAcesso },
+    });
+
+    if (!aplicacao) {
+      throw new NotFoundException('Aplicação não encontrada');
+    }
+
+    return aplicacao;
   }
 
   async findAll(avaliadorId: number): Promise<FindAllAplicacaoDto[]> {
@@ -105,11 +117,18 @@ export class AplicacaoService {
     let attempts = 0;
     const maxAttempts = 10;
 
+    const activeStates = [
+      EstadoAplicacaoEnum.CRIADA,
+      EstadoAplicacaoEnum.EM_ANDAMENTO,
+      EstadoAplicacaoEnum.AGENDADA,
+      EstadoAplicacaoEnum.PAUSADA,
+    ];
+
     while (attempts < maxAttempts) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
 
       const existingAplicacao = await manager.findOne(AplicacaoModel, {
-        where: { codigoAcesso: code },
+        where: { codigoAcesso: code, estado: In(activeStates) },
       });
 
       if (!existingAplicacao) {

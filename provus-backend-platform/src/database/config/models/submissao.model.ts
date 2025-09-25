@@ -34,10 +34,10 @@ export class SubmissaoModel {
   })
   pontuacaoTotal: number;
 
-  @Column({ name: 'finalizado_em', type: 'timestamp' })
+  @Column({ name: 'finalizado_em', type: 'timestamp', nullable: true })
   finalizadoEm: Date;
 
-  @Column({ name: 'codigo_entrega', nullable: true })
+  @Column({ name: 'codigo_entrega' })
   codigoEntrega: number;
 
   @CreateDateColumn({ name: 'criado_em' })
