@@ -9,6 +9,7 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     elevation: 5,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 12,
   },
   menuButton: {
     padding: 4,
@@ -174,12 +176,12 @@ const styles = StyleSheet.create({
   scrollContainer: {
     padding: 16,
   },
-  ModalOverlay: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-start',
   },
-  ModalContent: {
+  modalContent: {
     backgroundColor: COLORS.white,
     padding: 24,
     width: '80%',
