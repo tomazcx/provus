@@ -16,11 +16,11 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
+import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS } from '../../constants/colors';
-import { StudentStackParamList } from '../../types/StudentTypes';
 
-type Props = NativeStackScreenProps<StudentStackParamList, 'StudentBase'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Identification'>;
 
 const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
@@ -82,7 +82,7 @@ const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.label}>E-mail *</Text>
               <View style={styles.inputContainer}>
                 <Icon
-                  name="mail"
+                  name="envelope"
                   size={20}
                   color={COLORS.textSecondary}
                   style={styles.inputIcon}
@@ -100,7 +100,7 @@ const IdentificationScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.label}>Código da Avaliação *</Text>
               <View style={styles.inputContainer}>
                 <Icon
-                  name="hash"
+                  name="hashtag"
                   size={20}
                   color={COLORS.textSecondary}
                   style={styles.inputIcon}
