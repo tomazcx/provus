@@ -1,10 +1,9 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SubmissaoResponse } from 'src/http/models/response/submissao.response';
 
 export const CreateSubmissaoDecorators = () => {
   return applyDecorators(
-    ApiBearerAuth(),
     ApiOperation({
       summary: 'Cria submissão.',
       description: 'Cria uma submissão',
