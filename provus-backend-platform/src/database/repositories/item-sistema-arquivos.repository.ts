@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { ItemSistemaArquivosModel } from '../config/models/item-sistema-arquivos.model';
 import { TipoItemEnum } from 'src/enums/tipo-item.enum';
 
@@ -42,16 +42,28 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
     paiId: number | null,
     avaliadorId: number,
   ): Promise<ItemSistemaArquivosModel[]> {
-    return this.find({
-      where: {
-        avaliador: { id: avaliadorId },
-        pai: paiId === null ? IsNull() : { id: paiId },
-      },
-      order: {
-        tipo: 'ASC',
-        titulo: 'ASC',
-      },
-    });
+    const queryBuilder = this.createQueryBuilder('item')
+      .leftJoinAndSelect('item.pai', 'pai')
+      .leftJoinAndSelect('item.questao', 'questao')
+      .leftJoinAndSelect('questao.alternativas', 'alternativas')
+      .leftJoinAndSelect('item.avaliacao', 'avaliacao')
+      .leftJoinAndSelect(
+        'avaliacao.configuracaoAvaliacao',
+        'configuracaoAvaliacao',
+      )
+      .leftJoinAndSelect('item.arquivo', 'arquivo')
+      .where('item.avaliador_id = :avaliadorId', { avaliadorId });
+
+    if (paiId === null) {
+      queryBuilder.andWhere('item.pai_id IS NULL');
+    } else {
+      queryBuilder.andWhere('item.pai_id = :paiId', { paiId });
+    }
+
+    return queryBuilder
+      .orderBy('item.tipo', 'ASC')
+      .addOrderBy('item.titulo', 'ASC')
+      .getMany();
   }
 
   async findAllQuestionIdsInFolders(

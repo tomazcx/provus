@@ -24,6 +24,7 @@ import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-ava
 import { ArquivosAvaliacoesModel } from 'src/database/config/models/arquivos-avaliacoes.model';
 import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { StorageProvider } from 'src/providers/storage.provider';
+import { UpdateItemRequest } from 'src/http/models/response/update-items.request';
 
 @Injectable()
 export class ItemSistemaArquivosService {
@@ -107,7 +108,7 @@ export class ItemSistemaArquivosService {
       case TipoItemEnum.AVALIACAO:
         await this._deleteAvaliacaoWithConfigurations(itemId, manager);
         break;
-      case TipoItemEnum.ARQUIVO:
+      case TipoItemEnum.ARQUIVO: {
         const arquivo = await manager.findOne(ArquivoModel, {
           where: { id: itemId },
           relations: ['item'],
@@ -115,6 +116,7 @@ export class ItemSistemaArquivosService {
         await manager.delete(ArquivoModel, { id: itemId });
         await this.storageProvider.deleteFile(arquivo.url);
         break;
+      }
       case TipoItemEnum.PASTA:
         break;
     }
@@ -204,6 +206,24 @@ export class ItemSistemaArquivosService {
         id: configuracoesSegurancaId,
       });
     }
+  }
+
+  async updateTitle(
+    itemId: number,
+    avaliadorId: number,
+    dto: UpdateItemRequest,
+  ): Promise<ItemSistemaArquivosModel> {
+    const item = await this.itemRepository.findOne({
+      where: { id: itemId, avaliador: { id: avaliadorId } },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`Item com id ${itemId} não encontrado.`);
+    }
+
+    item.titulo = dto.titulo;
+
+    return this.itemRepository.save(item);
   }
 
   async findAllQuestionIdsInFolders(
