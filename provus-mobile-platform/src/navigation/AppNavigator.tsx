@@ -14,8 +14,8 @@ export type RootStackParamList = {
   Login: undefined;
   Applications: undefined;
   Dashboard: { applicationId?: number };
-  StudentBase: undefined;
-  Test: { assesmentId: string };
+  Identification: undefined;
+  Test: { assessmentId: string };
   TestSubmissionResult: {
     submissionId: number;
   };
@@ -30,8 +30,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="StudentIdentification"
-        //initialRouteName="Login"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
         }}
@@ -39,10 +38,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Applications" component={ApplicationsScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen
-          name="StudentIdentification"
-          component={IdentificationScreen}
-        />
+        <Stack.Screen name="Identification" component={IdentificationScreen} />
         <Stack.Screen name="Test" component={TestScreen} />
         <Stack.Screen
           name="TestSubmissionResult"
