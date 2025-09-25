@@ -3,6 +3,7 @@ import {
   StyleSheet,
   View,
   Text,
+  TextInput,
   SafeAreaView,
   TouchableOpacity,
   StatusBar,
@@ -22,6 +23,7 @@ type Props = NativeStackScreenProps<StudentStackParamList, 'Test'>;
 const TestScreen: React.FC<Props> = ({ navigation }) => {
   const [timeLeft, setTimeLeft] = useState(60 * 60);
   const [isInfoModalVisible, setInfoModalVisible] = useState(false);
+  const [answers, setAnswers] = useState<{ [key: number]: number }>({});
 
   useEffect(() => {
     if (timeLeft === 0) return;
@@ -42,6 +44,12 @@ const TestScreen: React.FC<Props> = ({ navigation }) => {
       .padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${h}:${m}:${s}`;
+  };
+
+  const handleSelectAnswer = (questionId: number, alternativeId: number) => {
+    const newAnswers = { ...answers };
+    newAnswers[questionId] = alternativeId;
+    setAnswers(newAnswers);
   };
 
   return (
@@ -68,7 +76,56 @@ const TestScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}></ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {mockAvaliacao.questoes?.map((questao, index) => (
+          <View key={questao.id} style={styles.questionCard}>
+            <View style={styles.questionHeader}>
+              <Text style={styles.questionTitle}>Questão {index + 1}</Text>
+              <View style={styles.pointsTag}>
+                <Text style={styles.pointsText}>
+                  {questao.pontuacao} pontos
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.questionText}>{questao.titulo}</Text>
+
+            {questao.tipo === 'OBJETIVA' &&
+              questao.alternativas?.map(alt => {
+                const isSelected = answers[questao.id] === alt.id;
+
+                return (
+                  <TouchableOpacity
+                    key={alt.id}
+                    style={[
+                      styles.optionButton,
+                      isSelected && styles.optionSelected,
+                    ]}
+                    onPress={() => handleSelectAnswer(questao.id, alt.id)}
+                  >
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        isSelected && styles.radioSelected,
+                      ]}
+                    >
+                      {isSelected && <View style={styles.radioInnerCircle} />}
+                    </View>
+                    <Text style={styles.optionText}>{alt.descricao}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+            {questao.tipo === 'DISCURSIVA' && (
+              <TextInput
+                style={styles.textArea}
+                multiline
+                placeholder="Digite sua resposta"
+                placeholderTextColor={COLORS.textSecondary}
+              />
+            )}
+          </View>
+        ))}
+      </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.submitButton}>
@@ -175,6 +232,86 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: 16,
+  },
+  questionCard: {
+    backgroundColor: COLORS.white,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  questionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  questionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    flex: 1,
+  },
+  pointsTag: {
+    backgroundColor: COLORS.greenBackground,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  pointsText: {
+    color: COLORS.greenText,
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  questionText: {
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginBottom: 16,
+    lineHeight: 24,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 8,
+  },
+  optionSelected: { borderColor: COLORS.info, backgroundColor: '#EBF5FB' },
+  radioCircle: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioSelected: { borderColor: COLORS.info },
+  radioInnerCircle: {
+    height: 10,
+    width: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.info,
+  },
+  optionText: {
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    flex: 1,
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
+    height: 120,
+    textAlignVertical: 'top',
+    fontSize: 16,
+    color: COLORS.textPrimary,
   },
   modalOverlay: {
     flex: 1,
