@@ -52,6 +52,15 @@ const TestScreen: React.FC<Props> = ({ navigation }) => {
     setAnswers(newAnswers);
   };
 
+  const handleSubmitTest = () => {
+    // MUDAR AQUI *** ADICIONAR LÓGICA REAL DO BACK
+    const mockSubmissionId = 1;
+
+    navigation.navigate('TestSubmissionResult', {
+      submissionId: mockSubmissionId,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
@@ -128,7 +137,10 @@ const TestScreen: React.FC<Props> = ({ navigation }) => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.submitButton}>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSubmitTest}
+        >
           <Text style={styles.submitButtonText}>Enviar avaliação</Text>
         </TouchableOpacity>
       </View>
