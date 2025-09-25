@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
+  Modal,
+  Pressable,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +20,7 @@ type Props = NativeStackScreenProps<StudentStackParamList, 'Test'>;
 
 const TestScreen: React.FC<Props> = ({ navigation }) => {
   const [timeLeft, setTimeLeft] = useState(60 * 60);
+  const [isInfoModalVisible, setInfoModalVisible] = useState(false);
 
   useEffect(() => {
     if (timeLeft === 0) return;
@@ -45,44 +48,68 @@ const TestScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>{mockAvaliacao.titulo}</Text>
+        <TouchableOpacity
+          onPress={() => setInfoModalVisible(true)}
+          style={styles.menuButton}
+          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+        >
+          <Icon name="menu" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+        <View style={styles.headerCenterContent}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {mockAvaliacao.titulo}
+          </Text>
           <Text style={styles.headerSubtitle}>Prof. Johnson</Text>
         </View>
         <View style={styles.timerContainer}>
           <Icon name="clock" size={16} color={COLORS.white} />
           <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-          <TouchableOpacity style={styles.submitButton}>
-            <Text style={styles.submitButtonText}>Submit Test</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Test Information</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Prof:</Text>
-            <Text style={styles.infoText}>Prof.Johnson</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Duração:</Text>
-            <Text style={styles.infoText}>60 minutes</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Pontuação total:</Text>
-            <Text style={styles.infoText}>
-              {mockAvaliacao.pontuacao} pontos
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Questões:</Text>
-            <Text style={styles.infoText}>
-              {mockAvaliacao.questoes?.length} questões
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContainer}></ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.submitButton}>
+          <Text style={styles.submitButtonText}>Enviar avaliação</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isInfoModalVisible}
+        onRequestClose={() => setInfoModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setInfoModalVisible(false)}
+        >
+          <Pressable style={styles.modalContent}>
+            <Text style={styles.cardTitle}>Test Information</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Prof:</Text>
+              <Text style={styles.infoText}>Prof.Johnson</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Duração:</Text>
+              <Text style={styles.infoText}>60 minutes</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Pontuação total:</Text>
+              <Text style={styles.infoText}>
+                {mockAvaliacao.pontuacao} pontos
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Questões:</Text>
+              <Text style={styles.infoText}>
+                {mockAvaliacao.questoes?.length} questões
+              </Text>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -100,6 +127,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     elevation: 5,
+  },
+  menuButton: {
+    padding: 4,
+  },
+  headerCenterContent: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 8,
   },
   headerTitle: {
     color: COLORS.white,
@@ -119,44 +154,61 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     fontWeight: '500',
   },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
   submitButton: {
     backgroundColor: COLORS.danger,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginLeft: 8,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   submitButtonText: {
     color: COLORS.white,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   scrollContainer: {
     padding: 16,
   },
-  infoCard: {
+  ModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+  },
+  ModalContent: {
     backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 20,
+    padding: 24,
+    width: '80%',
+    height: '100%',
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.textPrimary,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
   },
   infoLabel: {
     color: COLORS.textSecondary,
+    fontWeight: '500',
+    fontSize: 16,
   },
   infoText: {
     color: COLORS.textPrimary,
+    fontSize: 16,
   },
   contentArea: {
     flex: 1,
