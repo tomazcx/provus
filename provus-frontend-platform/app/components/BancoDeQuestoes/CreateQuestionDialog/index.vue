@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import QuestionForm from "@/components/BancoDeQuestoes/QuestionForm/index.vue";
-import type { TQuestionForm } from "~/types/IQuestao";
+import type { CreateQuestaoRequest } from "~/types/api/request/Questao.request";
 
 defineProps<{ modelValue: boolean }>();
 const emit = defineEmits(["update:modelValue", "create"]);
 
-function handleFormSubmit(payload: TQuestionForm) {
+function handleFormSubmit(payload: CreateQuestaoRequest) {
   emit("create", payload);
 }
 </script>
+
 <template>
   <UModal
     class="min-w-6xl"

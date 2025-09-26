@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { onMounted, computed, ref, reactive } from "vue";
 import QuestionsBankFolderItem from "~/components/BancoDeQuestoes/QuestionsBankFolderItem/index.vue";
 import QuestionsBankQuestionItem from "~/components/BancoDeQuestoes/QuestionsBankQuestionItem/index.vue";
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
-import isFolder from "~/guards/isFolder";
+
 import { useQuestionBankStore } from "~/store/questionBankstore";
-import type { TQuestionForm } from "~/types/IQuestao";
-import type { IFolderListItem, TBankItem } from "~/types/IBank";
+import type {
+  CreateQuestaoRequest,
+  UpdateQuestaoRequest,
+} from "~/types/api/request/Questao.request";
+import type { FolderEntity } from "~/types/entities/Item.entity";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+
+function isFolder(item: QuestaoEntity | FolderEntity): item is FolderEntity {
+  return item.tipo === TipoItemEnum.PASTA;
+}
 
 const props = defineProps({
   mode: {
@@ -26,7 +34,7 @@ onMounted(() => {
 
 const showCreateFolder = ref(false);
 const showCreateQuestion = ref(false);
-const editingItem = ref<TBankItem | null>(null);
+const editingItem = ref<QuestaoEntity | FolderEntity | null>(null);
 const selectedItems = ref({
   folders: new Set<number>(),
   questions: new Set<number>(),
@@ -37,15 +45,15 @@ const filters = reactive({
   sort: "Última modificação",
 });
 
-function handleItemClick(item: TBankItem) {
+function handleItemClick(item: QuestaoEntity | FolderEntity) {
   if (isFolder(item)) {
-    questionBankStore.navigateToFolder(item as IFolderListItem);
+    questionBankStore.navigateToFolder(item);
   } else if (props.mode === "select") {
     handleSelectItem(item);
   }
 }
 
-function handleSelectItem(item: TBankItem) {
+function handleSelectItem(item: QuestaoEntity | FolderEntity) {
   if (!item.id) return;
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
@@ -63,13 +71,16 @@ function handleCreateFolder(data: { titulo: string }) {
   showCreateFolder.value = false;
 }
 
-function handleCreateQuestion(formData: TQuestionForm) {
+function handleCreateQuestion(formData: CreateQuestaoRequest) {
   questionBankStore.createQuestion(formData);
   showCreateQuestion.value = false;
 }
 
-function handleUpdate(updatedData: { newTitle: string } | TQuestionForm) {
+function handleUpdate(
+  updatedData: { newTitle: string } | UpdateQuestaoRequest
+) {
   if (!editingItem.value) return;
+
   const dataToSend =
     "newTitle" in updatedData ? { titulo: updatedData.newTitle } : updatedData;
 
@@ -77,7 +88,7 @@ function handleUpdate(updatedData: { newTitle: string } | TQuestionForm) {
   editingItem.value = null;
 }
 
-function handleDelete(itemToDelete: TBankItem) {
+function handleDelete(itemToDelete: QuestaoEntity | FolderEntity) {
   questionBankStore.deleteItem(itemToDelete);
 }
 
@@ -97,13 +108,6 @@ const filteredItems = computed(() => {
     .filter((item) =>
       item.titulo.toLowerCase().includes(filters.search.toLowerCase())
     )
-    .sort((a, b) => {
-      if (isFolder(a) && !isFolder(b)) return -1;
-      if (!isFolder(a) && isFolder(b)) return 1;
-      return (
-        new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime()
-      );
-    });
 });
 
 defineExpose({

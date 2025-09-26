@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import Item from "@/components/ui/BankItem/index.vue";
-import type { IQuestaoListItem } from "~/types/IBank";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 
 defineProps<{
-  item: IQuestaoListItem;
+  item: QuestaoEntity; 
   isSelected?: boolean;
   selectable?: boolean;
 }>();
 
-const emit = defineEmits(["edit", "delete"]);
+const emit = defineEmits(["edit", "delete", "select"]);
 
 function formatDate(dateString: string) {
   if (!dateString) return "";
@@ -27,6 +27,13 @@ function formatDate(dateString: string) {
     @edit="emit('edit')"
     @delete="emit('delete')"
   >
+    <div v-if="selectable" class="flex items-center pr-2" @click.stop>
+      <UCheckbox
+        :model-value="isSelected"
+        @update:model-value="emit('select', item)"
+      />
+    </div>
+
     <div
       class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"
     >
@@ -38,7 +45,7 @@ function formatDate(dateString: string) {
       <p class="text-sm text-gray-600 mt-1 truncate">{{ item.descricao }}</p>
 
       <div class="flex items-center space-x-4 mt-2">
-        <UBadge size="sm">{{ item.tipo }}</UBadge>
+        <UBadge size="sm">{{ item.tipoQuestao }}</UBadge>
         <span class="text-xs text-gray-500"
           >Modificado {{ formatDate(item.atualizadoEm) }}</span
         >

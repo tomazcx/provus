@@ -42,17 +42,16 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
     paiId: number | null,
     avaliadorId: number,
   ): Promise<ItemSistemaArquivosModel[]> {
-    const queryBuilder = this.createQueryBuilder('item')
-      .leftJoinAndSelect('item.pai', 'pai')
+    const queryBuilder = this.createQueryBuilder('item').where(
+      'item.avaliador_id = :avaliadorId',
+      { avaliadorId },
+    );
+
+    queryBuilder
       .leftJoinAndSelect('item.questao', 'questao')
       .leftJoinAndSelect('questao.alternativas', 'alternativas')
       .leftJoinAndSelect('item.avaliacao', 'avaliacao')
-      .leftJoinAndSelect(
-        'avaliacao.configuracaoAvaliacao',
-        'configuracaoAvaliacao',
-      )
-      .leftJoinAndSelect('item.arquivo', 'arquivo')
-      .where('item.avaliador_id = :avaliadorId', { avaliadorId });
+      .leftJoinAndSelect('item.arquivo', 'arquivo');
 
     if (paiId === null) {
       queryBuilder.andWhere('item.pai_id IS NULL');

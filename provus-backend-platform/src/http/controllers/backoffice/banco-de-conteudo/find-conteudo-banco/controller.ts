@@ -7,6 +7,9 @@ import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { BancoDeConteudoService } from 'src/services/banco-de-conteudo.service';
 import { FindConteudoBancoDecorators } from './decorators';
+import { QuestaoResponse } from 'src/http/models/response/questao.response';
+
+type ConteudoBancoResponse = ItemSistemaArquivosResponse | QuestaoResponse;
 
 @Controller('backoffice/bancos-de-conteudo')
 @ApiTags('Backoffice - Bancos de Conteúdo')
@@ -19,7 +22,7 @@ export class FindConteudoBancoController {
   async handle(
     @Param('tipoBanco') tipoBanco: TipoBancoEnum,
     @LoggedAvaliador() avaliador: AvaliadorModel,
-  ): Promise<ItemSistemaArquivosResponse[]> {
+  ): Promise<ConteudoBancoResponse[]> {
     return this.bancoService.findConteudoByTipo(avaliador.id, tipoBanco);
   }
 }

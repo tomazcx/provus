@@ -2,28 +2,36 @@
 import type { RadioGroupItem } from "@nuxt/ui";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { IAlternativa, IQuestao, TQuestionForm } from "~/types/IQuestao";
+
+import type {
+  QuestaoEntity,
+  AlternativaEntity,
+} from "~/types/entities/Questao.entity";
+import type {
+  CreateQuestaoRequest,
+} from "~/types/api/request/Questao.request";
 
 const props = defineProps<{
-  initialData?: IQuestao | null;
+  initialData?: QuestaoEntity | null;
 }>();
 
 const emit = defineEmits<{
-  (e: "submit", payload: TQuestionForm): void;
+  (e: "submit", payload: CreateQuestaoRequest): void;
 }>();
 
-const getBlankForm = (): TQuestionForm => ({
+const getBlankForm = (): CreateQuestaoRequest => ({
   titulo: "",
   descricao: "",
   tipoQuestao: TipoQuestaoEnum.OBJETIVA,
   dificuldade: DificuldadeQuestaoEnum.FACIL,
   pontuacao: 5,
+  isModelo: true, 
   alternativas: [{ descricao: "", isCorreto: true }],
   exemploRespostaIa: "",
   textoRevisao: "",
 });
 
-const form = reactive<TQuestionForm>(getBlankForm());
+const form = reactive<CreateQuestaoRequest>(getBlankForm());
 
 watch(
   () => props.initialData,
@@ -34,6 +42,7 @@ watch(
       form.tipoQuestao = newData.tipoQuestao;
       form.dificuldade = newData.dificuldade;
       form.pontuacao = newData.pontuacao;
+      form.isModelo = newData.isModelo;
       form.alternativas = JSON.parse(
         JSON.stringify(newData.alternativas || [])
       );
@@ -53,9 +62,9 @@ const questionTypeItems: RadioGroupItem[] = [
   { label: "Discursiva", value: TipoQuestaoEnum.DISCURSIVA },
 ];
 const questionDifficultyItems: RadioGroupItem[] = [
-  { label: "Fácil", value: "Fácil" },
-  { label: "Médio", value: "Médio" },
-  { label: "Difícil", value: "Difícil" },
+  { label: "Fácil", value: DificuldadeQuestaoEnum.FACIL },
+  { label: "Médio", value: DificuldadeQuestaoEnum.MEDIO },
+  { label: "Difícil", value: DificuldadeQuestaoEnum.DIFICIL },
 ];
 
 const isFreeText = computed(
@@ -79,48 +88,46 @@ watch(
       newType === TipoQuestaoEnum.OBJETIVA
     ) {
       let foundFirstCorrect = false;
-      form.alternativas.forEach((alt) => {
+      form.alternativas?.forEach((alt) => {
         if (alt.isCorreto) {
-          if (foundFirstCorrect) {
-            alt.isCorreto = false;
-          }
+          if (foundFirstCorrect) alt.isCorreto = false;
           foundFirstCorrect = true;
         }
       });
       if (
         !foundFirstCorrect &&
-        form.alternativas.length > 0 &&
-        form.alternativas[0]
+        form.alternativas &&
+        form.alternativas.length > 0
       ) {
-        form.alternativas[0].isCorreto = true;
+        if (form.alternativas && form.alternativas[0]) {
+          form.alternativas[0].isCorreto = true;
+        }
       }
     }
   }
 );
 
 function addAlternative() {
+  if (!form.alternativas) {
+    form.alternativas = [];
+  }
   form.alternativas.push({
-    id: Date.now(),
     descricao: "",
     isCorreto: form.alternativas.length === 0,
-    criadoEm: new Date().toISOString(),
-    atualizadoEm: new Date().toISOString(),
   });
 }
 
-function removeAlternative(id: number) {
-  form.alternativas = form.alternativas.filter((a) => a.id !== id);
+function removeAlternative(altIndex: number) {
+  form.alternativas?.splice(altIndex, 1);
 }
 
-function toggleCorrect(alternative: IAlternativa) {
+function toggleCorrect(alternative: AlternativaEntity) {
   if (isSingleCorrect.value) {
-    form.alternativas.forEach((alt) => {
+    form.alternativas?.forEach((alt) => {
       alt.isCorreto = false;
     });
-    alternative.isCorreto = true;
-  } else {
-    alternative.isCorreto = !alternative.isCorreto;
   }
+  alternative.isCorreto = !alternative.isCorreto;
 }
 </script>
 
@@ -192,7 +199,7 @@ function toggleCorrect(alternative: IAlternativa) {
           <div class="space-y-3">
             <div
               v-for="(alt, index) in form.alternativas"
-              :key="alt.id"
+              :key="index"
               class="flex items-center space-x-3 p-3 border rounded-lg transition-colors duration-200"
               :class="{
                 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
@@ -220,8 +227,10 @@ function toggleCorrect(alternative: IAlternativa) {
                 icon="i-lucide-trash-2"
                 size="xl"
                 color="error"
-                :disabled="form.alternativas.length <= (isTrueFalse ? 1 : 2)"
-                @click="removeAlternative(alt.id!)"
+                :disabled="
+                  (form.alternativas?.length || 0) <= (isTrueFalse ? 1 : 2)
+                "
+                @click="removeAlternative(index)"
               />
             </div>
             <UButton
@@ -284,10 +293,13 @@ function toggleCorrect(alternative: IAlternativa) {
               disabled
             />
           </div>
-          <div v-else-if="form.alternativas.length > 0" class="space-y-2">
+          <div
+            v-else-if="form.alternativas && form.alternativas.length > 0"
+            class="space-y-2"
+          >
             <label
-              v-for="alt in form.alternativas"
-              :key="alt.id"
+              v-for="(alt, index) in form.alternativas"
+              :key="index"
               class="flex items-center space-x-3 p-3 border rounded-lg cursor-not-allowed opacity-75"
               :class="{
                 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':

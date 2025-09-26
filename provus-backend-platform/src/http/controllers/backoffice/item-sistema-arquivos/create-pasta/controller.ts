@@ -17,7 +17,6 @@ export class CreatePastaController {
 
   @Post()
   @UseGuards(AvaliadorAuthGuard)
-  // Adicionar decorators do Swagger aqui se desejar
   async handle(
     @Body() body: CreatePastaRequest,
     @LoggedAvaliador() avaliador: AvaliadorModel,
@@ -25,7 +24,7 @@ export class CreatePastaController {
     const novoItem = await this.itemSistemaArquivosService.create(
       {
         ...body,
-        tipo: TipoItemEnum.PASTA, // Define o tipo como PASTA
+        tipo: TipoItemEnum.PASTA,
         avaliadorId: avaliador.id,
       },
       avaliador,

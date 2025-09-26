@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import Item from "@/components/ui/BankItem/index.vue";
-import type { IFolderListItem } from "~/types/IBank";
+import type { FolderEntity } from "~/types/entities/Item.entity";
 
 defineProps<{
-  item: IFolderListItem;
+  item: FolderEntity; 
   isSelected?: boolean;
   selectable?: boolean;
 }>();
 
 const emit = defineEmits(["edit", "delete", "select"]);
 
-function formatDate(dateString: string) {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("pt-BR", {
+function formatDate(date: Date): string {
+  if (!date) return "";
+  return date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 }
 </script>
+
 <template>
   <Item
     :id="String(item.id)"

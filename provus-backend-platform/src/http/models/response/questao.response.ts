@@ -3,6 +3,8 @@ import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import { AlternativaResponse } from './alternativa.response';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
+import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 export class QuestaoResponse {
   @ApiProperty({
@@ -112,6 +114,35 @@ export class QuestaoResponse {
       altResponse.isCorreto = altDto.isCorreto;
       return altResponse;
     });
+
+    return response;
+  }
+
+  static fromModel(model: ItemSistemaArquivosModel): QuestaoResponse {
+    if (model.tipo !== TipoItemEnum.QUESTAO || !model.questao) {
+      throw new Error(
+        `Item com ID ${model.id} não é uma questão ou não teve os dados da questão carregados.`,
+      );
+    }
+
+    const response = new QuestaoResponse();
+
+    response.id = model.id;
+    response.titulo = model.titulo;
+    response.criadoEm = model.criadoEm.toISOString();
+    response.atualizadoEm = model.atualizadoEm.toISOString();
+
+    response.dificuldade = model.questao.dificuldade;
+    response.tipoQuestao = model.questao.tipoQuestao;
+    response.descricao = model.questao.descricao;
+    response.exemploRespostaIa = model.questao.exemploRespostaIa;
+    response.pontuacao = model.questao.pontuacao;
+    response.isModelo = model.questao.isModelo;
+    response.textoRevisao = model.questao.textoRevisao;
+
+    response.alternativas = (model.questao.alternativas || []).map((alt) =>
+      AlternativaResponse.fromModel(alt),
+    );
 
     return response;
   }

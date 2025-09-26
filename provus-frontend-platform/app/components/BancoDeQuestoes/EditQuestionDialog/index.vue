@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import QuestionForm from "@/components/BancoDeQuestoes/QuestionForm/index.vue";
-import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import type { UpdateQuestaoRequest } from "~/types/api/request/Questao.request";
 
 const props = defineProps<{
   modelValue: boolean;
-  question: IQuestao | null;
+  question: QuestaoEntity | null;
 }>();
 
 const emit = defineEmits(["update:modelValue", "update:question"]);
 
-function handleFormSubmit(payload: TQuestionForm) {
+function handleFormSubmit(payload: UpdateQuestaoRequest) {
   emit("update:question", payload);
   emit("update:modelValue", false);
 }
 </script>
+
 <template>
   <UModal
     class="min-w-6xl"
