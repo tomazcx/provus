@@ -133,7 +133,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
 
   async function createFolder(newFolderData: { titulo: string }) {
     try {
-      await $api("/backoffice/item-sistema-arquivos", {
+      await $api("/backoffice/pastas", {
         method: "POST",
         body: {
           titulo: newFolderData.titulo,

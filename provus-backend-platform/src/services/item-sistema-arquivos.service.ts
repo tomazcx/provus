@@ -25,6 +25,9 @@ import { ArquivosAvaliacoesModel } from 'src/database/config/models/arquivos-ava
 import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { StorageProvider } from 'src/providers/storage.provider';
 import { UpdateItemRequest } from 'src/http/models/response/update-items.request';
+import { QuestaoResponse } from 'src/http/models/response/questao.response';
+
+type ConteudoPastaResponse = ItemSistemaArquivosResponse | QuestaoResponse;
 
 @Injectable()
 export class ItemSistemaArquivosService {
@@ -33,6 +36,22 @@ export class ItemSistemaArquivosService {
     private readonly dataSource: DataSource,
     private readonly storageProvider: StorageProvider,
   ) {}
+
+  async findByFolder(
+    paiId: number | null,
+    avaliadorId: number,
+  ): Promise<ConteudoPastaResponse[]> {
+    const items = await this.itemRepository.findByParent(paiId, avaliadorId);
+
+    return items.map((item) => {
+      if (item.tipo === TipoItemEnum.QUESTAO && item.questao) {
+        const questaoResponse = QuestaoResponse.fromModel(item);
+        return questaoResponse;
+      }
+
+      return ItemSistemaArquivosResponse.fromModel(item);
+    });
+  }
 
   async create(
     dto: CreateItemDto,
@@ -59,15 +78,6 @@ export class ItemSistemaArquivosService {
     });
 
     return this.itemRepository.save(newItem);
-  }
-
-  async findByFolder(
-    paiId: number | null,
-    avaliadorId: number,
-  ): Promise<ItemSistemaArquivosResponse[]> {
-    const items = await this.itemRepository.findByParent(paiId, avaliadorId);
-
-    return items.map((item) => ItemSistemaArquivosResponse.fromModel(item));
   }
 
   async getFullPath(itemId: number): Promise<string> {

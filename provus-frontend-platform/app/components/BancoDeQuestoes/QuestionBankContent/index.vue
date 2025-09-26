@@ -104,10 +104,9 @@ const currentPathLabel = computed(() =>
 );
 
 const filteredItems = computed(() => {
-  return [...questionBankStore.items]
-    .filter((item) =>
-      item.titulo.toLowerCase().includes(filters.search.toLowerCase())
-    )
+  return [...questionBankStore.items].filter((item) =>
+    item.titulo.toLowerCase().includes(filters.search.toLowerCase())
+  );
 });
 
 defineExpose({
@@ -161,7 +160,7 @@ defineExpose({
     </div>
 
     <div v-if="questionBankStore.breadcrumbs.length > 1" class="mb-6">
-      <UBreadcrumb :links="breadcrumbItems">
+      <UBreadcrumb :items="breadcrumbItems">
         <template #item="{ item, index }">
           <span
             class="cursor-pointer hover:underline"

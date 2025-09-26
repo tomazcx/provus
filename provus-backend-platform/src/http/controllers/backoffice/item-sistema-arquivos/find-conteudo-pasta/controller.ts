@@ -12,6 +12,9 @@ import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
 import { ItemSistemaArquivosService } from 'src/services/item-sistema-arquivos.service';
 import { FindConteudoPastaDecorators } from './decorators';
+import { QuestaoResponse } from 'src/http/models/response/questao.response';
+
+type ConteudoPastaResponse = ItemSistemaArquivosResponse | QuestaoResponse;
 
 @Controller('backoffice/pastas')
 @ApiTags('Backoffice - Pastas')
@@ -24,7 +27,7 @@ export class FindConteudoPastaController {
   async handle(
     @Param('pastaId', ParseIntPipe) pastaId: number,
     @LoggedAvaliador() avaliador: AvaliadorModel,
-  ): Promise<ItemSistemaArquivosResponse[]> {
+  ): Promise<ConteudoPastaResponse[]> {
     return this.itemService.findByFolder(pastaId, avaliador.id);
   }
 }
