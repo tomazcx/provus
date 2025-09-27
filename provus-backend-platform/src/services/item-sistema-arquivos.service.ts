@@ -26,9 +26,12 @@ import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitem
 import { StorageProvider } from 'src/providers/storage.provider';
 import { UpdateItemRequest } from 'src/http/models/response/update-items.request';
 import { QuestaoResponse } from 'src/http/models/response/questao.response';
+import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 
-type ConteudoPastaResponse = ItemSistemaArquivosResponse | QuestaoResponse;
-
+type ConteudoPastaResponse =
+  | ItemSistemaArquivosResponse
+  | QuestaoResponse
+  | ArquivoResponse;
 @Injectable()
 export class ItemSistemaArquivosService {
   constructor(
@@ -47,6 +50,10 @@ export class ItemSistemaArquivosService {
       if (item.tipo === TipoItemEnum.QUESTAO && item.questao) {
         const questaoResponse = QuestaoResponse.fromModel(item);
         return questaoResponse;
+      }
+
+      if (item.tipo === TipoItemEnum.ARQUIVO && item.arquivo) {
+        return ArquivoResponse.fromModel(item);
       }
 
       return ItemSistemaArquivosResponse.fromModel(item);

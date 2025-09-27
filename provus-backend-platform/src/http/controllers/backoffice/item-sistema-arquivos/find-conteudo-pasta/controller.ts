@@ -13,8 +13,12 @@ import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitem
 import { ItemSistemaArquivosService } from 'src/services/item-sistema-arquivos.service';
 import { FindConteudoPastaDecorators } from './decorators';
 import { QuestaoResponse } from 'src/http/models/response/questao.response';
+import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 
-type ConteudoPastaResponse = ItemSistemaArquivosResponse | QuestaoResponse;
+type ConteudoPastaResponse =
+  | ItemSistemaArquivosResponse
+  | QuestaoResponse
+  | ArquivoResponse;
 
 @Controller('backoffice/pastas')
 @ApiTags('Backoffice - Pastas')

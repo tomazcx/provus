@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import Item from "@/components/ui/BankItem/index.vue";
-import type { IFolder } from "~/types/IBank";
+import type { FolderEntity } from "~/types/entities/Item.entity";
+import formatDate from "~/utils/formatDate";
 
 defineProps<{
-  item: IFolder;
+  item: FolderEntity;
   childCount: number;
   isSelected?: boolean;
   selectable?: boolean;
@@ -35,7 +36,7 @@ const emit = defineEmits(["edit", "delete", "select"]);
     <div>
       <h3 class="font-medium text-gray-900">{{ item.titulo }}</h3>
       <p class="text-sm text-gray-600">
-        {{ childCount }} itens • Modificado
+        {{ childCount }} itens • Modificado em
         {{ formatDate(item.atualizadoEm) }}
       </p>
     </div>

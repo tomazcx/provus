@@ -6,10 +6,15 @@ import MaterialsBankFileItem from "@/components/BancoDeMateriais/MaterialsBankFi
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 
-import isFolder from "~/guards/isFolder";
 import { useMaterialsBankStore } from "~/store/materialsBankStore";
-import type { IFolder } from "~/types/IBank";
-import type { IFile } from "~/types/IFile";
+import type { FolderEntity } from "~/types/entities/Item.entity";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { UpdateArquivoRequest } from "~/types/api/request/Arquivo.request";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+
+function isFolder(item: ArquivoEntity | FolderEntity): item is FolderEntity {
+  return item.tipo === TipoItemEnum.PASTA;
+}
 
 const props = defineProps({
   mode: {
@@ -17,14 +22,11 @@ const props = defineProps({
     default: "browse",
   },
 });
-const emit = defineEmits(["path-changed"]);
 
 const materialsBankStore = useMaterialsBankStore();
 const showCreateFolder = ref(false);
 const showCreateFile = ref(false);
-const editingFile = ref<IFile | null>(null);
-const editingFolder = ref<IFolder | null>(null);
-const internalCurrentPath = ref("/");
+const editingItem = ref<ArquivoEntity | FolderEntity | null>(null);
 const selectedItems = ref({
   folders: new Set<number>(),
   files: new Set<number>(),
@@ -36,16 +38,12 @@ const filters = reactive({
 });
 
 onMounted(() => {
-  materialsBankStore.fetchItems();
+  materialsBankStore.initialize();
 });
 
-function handleItemClick(item: IFolder | IFile) {
+function handleItemClick(item: ArquivoEntity | FolderEntity) {
   if (isFolder(item)) {
-    const newPath =
-      internalCurrentPath.value === "/"
-        ? `/${item.titulo}`
-        : `${internalCurrentPath.value}/${item.titulo}`;
-    internalCurrentPath.value = newPath;
+    materialsBankStore.navigateToFolder(item);
   } else {
     if (props.mode === "select") {
       handleSelectItem(item);
@@ -55,121 +53,63 @@ function handleItemClick(item: IFolder | IFile) {
   }
 }
 
-function handleSelectItem(item: IFolder | IFile) {
+function handleSelectItem(item: ArquivoEntity | FolderEntity) {
+  if (!item.id) return;
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
     : selectedItems.value.files;
-  const isSelected = targetSet.has(item.id!);
 
-  if (isSelected) {
-    targetSet.delete(item.id!);
+  if (targetSet.has(item.id)) {
+    targetSet.delete(item.id);
   } else {
-    targetSet.add(item.id!);
+    targetSet.add(item.id);
   }
 }
 
-watch(internalCurrentPath, (newPath) => {
-  emit("path-changed", newPath);
-});
-
 function handleCreateFolder(data: { titulo: string }) {
-  materialsBankStore.createFolder({
-    titulo: data.titulo,
-    path: internalCurrentPath.value,
-  });
+  materialsBankStore.createFolder(data);
   showCreateFolder.value = false;
 }
 
-function handleCreateFile(data: {
-  formData: Omit<IFile, "id" | "path" | "criadoEm" | "atualizadoEm">;
-}) {
-  materialsBankStore.createFile({
-    formData: data.formData,
-    path: internalCurrentPath.value,
-  });
+function handleCreateFile(formData: FormData) {
+  materialsBankStore.createFile(formData);
   showCreateFile.value = false;
 }
 
-function handleUpdateFolder({ newTitle }: { newTitle: string }) {
-  if (!editingFolder.value) return;
-  materialsBankStore.updateItem({ item: editingFolder.value, newTitle });
-  editingFolder.value = null;
+function handleUpdate(
+  updatedData: { newTitle: string } | UpdateArquivoRequest
+) {
+  if (!editingItem.value) return;
+  const dataToSend =
+    "newTitle" in updatedData ? { titulo: updatedData.newTitle } : updatedData;
+  materialsBankStore.updateItem(editingItem.value, dataToSend);
+  editingItem.value = null;
 }
 
-function handleUpdateFile(updatedData: Partial<IFile>) {
-  if (!editingFile.value) return;
-  materialsBankStore.updateItem({ item: editingFile.value, updatedData });
-  editingFile.value = null;
-}
-
-function handleDelete(itemToDelete: IFolder | IFile) {
+function handleDelete(itemToDelete: ArquivoEntity | FolderEntity) {
   materialsBankStore.deleteItem(itemToDelete);
 }
 
-function handleEdit(item: IFolder | IFile) {
-  if (isFolder(item)) {
-    editingFolder.value = item;
-  } else {
-    editingFile.value = item;
-  }
-}
-
-const pathSegments = computed(() => {
-  if (internalCurrentPath.value === "/") return [];
-  return internalCurrentPath.value.substring(1).split("/");
-});
-
-const currentPath = computed(() => {
-  if (pathSegments.value.length === 0) return "/";
-  return `/${pathSegments.value.join("/")}`;
-});
-
-const breadcrumbs = computed(() => {
-  const crumbs = [{ label: "Banco de Materiais", to: "/banco-de-materiais" }];
-  const currentCrumbPath: string[] = [];
-  for (const segment of pathSegments.value) {
-    currentCrumbPath.push(segment);
-    crumbs.push({
-      label: segment,
-      to: `/banco-de-materiais/${currentCrumbPath.join("/")}`,
-    });
-  }
-  return crumbs;
-});
-
-const currentPathLabel = computed(() => {
-  return breadcrumbs.value.map((crumb) => crumb.label).join(" > ");
-});
-
-const itemsInCurrentFolder = computed(() =>
-  materialsBankStore.items
-    .filter((item) => item.path === currentPath.value)
-    .sort((a, b) => {
-      const aIsFolder = isFolder(a);
-      const bIsFolder = isFolder(b);
-      if (aIsFolder && !bIsFolder) return -1;
-      if (!aIsFolder && bIsFolder) return 1;
-      const dateA = new Date(a.atualizadoEm ?? 0).getTime();
-      const dateB = new Date(b.atualizadoEm ?? 0).getTime();
-      return dateB - dateA;
-    })
+const breadcrumbItems = computed(() =>
+  materialsBankStore.breadcrumbs.map((crumb, index) => ({
+    label: crumb.titulo,
+    index: index,
+  }))
 );
 
-function getChildCount(folder: IFolder): number {
-  const childPath =
-    folder.path === "/"
-      ? `/${folder.titulo}`
-      : `${folder.path}/${folder.titulo}`;
-  return materialsBankStore.items.filter((item) => item.path === childPath)
-    .length;
-}
+const currentPathLabel = computed(() =>
+  materialsBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
+);
 
-function navigateFromBreadcrumb(path: string) {
-  if (path === "/banco-de-materiais") {
-    internalCurrentPath.value = "/";
-  } else {
-    internalCurrentPath.value = path.replace("/banco-de-materiais", "");
-  }
+const filteredItems = computed(() =>
+  materialsBankStore.items.filter((item) =>
+    item.titulo.toLowerCase().includes(filters.search.toLowerCase())
+  )
+);
+
+function getChildCount(folder: FolderEntity): number {
+  return materialsBankStore.items.filter((item) => item.paiId === folder.id)
+    .length;
 }
 
 defineExpose({
@@ -185,18 +125,23 @@ defineExpose({
       @create="handleCreateFolder"
     />
     <CreateFileDialog v-model="showCreateFile" @create="handleCreateFile" />
-    <EditFileDialog
-      :model-value="!!editingFile"
-      :file="editingFile"
-      @update:model-value="editingFile = null"
-      @update:file="handleUpdateFile"
-    />
-    <EditFolderDialog
-      :model-value="!!editingFolder"
-      :folder="editingFolder"
-      @update:model-value="editingFolder = null"
-      @update="handleUpdateFolder"
-    />
+
+    <template v-if="editingItem">
+      <EditFolderDialog
+        v-if="isFolder(editingItem)"
+        :model-value="true"
+        :folder="editingItem"
+        @update:model-value="editingItem = null"
+        @update="handleUpdate"
+      />
+      <EditFileDialog
+        v-else
+        :model-value="true"
+        :file="editingItem"
+        @update:model-value="editingItem = null"
+        @update:file="handleUpdate"
+      />
+    </template>
 
     <div class="flex justify-end mb-8">
       <div class="mt-4 sm:mt-0 space-x-3">
@@ -213,12 +158,12 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="pathSegments.length > 0" class="mb-6">
-      <UBreadcrumb :items="breadcrumbs">
-        <template #item="{ item }">
+    <div v-if="materialsBankStore.breadcrumbs.length > 0" class="mb-6">
+      <UBreadcrumb :links="breadcrumbItems">
+        <template #item="{ item, index }">
           <span
             class="cursor-pointer hover:underline"
-            @click.prevent="navigateFromBreadcrumb(item.to)"
+            @click.prevent="materialsBankStore.navigateToBreadcrumb(index)"
           >
             {{ item.label }}
           </span>
@@ -266,21 +211,16 @@ defineExpose({
 
     <div class="space-y-4">
       <div
-        v-if="itemsInCurrentFolder.length === 0"
+        v-if="filteredItems.length === 0"
         class="text-center text-gray-500 py-10"
       >
-        Esta pasta está vazia.
+        <span v-if="materialsBankStore.isLoading">Carregando...</span>
+        <span v-else>Esta pasta está vazia.</span>
       </div>
       <div
-        v-for="item in itemsInCurrentFolder"
+        v-for="item in filteredItems"
         v-else
         :key="item.id"
-        :class="{
-          'cursor-pointer hover:bg-gray-50':
-            isFolder(item) || mode === 'select',
-          'cursor-pointer hover:bg-blue-50/50':
-            !isFolder(item) && mode === 'browse',
-        }"
         @click.prevent="handleItemClick(item)"
       >
         <MaterialsBankFolderItem
@@ -290,15 +230,16 @@ defineExpose({
           :is-selected="selectedItems.folders.has(item.id!)"
           :child-count="getChildCount(item)"
           @select="handleSelectItem(item)"
-          @edit="handleEdit(item)"
+          @edit="editingItem = item"
           @delete="handleDelete(item)"
         />
         <MaterialsBankFileItem
           v-else
           :item="item"
+          :selectable="mode === 'select'"
           :is-selected="selectedItems.files.has(item.id!)"
           @select="handleSelectItem(item)"
-          @edit="handleEdit(item)"
+          @edit="editingItem = item"
           @delete="handleDelete(item)"
         />
       </div>

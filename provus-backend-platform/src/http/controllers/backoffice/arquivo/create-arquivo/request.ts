@@ -15,8 +15,8 @@ export class CreateArquivoRequest {
     example: 'Descrição do arquivo',
   })
   @IsString()
-  @IsNotEmpty()
-  descricao: string;
+  @IsOptional()
+  descricao?: string;
 
   @ApiProperty({
     description: 'ID da pasta onde o arquivo será criado.',

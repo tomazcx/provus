@@ -38,10 +38,16 @@ export class StorageProvider {
       throw new Error('SUPABASE_BUCKET é obrigatório');
     }
 
+    const projectRef = Env.SUPABASE_URL.split('.')[0]
+      .replace('https://', '')
+      .replace('/storage', '');
+
+    const s3Endpoint = `https://${projectRef}.s3.sa-east-1.amazonaws.com`;
+
     this.client = new S3Client({
       forcePathStyle: true,
       region: 'sa-east-1',
-      endpoint: Env.SUPABASE_URL + '/v1/s3',
+      endpoint: s3Endpoint,
       credentials: {
         accessKeyId: Env.SUPABASE_ACCESS_KEY,
         secretAccessKey: Env.SUPABASE_SECRET_ACCESS_KEY,
@@ -77,7 +83,7 @@ export class StorageProvider {
 
       await this.client.send(command);
 
-      const publicUrl = `${Env.SUPABASE_URL}/v1/object/public/${this.bucket}/${sanitizedPath}`;
+      const publicUrl = `${Env.SUPABASE_URL}/object/public/${this.bucket}/${sanitizedPath}`;
 
       return {
         success: true,
@@ -99,7 +105,12 @@ export class StorageProvider {
       this.logger.debug(`Iniciando deleção: ${url}`);
       this.logger.debug(`Bucket: ${this.bucket}`);
 
-      const path = url.split('/').pop();
+      const path = new URL(url).pathname.split(`/public/${this.bucket}/`)[1];
+      if (!path) {
+        throw new Error(
+          'Não foi possível extrair o caminho do arquivo da URL.',
+        );
+      }
 
       const command = new DeleteObjectCommand({
         Bucket: this.bucket,
@@ -122,6 +133,6 @@ export class StorageProvider {
   }
 
   getPublicUrl(path: string): string {
-    return `${Env.SUPABASE_URL}/v1/object/public/${this.bucket}/${path}`;
+    return `${Env.SUPABASE_URL}/object/public/${this.bucket}/${path}`;
   }
 }

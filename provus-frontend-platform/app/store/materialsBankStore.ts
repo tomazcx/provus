@@ -1,129 +1,206 @@
-import { defineStore } from "pinia";
-import isFolder from "~/guards/isFolder";
-import type { IFolder } from "~/types/IBank";
-import type { IFile } from "~/types/IFile";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import type { FolderEntity } from "~/types/entities/Item.entity";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { ArquivoApiResponse } from "~/types/api/response/Arquivo.response";
+import type { ItemSistemaArquivosApiResponse } from "~/types/api/response/ItemSistemaArquivos.response";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+import type { UpdateArquivoRequest } from "~/types/api/request/Arquivo.request";
 
-type TMaterialBankItem = IFolder | IFile;
+function isFolderEntity(
+  item: ArquivoEntity | FolderEntity
+): item is FolderEntity {
+  return item.tipo === TipoItemEnum.PASTA;
+}
+
+function mapApiResponseToEntity(
+  item: ArquivoApiResponse | ItemSistemaArquivosApiResponse
+): ArquivoEntity | FolderEntity {
+  const isArquivo = "url" in item;
+
+  if (isArquivo) {
+    return {
+      id: item.id,
+      titulo: item.titulo,
+      tipo: TipoItemEnum.ARQUIVO,
+      paiId: item.paiId,
+      criadoEm: new Date(item.criadoEm).toISOString(),
+      atualizadoEm: new Date(item.atualizadoEm).toISOString(),
+      path: item.path,
+      url: item.url,
+      descricao: item.descricao,
+      tamanhoEmBytes: item.tamanhoEmBytes,
+    };
+  } else {
+    return {
+      id: item.id,
+      titulo: item.titulo,
+      tipo: TipoItemEnum.PASTA,
+      paiId: item.paiId,
+      criadoEm: new Date(item.criadoEm).toISOString(),
+      atualizadoEm: new Date(item.atualizadoEm).toISOString(),
+    };
+  }
+}
 
 export const useMaterialsBankStore = defineStore("materialsBank", () => {
-  const items = ref<TMaterialBankItem[]>([]);
+  const { $api } = useNuxtApp();
+  const toast = useToast();
+
+  const items = ref<(ArquivoEntity | FolderEntity)[]>([]);
+  const breadcrumbs = ref<{ id: number; titulo: string }[]>([]);
   const isLoading = ref(false);
+  const rootFolderId = ref<number | null>(null);
+  const isInitialized = ref(false);
 
-  async function fetchItems() {
-    if (items.value.length > 0) return;
+  const currentFolderId = computed(
+    () => breadcrumbs.value[breadcrumbs.value.length - 1]?.id ?? null
+  );
 
+  async function fetchFolderContent(folderId: number) {
     isLoading.value = true;
     try {
-      items.value = [];
+      const endpoint =
+        folderId === rootFolderId.value
+          ? "/backoffice/bancos-de-conteudo/MATERIAIS/conteudo"
+          : `/backoffice/pastas/${folderId}/conteudo`;
+
+      const response = await $api<
+        (ArquivoApiResponse | ItemSistemaArquivosApiResponse)[]
+      >(endpoint);
+      items.value = response.map(mapApiResponseToEntity);
     } catch (error) {
+      toast.add({ title: "Erro ao buscar materiais", color: "error" });
       console.error("Erro ao buscar itens do banco de materiais:", error);
     } finally {
       isLoading.value = false;
     }
   }
 
-  async function createFolder(newFolderData: { titulo: string; path: string }) {
-    const createdFolder: IFolder = {
-      id: Date.now(),
-      ...newFolderData,
-      filhos: [],
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    };
-    items.value.push(createdFolder);
-  }
+  async function initialize() {
+    if (isInitialized.value) return;
+    isLoading.value = true;
+    try {
+      const bancos = await $api<
+        { tipoBanco: string; titulo: string; pastaId: number }[]
+      >("/backoffice/bancos-de-conteudo");
+      const bancoDeMateriais = bancos.find((b) => b.tipoBanco === "MATERIAIS");
 
-  async function createFile(data: {
-    formData: Omit<IFile, "id" | "path" | "criadoEm" | "atualizadoEm">;
-    path: string;
-  }) {
-    const newFile: IFile = {
-      id: Date.now(),
-      ...data.formData,
-      path: data.path,
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    };
-    items.value.push(newFile);
-  }
+      if (!bancoDeMateriais) {
+        throw new Error(
+          "Banco de Materiais não foi encontrado para este usuário."
+        );
+      }
 
-  async function deleteItem(itemToDelete: TMaterialBankItem) {
-    if (!isFolder(itemToDelete)) {
-      const index = items.value.findIndex(
-        (item) => item.id === itemToDelete.id
-      );
-      if (index !== -1) items.value.splice(index, 1);
-    } else {
-      const pathPrefix =
-        itemToDelete.path === "/"
-          ? `/${itemToDelete.titulo}`
-          : `${itemToDelete.path}/${itemToDelete.titulo}`;
-      items.value = items.value.filter((item) => {
-        const shouldDelete =
-          item.id === itemToDelete.id ||
-          (item.path && item.path.startsWith(pathPrefix));
-        return !shouldDelete;
+      rootFolderId.value = bancoDeMateriais.pastaId;
+      breadcrumbs.value = [
+        { id: bancoDeMateriais.pastaId, titulo: bancoDeMateriais.titulo },
+      ];
+      await fetchFolderContent(bancoDeMateriais.pastaId);
+      isInitialized.value = true;
+    } catch (error) {
+      toast.add({
+        title: "Erro ao inicializar o banco de materiais",
+        color: "error",
       });
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  async function updateItem(payload: {
-    item: TMaterialBankItem;
-    newTitle?: string;
-    updatedData?: Partial<IFile>;
-  }) {
-    const { item, newTitle, updatedData } = payload;
-
-    if (isFolder(item) && newTitle) {
-      const oldTitle = item.titulo;
-      const oldChildPath =
-        item.path === "/" ? `/${oldTitle}` : `${item.path}/${oldTitle}`;
-      const newChildPath =
-        item.path === "/" ? `/${newTitle}` : `${item.path}/${newTitle}`;
-
-      const folderInArray = items.value.find((i) => i.id === item.id) as
-        | IFolder
-        | undefined;
-      if (folderInArray) {
-        folderInArray.titulo = newTitle;
-        folderInArray.atualizadoEm = new Date().toISOString();
-      }
-
-      items.value.forEach((i) => {
-        if (i.path && i.path.startsWith(oldChildPath)) {
-          i.path = i.path.replace(oldChildPath, newChildPath);
-        }
-      });
-    } else if (!isFolder(item) && updatedData) {
-      const index = items.value.findIndex((f) => f.id === item.id);
-      if (index !== -1) {
-        const currentFile = items.value[index] as IFile;
-        items.value[index] = {
-          ...currentFile,
-          ...updatedData,
-          tipo: updatedData.tipo ?? currentFile.tipo,
-          url: updatedData.url ?? currentFile.url,
-          titulo: updatedData.titulo ?? currentFile.titulo,
-          path: updatedData.path ?? currentFile.path,
-          criadoEm: currentFile.criadoEm,
-          atualizadoEm: new Date().toISOString(),
-        };
-      }
+  async function refreshCurrentFolder() {
+    if (currentFolderId.value !== null) {
+      await fetchFolderContent(currentFolderId.value);
     }
   }
 
-  const getItemsByPath = (path: string) => {
-    return items.value.filter((item) => item.path === path);
-  };
+  async function navigateToFolder(folder: FolderEntity) {
+    breadcrumbs.value.push({ id: folder.id, titulo: folder.titulo });
+    await fetchFolderContent(folder.id);
+  }
+
+  async function navigateToBreadcrumb(breadcrumbIndex: number) {
+    const targetCrumb = breadcrumbs.value[breadcrumbIndex];
+    if (!targetCrumb) return;
+    breadcrumbs.value = breadcrumbs.value.slice(0, breadcrumbIndex + 1);
+    await fetchFolderContent(targetCrumb.id);
+  }
+
+  async function createFolder(newFolderData: { titulo: string }) {
+    try {
+      await $api("/backoffice/pastas", {
+        method: "POST",
+        body: {
+          titulo: newFolderData.titulo,
+          paiId: currentFolderId.value,
+          tipo: TipoItemEnum.PASTA,
+        },
+      });
+      toast.add({ title: "Pasta criada com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error) {
+      toast.add({ title: "Erro ao criar pasta", color: "error" });
+    }
+  }
+
+  async function createFile(formData: FormData) {
+    try {
+      if (currentFolderId.value) {
+        formData.append("paiId", String(currentFolderId.value));
+      }
+
+      await $api("/backoffice/arquivo", {
+        method: "POST",
+        body: formData,
+      });
+      toast.add({ title: "Arquivo enviado com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error) {
+      toast.add({ title: "Erro no upload do arquivo", color: "error" });
+      console.error("Erro ao criar arquivo:", error);
+    }
+  }
+
+  async function updateItem(
+    itemToUpdate: ArquivoEntity | FolderEntity,
+    updatedData: UpdateArquivoRequest | { titulo: string }
+  ) {
+    try {
+      const endpoint = isFolderEntity(itemToUpdate)
+        ? `/backoffice/item-sistema-arquivos/${itemToUpdate.id}`
+        : `/backoffice/arquivo/${itemToUpdate.id}`;
+
+      await $api(endpoint, { method: "PATCH", body: updatedData });
+      toast.add({ title: "Item atualizado com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error) {
+      toast.add({ title: "Erro ao atualizar item", color: "error" });
+    }
+  }
+
+  async function deleteItem(itemToDelete: ArquivoEntity | FolderEntity) {
+    try {
+      await $api(`/backoffice/item-sistema-arquivos/${itemToDelete.id}`, {
+        method: "DELETE",
+      });
+      toast.add({ title: "Item deletado com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error) {
+      toast.add({ title: "Erro ao deletar item", color: "error" });
+    }
+  }
 
   return {
     items,
+    breadcrumbs,
     isLoading,
-    fetchItems,
+    currentFolderId,
+    rootFolderId,
+    initialize,
+    navigateToFolder,
+    navigateToBreadcrumb,
     createFolder,
     createFile,
-    deleteItem,
     updateItem,
-    getItemsByPath,
+    deleteItem,
   };
 });

@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { z } from "zod"; 
-import type { IFile } from "~/types/IFile";
-import TipoArquivoEnum from "~/enums/TipoArquivoEnum";
+import { z } from "zod";
+import type { UpdateArquivoRequest } from "~/types/api/request/Arquivo.request";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 
 const props = defineProps<{
-  initialData?: IFile | null;
+  initialData?: ArquivoEntity | null;
 }>();
 
 const emit = defineEmits<{
-  (
-    e: "submit",
-    payload: Omit<IFile, "id" | "path" | "criadoEm" | "atualizadoEm">
-  ): void;
+  (e: "submit", payload: FormData | UpdateArquivoRequest): void;
 }>();
+
 
 const schema = z.object({
   titulo: z.string().optional(),
@@ -36,35 +34,32 @@ watch(
     if (data) {
       form.titulo = data.titulo;
       form.descricao = data.descricao || "";
+      form.file = undefined;
     }
   },
   { immediate: true }
 );
 
-function getFileType(fileName: string): TipoArquivoEnum {
-  const extension = fileName.split(".").pop()?.toLowerCase();
-  if (extension === "pdf") return TipoArquivoEnum.PDF;
-  if (extension === "docx" || extension === "doc") return TipoArquivoEnum.DOCX;
-  if (extension === "pptx" || extension === "ppt") return TipoArquivoEnum.PPTX;
-  if (extension === "txt") return TipoArquivoEnum.TXT;
-  return TipoArquivoEnum.OUTRO;
-}
-
 function handleSubmit() {
-  const finalTitle =
-    form.titulo ||
-    (form.file ? form.file.name : props.initialData?.titulo) ||
-    "";
+  if (props.initialData) {
+    const updatePayload: UpdateArquivoRequest = {
+      titulo: form.titulo,
+      descricao: form.descricao,
+    };
+    emit("submit", updatePayload);
+  } 
+  else {
+    if (!form.file) return;
 
-  const finalPayload = {
-    titulo: finalTitle,
-    descricao: form.descricao,
-    url: props.initialData?.url || `/${form.file?.name}`,
-    tipo: props.initialData?.tipo || getFileType(form.file!.name),
-    tamanhoEmBytes: props.initialData?.tamanhoEmBytes || form.file!.size,
-  };
+    const formData = new FormData();
+    formData.append("file", form.file);
+    
+    const finalTitle = form.titulo || form.file.name;
+    formData.append("titulo", finalTitle);
+    formData.append("descricao", form.descricao || "");
 
-  emit("submit", finalPayload);
+    emit("submit", formData);
+  }
 }
 </script>
 

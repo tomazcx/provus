@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import FileForm from "@/components/BancoDeMateriais/FileForm/index.vue";
-import type { IFile } from "~/types/IFile";
+import type { UpdateArquivoRequest } from "~/types/api/request/Arquivo.request";
 
 defineProps<{ modelValue: boolean }>();
 
 const emit = defineEmits(["update:modelValue", "create"]);
 
-function handleFormSubmit(
-  payload: Omit<IFile, "id" | "path" | "criadoEm" | "atualizadoEm">
-) {
-  emit("create", { formData: payload });
-  emit("update:modelValue", false);
+function handleFormSubmit(payload: FormData | UpdateArquivoRequest) {
+  if (payload instanceof FormData) {
+    emit("create", payload);
+    emit("update:modelValue", false);
+  } else {
+    console.error("CreateFileDialog recebeu um tipo de payload inesperado para uma criação.");
+  }
 }
+
 </script>
 
 <template>

@@ -1,23 +1,22 @@
 <script setup lang="ts">
-
 import FileForm from "@/components/BancoDeMateriais/FileForm/index.vue";
-import type { IFile } from "~/types/IFile";
-
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { UpdateArquivoRequest } from "~/types/api/request/Arquivo.request";
 
 const props = defineProps<{
   modelValue: boolean;
-  file: IFile | null;
+  file: ArquivoEntity | null;
 }>();
-
 
 const emit = defineEmits(["update:modelValue", "update:file"]);
 
-
-function handleFormSubmit(
-  payload: Omit<IFile, "id" | "path" | "criadoEm" | "atualizadoEm">
-) {
-  emit("update:file", payload);
-  emit("update:modelValue", false);
+function handleFormSubmit(payload: FormData | UpdateArquivoRequest) {
+  if (!(payload instanceof FormData)) {
+    emit("update:file", payload);
+    emit("update:modelValue", false);
+  } else {
+    console.error("EditFileDialog recebeu um tipo de payload inesperado para uma edição.");
+  }
 }
 </script>
 
