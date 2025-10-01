@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
 import QuestionBankContent from "@/components/BancoDeQuestoes/QuestionBankContent/index.vue";
-import type { IQuestao } from "~/types/IQuestao";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import { useQuestionBankStore } from "~/store/questionBankstore";
 
 defineProps<{ modelValue: boolean }>();
@@ -10,7 +9,7 @@ const emit = defineEmits<{
   (
     e: "add-questions",
     payload: {
-      questions: IQuestao[];
+      questions: QuestaoEntity[];
       rawSelection: { folders: number[]; questions: number[] };
     }
   ): void;

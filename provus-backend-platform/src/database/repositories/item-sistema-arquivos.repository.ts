@@ -50,8 +50,26 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
     queryBuilder
       .leftJoinAndSelect('item.questao', 'questao')
       .leftJoinAndSelect('questao.alternativas', 'alternativas')
+      .leftJoinAndSelect('item.arquivo', 'arquivo')
       .leftJoinAndSelect('item.avaliacao', 'avaliacao')
-      .leftJoinAndSelect('item.arquivo', 'arquivo');
+      .leftJoinAndSelect('avaliacao.questoes', 'questoesAvaliacoes')
+      .leftJoinAndSelect('questoesAvaliacoes.questao', 'questaoDaAvaliacao')
+      .leftJoinAndSelect('questaoDaAvaliacao.item', 'itemDaQuestaoDaAvaliacao')
+      .leftJoinAndSelect('avaliacao.arquivos', 'arquivosAvaliacoes')
+      .leftJoinAndSelect('arquivosAvaliacoes.arquivo', 'arquivoDaAvaliacao')
+      .leftJoinAndSelect('arquivoDaAvaliacao.item', 'itemDoArquivoDaAvaliacao')
+      .leftJoinAndSelect(
+        'avaliacao.configuracaoAvaliacao',
+        'configuracaoAvaliacao',
+      )
+      .leftJoinAndSelect(
+        'configuracaoAvaliacao.configuracoesGerais',
+        'configuracoesGerais',
+      )
+      .leftJoinAndSelect(
+        'configuracaoAvaliacao.configuracoesSeguranca',
+        'configuracoesSeguranca',
+      );
 
     if (paiId === null) {
       queryBuilder.andWhere('item.pai_id IS NULL');
@@ -82,6 +100,32 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
           WHERE i.avaliador_id = $2
       )
       SELECT id FROM subfolders WHERE tipo = '${TipoItemEnum.QUESTAO}';
+    `;
+
+    const results: { id: number }[] = await this.query(query, [
+      folderIds,
+      avaliadorId,
+    ]);
+    return results.map((r) => r.id);
+  }
+
+  async findAllFileIdsInFolders(
+    folderIds: number[],
+    avaliadorId: number,
+  ): Promise<number[]> {
+    if (folderIds.length === 0) {
+      return [];
+    }
+
+    const query = `
+      WITH RECURSIVE subfolders AS (
+          SELECT id, tipo FROM item_sistema_arquivos WHERE id = ANY($1) AND avaliador_id = $2
+          UNION ALL
+          SELECT i.id, i.tipo FROM item_sistema_arquivos i
+          INNER JOIN subfolders sf ON i.pai_id = sf.id
+          WHERE i.avaliador_id = $2
+      )
+      SELECT id FROM subfolders WHERE tipo = '${TipoItemEnum.ARQUIVO}';
     `;
 
     const results: { id: number }[] = await this.query(query, [

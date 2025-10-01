@@ -10,37 +10,39 @@ import SaveToQuestionsBankDialog from "@/components/Avaliacao/SaveToQuestionsBan
 import GenerateQuestionsIaDialog from "@/components/Avaliacao/GenerateQuestionsIaDialog/index.vue";
 import OpenMaterialsBankDialog from "@/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
 import ViewAttachedMaterialsDialog from "@/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
+import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
 
-import type { IQuestao } from "~/types/IQuestao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import type { IRegraGeracaoIA } from "~/types/IConfiguracoesAvaliacoes";
-import type { IFile } from "~/types/IFile";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
 
 import { useAssessmentStore } from "~/store/assessmentStore";
-import { useExamBankStore } from "~/store/assessmentBankStore";
-import { useEditorBridgeStore } from "~/store/editorBridgeStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
-import type { IAplicacao } from "~/types/IAplicacao";
+import { useEditorBridgeStore } from "~/store/editorBridgeStore";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+
+definePageMeta({
+  layout: false,
+});
 
 const assessmentStore = useAssessmentStore();
-const examBankStore = useExamBankStore();
-const editorBridgeStore = useEditorBridgeStore();
 const applicationsStore = useApplicationsStore();
+const editorBridgeStore = useEditorBridgeStore();
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
 
-const isSaveToBankDialogOpen = ref(false);
 const bancoDeQuestoesDialog = ref(false);
 const saveToBankDialog = ref(false);
-const questionToSave = ref<IQuestao | null>(null);
+const questionToSave = ref<QuestaoEntity | null>(null);
 const isGenerateAIDialogOpen = ref(false);
+const isSaveToExamBankDialogOpen = ref(false);
+const applicationToStart = ref<AplicacaoEntity | null>(null);
 const isMaterialsBankDialogOpen = ref(false);
 const isViewMaterialsDialogOpen = ref(false);
-const materialsToView = ref<IFile[]>([]);
-const configuringIaRule = ref<IRegraGeracaoIA | null>(null);
-const pendingAction = ref<"apply" | null>(null);
-const applicationToStart = ref<IAplicacao | null>(null);
+const configuringIaRule = ref<RegraGeracaoIaEntity | null>(null);
+
 const isDialogVisible = computed({
   get: () => !!applicationToStart.value,
   set: (value) => {
@@ -52,9 +54,9 @@ const isDialogVisible = computed({
 
 watch(
   () => editorBridgeStore.saveEvent,
-  (newEvent) => {
+  async (newEvent) => {
     if (newEvent) {
-      handleSave(newEvent);
+      await handleSave(newEvent);
       editorBridgeStore.clearSaveEvent();
     }
   }
@@ -62,188 +64,89 @@ watch(
 
 onMounted(() => {
   editorBridgeStore.setContext(route.query);
-
   const assessmentId = route.params.id as string | undefined;
 
   if (assessmentId) {
-    const idAsNumber = parseInt(assessmentId, 10);
-    const modelo = examBankStore.getItemById(idAsNumber);
-
-    if (modelo) {
-      assessmentStore.loadFromModelo(modelo);
-    } else {
-      console.error("Modelo de avaliação não encontrado!");
-      assessmentStore.createNew();
-    }
+    assessmentStore.fetchAssessmentForEdit(parseInt(assessmentId, 10));
   } else {
-    assessmentStore.createNew();
+    const paiIdFromQuery = route.query.paiId ? Number(route.query.paiId) : null;
+    assessmentStore.createNew(paiIdFromQuery);
   }
 });
 
-const applyAssessment = (modelo: IAvaliacaoImpl) => {
-  applicationsStore.createApplication(modelo);
-  toast.add({
-    title: "Avaliação aplicada com sucesso!",
-    description: "Os alunos já podem começar.",
-    icon: "i-lucide-send",
-  });
-  router.push("/aplicacoes");
-};
-
-const saveOrUpdateModelo = async (
-  isModelo: boolean,
-  pathOverride?: string
-): Promise<IAvaliacaoImpl> => {
-  const assessmentData = assessmentStore.assessment;
-  if (!assessmentData) throw new Error("Dados da avaliação não encontrados.");
-
-  assessmentData.isModelo = isModelo;
-
-  if (assessmentData.id) {
-    const updatedModelo = await examBankStore.updateItem({
-      item: assessmentData,
-      updatedData: assessmentData,
-    });
-    toast.add({
-      title: "Modelo atualizado com sucesso!",
-      icon: "i-lucide-check-circle",
-    });
-    return updatedModelo as IAvaliacaoImpl;
-  } else {
-    const path =
-      pathOverride ??
-      (editorBridgeStore.context.from === "bank"
-        ? editorBridgeStore.context.path ?? "/"
-        : "/");
-    const newModelo = await examBankStore.createModelo({
-      modeloData: assessmentData,
-      path: path,
-    });
-
-    return newModelo;
-  }
-};
-
-function handleStartNowFromEditor() {
-  if (applicationToStart.value) {
-    applicationsStore.startApplication(applicationToStart.value.id);
-    applicationToStart.value = null;
-    router.push("/aplicacoes");
-  }
-}
-
 async function handleSave(action: { key: string }) {
-  const assessmentData = assessmentStore.assessment;
-  if (!assessmentData) return;
+  if (!assessmentStore.assessmentState) return;
 
-  const isNewAssessmentFromDashboard =
-    !assessmentData.id && editorBridgeStore.context.from === "dashboard";
+  const isApply = action.key.includes("apply");
+  const shouldSaveAsModel = action.key.startsWith("save");
 
-  const handleApply = (modelo: IAvaliacaoImpl) => {
-    const newApp = applicationsStore.createApplication(modelo);
-    applicationToStart.value = newApp;
-  };
+  assessmentStore.assessmentState.isModelo = shouldSaveAsModel;
 
-  if (action.key === "save_template") {
-    if (isNewAssessmentFromDashboard) {
-      isSaveToBankDialogOpen.value = true;
+  const savedAssessment = await assessmentStore.saveOrUpdateAssessment();
+
+  if (savedAssessment) {
+    if (isApply) {
+      const newApp = await applicationsStore.createApplication(savedAssessment);
+      if (newApp) {
+        applicationToStart.value = newApp;
+      }
     } else {
-      await saveOrUpdateModelo(true);
       router.push("/banco-de-avaliacoes");
     }
-  } else if (action.key === "save_and_apply") {
-    if (isNewAssessmentFromDashboard) {
-      pendingAction.value = "apply";
-      isSaveToBankDialogOpen.value = true;
-    } else {
-      const modeloSalvo = await saveOrUpdateModelo(true);
-      handleApply(modeloSalvo);
-    }
-  } else if (action.key === "apply_only") {
-    const modeloSalvo = await saveOrUpdateModelo(false);
-    handleApply(modeloSalvo);
   }
 }
 
-async function handleSaveFromDialog(savePath: string) {
-  const newModelo = await saveOrUpdateModelo(true, savePath);
+async function handleStartNowFromEditor() {
+  if (applicationToStart.value) {
+    const appId = applicationToStart.value.id;
+    await applicationsStore.updateApplicationStatus(
+      appId,
+      EstadoAplicacaoEnum.EM_ANDAMENTO
+    );
 
-  isSaveToBankDialogOpen.value = false;
-  toast.add({
-    title: "Modelo salvo com sucesso!",
-    icon: "i-lucide-check-circle",
-  });
-
-  if (pendingAction.value === "apply") {
-    applyAssessment(newModelo);
-  } else {
-    router.push("/banco-de-avaliacoes");
+    applicationToStart.value = null;
+    router.push(`/aplicacoes/aplicacao/${appId}/monitoramento`);
   }
-
-  pendingAction.value = null;
 }
 
-function adicionarQuestao() {
-  assessmentStore.addQuestion();
-}
-
-function removerQuestao(id: number) {
-  assessmentStore.removeQuestion(id);
-}
-
-function handleAddQuestionsFromBank(selection: { questions: IQuestao[] }) {
-  assessmentStore.addQuestionsFromBank(selection.questions);
-}
-
-function handleSettingsUpdate(newSettings: Partial<IAvaliacaoImpl>) {
+function handleSettingsUpdate(newSettings: AvaliacaoEntity) {
   assessmentStore.updateSettings(newSettings);
 }
 
-function handleAIGeneration(regras: IRegraGeracaoIA[]) {
-  assessmentStore.generateAndAddQuestions(regras);
-}
-
-function handleSaveQuestionToBank(question: IQuestao) {
+function handleSaveQuestionToBank(question: QuestaoEntity) {
   questionToSave.value = JSON.parse(JSON.stringify(question));
   saveToBankDialog.value = true;
 }
 
-function handleOpenMaterialsBankForIa(rule: IRegraGeracaoIA) {
+function handleAIGeneration(regras: RegraGeracaoIaEntity[]) {
+  console.log("Regras de Geração por IA recebidas:", regras);
+}
+
+function handleOpenMaterialsBankForIa(rule: RegraGeracaoIaEntity) {
   configuringIaRule.value = rule;
   isMaterialsBankDialogOpen.value = true;
 }
 
-function handleViewMaterialsForIa(rule: IRegraGeracaoIA) {
-  if (
-    assessmentStore.assessment &&
-    rule.materiaisAnexadosIds.length > 0 &&
-    assessmentStore.assessment.configuracoes.materiaisAnexados &&
-    assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos
-  ) {
-    const materiais =
-      assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos.filter(
-        (m) => rule.materiaisAnexadosIds.includes(m.id!)
-      );
-    materialsToView.value = materiais;
-    isViewMaterialsDialogOpen.value = true;
-  }
+function handleViewMaterialsForIa(rule: RegraGeracaoIaEntity) {
+  console.log("Visualizar materiais para a regra:", rule);
 }
 
-function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
-  if (configuringIaRule.value && assessmentStore.assessment) {
-    const selectedFileIds = selection.files.map((f) => f.id!);
+function handleMaterialsSelectionForIa(selection: { files: ArquivoEntity[] }) {
+  if (configuringIaRule.value && assessmentStore.assessmentState) {
+    const selectedFileIds = selection.files.map((f) => f.id);
+
     selection.files.forEach((file) => {
-      const materiaisAnexados =
-        assessmentStore.assessment!.configuracoes.materiaisAnexados;
-      if (materiaisAnexados && materiaisAnexados.arquivos) {
-        const anexoExistente = materiaisAnexados.arquivos.find(
-          (f) => f.id === file.id
-        );
-        if (!anexoExistente) {
-          materiaisAnexados.arquivos.push(file);
-        }
+      const anexoExistente = assessmentStore.assessmentState!.arquivos.some(
+        (aw) => aw.arquivo.id === file.id
+      );
+      if (!anexoExistente) {
+        assessmentStore.assessmentState!.arquivos.push({
+          arquivo: file,
+          permitirConsultaPorEstudante: true,
+        });
       }
     });
+
     configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
     configuringIaRule.value = null;
   }
@@ -251,78 +154,85 @@ function handleMaterialsSelectionForIa(selection: { files: IFile[] }) {
 </script>
 
 <template>
-  <div v-if="assessmentStore.assessmentState" class="bg-gray-50 min-h-screen">
-    <StartApplicationDialog
-      v-model="isDialogVisible"
-      :aplicacao="applicationToStart"
-      @start-now="handleStartNowFromEditor"
-    />
+  <div class="flex flex-col min-h-screen bg-gray-50">
+    <main class="flex-1">
+      <div
+        v-if="assessmentStore.isLoading"
+        class="flex items-center justify-center h-full"
+      >
+        <p>Carregando Editor...</p>
+      </div>
+      <div v-else-if="assessmentStore.assessmentState" class="h-full">
+        <StartApplicationDialog
+          v-model="isDialogVisible"
+          :aplicacao="applicationToStart"
+          @start-now="handleStartNowFromEditor"
+        />
+        <SaveToExamBankDialog
+          v-model="isSaveToExamBankDialogOpen"
+          @save-here="() => {}"
+        />
+        <SettingsDialog
+          v-model="assessmentStore.isSettingsDialogOpen"
+          :initial-data="assessmentStore.assessment"
+          @save="handleSettingsUpdate"
+        />
+        <OpenQuestionBankDialog
+          v-model="bancoDeQuestoesDialog"
+          @add-questions="
+            assessmentStore.addQuestionsFromBank($event.questions)
+          "
+        />
+        <SaveToQuestionsBankDialog
+          v-model="saveToBankDialog"
+          :question-to-save="questionToSave"
+        />
+        <GenerateQuestionsIaDialog
+          v-model="isGenerateAIDialogOpen"
+          :materiais-anexados="
+            assessmentStore.assessmentState.arquivos.map((a) => a.arquivo)
+          "
+          @generate="handleAIGeneration"
+          @open-materials-bank="handleOpenMaterialsBankForIa"
+          @view-materials="handleViewMaterialsForIa"
+        />
+        <OpenMaterialsBankDialog
+          v-model="isMaterialsBankDialogOpen"
+          @add-materials="handleMaterialsSelectionForIa"
+        />
+        <ViewAttachedMaterialsDialog
+          v-model="isViewMaterialsDialogOpen"
+          :selected-materials="
+            assessmentStore.assessmentState.arquivos.map((a) => a.arquivo)
+          "
+        />
 
-    <SaveToExamBankDialog
-      v-model="isSaveToBankDialogOpen"
-      @save-here="handleSaveFromDialog"
-    />
-    <SettingsDialog
-      v-model="assessmentStore.isSettingsDialogOpen"
-      :initial-data="assessmentStore.assessment"
-      @save="handleSettingsUpdate"
-    />
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-3 space-y-6">
+              <Details v-model="assessmentStore.assessmentState" />
 
-    <OpenQuestionBankDialog
-      v-model="bancoDeQuestoesDialog"
-      @add-questions="handleAddQuestionsFromBank"
-    />
-
-    <SaveToQuestionsBankDialog
-      v-model="saveToBankDialog"
-      :question-to-save="questionToSave"
-    />
-    <GenerateQuestionsIaDialog
-      v-model="isGenerateAIDialogOpen"
-      :materiais-anexados="
-        assessmentStore.assessment &&
-        assessmentStore.assessment.configuracoes.materiaisAnexados
-          ? assessmentStore.assessment.configuracoes.materiaisAnexados.arquivos
-          : []
-      "
-      @generate="handleAIGeneration"
-      @open-materials-bank="handleOpenMaterialsBankForIa"
-      @view-materials="handleViewMaterialsForIa"
-    />
-    <OpenMaterialsBankDialog
-      v-model="isMaterialsBankDialogOpen"
-      @add-materials="handleMaterialsSelectionForIa"
-    />
-    <ViewAttachedMaterialsDialog
-      v-model="isViewMaterialsDialogOpen"
-      :selected-materials="materialsToView"
-      @remove-material="(fileId) => {}"
-      @edit-material="(file) => {}"
-    />
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div class="lg:col-span-3 space-y-6">
-          <Details v-model="assessmentStore.assessmentState" />
-
-          <AssessmentQuestionList
-            v-model:questoes="assessmentStore.assessmentState.questoes"
-            :autocorrecao-ativa="
-              assessmentStore.assessmentState.configuracoes.autocorrecaoIa
-            "
-            @adicionar="adicionarQuestao"
-            @remover="removerQuestao"
-            @adicionar-do-banco="bancoDeQuestoesDialog = true"
-            @save-to-bank="handleSaveQuestionToBank"
-            @gerar-ia="isGenerateAIDialogOpen = true"
-          />
-        </div>
-        <div class="sticky top-24 space-y-6">
-          <Overview :prova="assessmentStore.assessment" />
-          <QuickSettings
-            v-model="assessmentStore.assessmentState.configuracoes"
-          />
+              <AssessmentQuestionList
+                v-if="assessmentStore.assessmentState.questoes"
+                v-model:questoes="assessmentStore.assessmentState.questoes"
+                :autocorrecao-ativa="
+                  assessmentStore.assessmentState.configuracao
+                    .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa
+                "
+                @adicionar="assessmentStore.addQuestion"
+                @remover="assessmentStore.removeQuestion"
+                @adicionar-do-banco="bancoDeQuestoesDialog = true"
+                @save-to-bank="handleSaveQuestionToBank"
+                @gerar-ia="isGenerateAIDialogOpen = true"
+              />
+            </div>
+            <div class="sticky top-24 space-y-6 self-start">
+              <Overview :prova="assessmentStore.assessment" />
+              <QuickSettings v-model="assessmentStore.assessmentState" />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>

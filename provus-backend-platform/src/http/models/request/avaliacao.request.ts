@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -10,31 +11,87 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { CreateConfiguracaoAvaliacaoRequest } from './configuracao-avaliacao.request';
+import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
+import { CreateAlternativaRequest } from 'src/http/controllers/backoffice/alternativa/create-alternativa.request';
 
 export class CreateQuestaoAvaliacaoRequest {
   @ApiProperty({
-    description: 'ID da questão',
+    description: 'ID da questão, se já existir no banco',
     example: 1,
+    required: false,
   })
   @IsInt()
-  @IsNotEmpty()
-  questaoId: number;
+  @IsOptional()
+  questaoId?: number;
 
-  @ApiProperty({
-    description: 'Ordem da questão',
-    example: 1,
-  })
+  @ApiProperty({ description: 'Ordem da questão na avaliação', example: 1 })
   @IsInt()
   @IsNotEmpty()
   ordem: number;
 
   @ApiProperty({
-    description: 'Pontuação da questão',
-    example: 1,
+    description: 'Pontuação da questão nesta avaliação',
+    example: 10,
   })
   @IsInt()
   @IsNotEmpty()
   pontuacao: number;
+
+  @ApiProperty({ description: 'Título da nova questão', required: false })
+  @IsString()
+  @IsOptional()
+  titulo?: string;
+
+  @ApiProperty({ description: 'Descrição da nova questão', required: false })
+  @IsString()
+  @IsOptional()
+  descricao?: string;
+
+  @ApiProperty({
+    description: 'Tipo da nova questão',
+    enum: TipoQuestaoEnum,
+    required: false,
+  })
+  @IsEnum(TipoQuestaoEnum)
+  @IsOptional()
+  tipoQuestao?: TipoQuestaoEnum;
+
+  @ApiProperty({
+    description: 'Dificuldade da nova questão',
+    enum: DificuldadeQuestaoEnum,
+    required: false,
+  })
+  @IsEnum(DificuldadeQuestaoEnum)
+  @IsOptional()
+  dificuldade?: DificuldadeQuestaoEnum;
+
+  @ApiProperty({
+    description: 'Alternativas da nova questão',
+    type: [CreateAlternativaRequest],
+    required: false,
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateAlternativaRequest)
+  @IsOptional()
+  alternativas?: CreateAlternativaRequest[];
+
+  @ApiProperty({
+    description: 'Exemplo de resposta para correção com I.A.',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  exemploRespostaIa?: string;
+
+  @ApiProperty({
+    description: 'Texto de apoio para revisão da questão.',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  textoRevisao?: string;
 }
 
 export class CreateArquivoAvaliacaoRequest {
@@ -69,7 +126,7 @@ export class CreateAvaliacaoRequest {
     example: 'Avaliação de Matemática',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   descricao: string;
 
   @ApiProperty({

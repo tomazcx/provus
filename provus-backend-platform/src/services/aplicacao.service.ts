@@ -73,6 +73,7 @@ export class AplicacaoService {
       const aplicacaoId = await this.aplicacaoRepository.createAplicacao(
         dto,
         codigoAcesso,
+        avaliador,
       );
 
       return this.findById(aplicacaoId, avaliador);

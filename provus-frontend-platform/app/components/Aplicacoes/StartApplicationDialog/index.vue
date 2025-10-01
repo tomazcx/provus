@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { IAplicacao } from "~/types/IAplicacao";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 
 defineProps<{
   modelValue: boolean;
-  aplicacao: IAplicacao | null;
+  aplicacao: AplicacaoEntity | null;
 }>();
 
 const emit = defineEmits(["update:modelValue", "start-now"]);
@@ -38,7 +38,7 @@ function handleStart() {
         <p class="text-lg text-gray-600 mb-2">Código de Acesso:</p>
         <div class="bg-primary-light text-white rounded-lg p-4 inline-block">
           <span class="text-5xl font-bold tracking-widest">{{
-            aplicacao?.codigoDeAcesso
+            aplicacao?.codigoAcesso
           }}</span>
         </div>
         <div class="mt-6">

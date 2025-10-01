@@ -1,34 +1,28 @@
 <script setup lang="ts">
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
-import type { IAplicacao } from "~/types/IAplicacao";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 
 const props = defineProps<{
-  item: IAplicacao;
+  item: AplicacaoEntity;
 }>();
 
 const emit = defineEmits([
   "view-config",
   "apply-now",
   "cancel-schedule",
-  "reopen", 'start-now',
+  "reopen",
+  "start-now",
 ]);
 
 const isCriada = computed(
   () => props.item.estado === EstadoAplicacaoEnum.CRIADA
 );
-
 const isEmAndamento = computed(
   () => props.item.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
-
 const isAgendada = computed(
   () => props.item.estado === EstadoAplicacaoEnum.AGENDADA
 );
-
-const isConcluida = computed(
-  () => props.item.estado === EstadoAplicacaoEnum.CONCLUIDA
-);
-
 const isPausada = computed(
   () => props.item.estado === EstadoAplicacaoEnum.PAUSADA
 );
@@ -68,6 +62,14 @@ const statusVisuals = computed(() => {
         statusTextColor: "text-blue-800",
       };
     case EstadoAplicacaoEnum.CONCLUIDA:
+    case EstadoAplicacaoEnum.FINALIZADA:
+      return {
+        icon: "i-lucide-check-circle-2",
+        iconBgColor: "bg-green-100",
+        iconTextColor: "text-green-600",
+        statusBgColor: "bg-green-100",
+        statusTextColor: "text-green-800",
+      };
     case EstadoAplicacaoEnum.CANCELADA:
       return {
         icon: "i-lucide-x-circle",
@@ -78,7 +80,7 @@ const statusVisuals = computed(() => {
       };
     default:
       return {
-        icon: "i-lucide-check-circle-2",
+        icon: "i-lucide-file-plus-2",
         iconBgColor: "bg-green-100",
         iconTextColor: "text-green-600",
         statusBgColor: "bg-green-100",
@@ -88,7 +90,11 @@ const statusVisuals = computed(() => {
 });
 
 const formattedDate = computed(() => {
-  return new Date(props.item.dataAplicacao).toLocaleDateString("pt-BR", {
+  const dateToFormat =
+    props.item.estado === EstadoAplicacaoEnum.AGENDADA
+      ? props.item.dataInicio
+      : props.item.dataFim;
+  return new Date(dateToFormat).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -112,7 +118,9 @@ const formattedDate = computed(() => {
             />
           </div>
           <div>
-            <h3 class="font-semibold text-gray-900">{{ props.item.titulo }}</h3>
+            <h3 class="font-semibold text-gray-900">
+              {{ props.item.avaliacao.titulo }}
+            </h3>
           </div>
         </div>
       </div>
@@ -120,20 +128,22 @@ const formattedDate = computed(() => {
 
     <div class="space-y-3 mb-4">
       <div class="flex items-center justify-between text-sm">
-        <span class="text-gray-600">Aplicado em:</span>
+        <span class="text-gray-600">{{
+          item.estado === "Agendada" ? "Agendado para:" : "Data:"
+        }}</span>
         <span class="font-medium text-gray-900">{{ formattedDate }}</span>
       </div>
       <div class="flex items-center justify-between text-sm">
-        <span class="text-gray-600">Alunos:</span>
-        <span class="font-medium text-gray-900"
-          >{{ props.item.participantes }} participantes</span
-        >
+        <UTooltip text="Disponível após a finalização da aplicação">
+          <span class="text-gray-600">Alunos:</span>
+        </UTooltip>
+        <span class="font-medium text-gray-900">-- participantes</span>
       </div>
       <div class="flex items-center justify-between text-sm">
-        <span class="text-gray-600">Média:</span>
-        <span class="font-medium text-secondary"
-          >{{ props.item.mediaGeral }}%</span
-        >
+        <UTooltip text="Disponível após a finalização da aplicação">
+          <span class="text-gray-600">Média:</span>
+        </UTooltip>
+        <span class="font-medium text-secondary">-- %</span>
       </div>
       <div class="flex items-center justify-between text-sm">
         <span class="text-gray-600">Status:</span>
@@ -156,7 +166,6 @@ const formattedDate = computed(() => {
       >
         Monitorar
       </UButton>
-
       <UButton
         block
         color="primary"
@@ -183,7 +192,6 @@ const formattedDate = computed(() => {
           Resultados
         </UButton>
       </div>
-
       <UButton
         v-if="item.estado !== 'Cancelada'"
         block
@@ -195,7 +203,6 @@ const formattedDate = computed(() => {
       >
         Reabrir Aplicação
       </UButton>
-
       <UButton
         block
         color="primary"
@@ -234,7 +241,7 @@ const formattedDate = computed(() => {
           block
           variant="outline"
           icon="i-lucide-pencil"
-          :to="`/avaliacao/editor/${item.avaliacaoModeloId}`"
+          :to="`/avaliacao/editor/${item.avaliacao.id}`"
         >
           Editar
         </UButton>
@@ -248,35 +255,6 @@ const formattedDate = computed(() => {
       >
         Cancelar Agendamento
       </UButton>
-
-      <UButton
-        block
-        color="primary"
-        variant="outline"
-        icon="i-lucide-settings-2"
-        class="mt-2"
-        @click="emit('view-config', item)"
-      >
-        Ver Configuração Completa
-      </UButton>
-    </template>
-
-    <template v-else-if="isConcluida">
-      <div class="flex items-center space-x-2">
-        <UButton block :to="`/aplicacoes/aplicacao/${item.id}`">
-          Ver Detalhes
-        </UButton>
-
-        <UButton
-          block
-          color="secondary"
-          variant="solid"
-          :to="`/aplicacoes/aplicacao/${item.id}/resultados`"
-        >
-          Resultados
-        </UButton>
-      </div>
-
       <UButton
         block
         color="primary"

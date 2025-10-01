@@ -13,6 +13,7 @@ import { ArquivoRepository } from 'src/database/repositories/arquivo.repository'
 import TipoItemEnum from 'src/enums/tipo-item.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import { FindAllAvaliacaoDto } from 'src/dto/result/avaliacao/find-all-avaliacao.dto';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 
 @Injectable()
 export class AvaliacaoService {
@@ -125,17 +126,19 @@ export class AvaliacaoService {
     }
 
     for (const questao of dto.questoes) {
-      const questaoModel = await this.questaoRepository.findOne({
-        where: {
-          id: questao.questaoId,
-          item: { avaliador: { id: avaliador.id } },
-        },
-      });
+      if (questao.questaoId) {
+        const questaoModel = await this.questaoRepository.findOne({
+          where: {
+            id: questao.questaoId,
+            item: { avaliador: { id: avaliador.id } },
+          },
+        });
 
-      if (!questaoModel) {
-        throw new BadRequestException(
-          `Questão com id ${questao.questaoId} não encontrada`,
-        );
+        if (!questaoModel) {
+          throw new BadRequestException(
+            `Questão com id ${questao.questaoId} não encontrada`,
+          );
+        }
       }
     }
 
@@ -151,6 +154,23 @@ export class AvaliacaoService {
         throw new BadRequestException(
           `Arquivo com id ${arquivo.arquivoId} não encontrado`,
         );
+      }
+    }
+
+    if (
+      dto.configuracoesAvaliacao.configuracoesSeguranca
+        .ativarCorrecaoDiscursivaViaIa
+    ) {
+      for (const questao of dto.questoes) {
+        if (
+          !questao.questaoId &&
+          questao.tipoQuestao === TipoQuestaoEnum.DISCURSIVA &&
+          !questao.exemploRespostaIa
+        ) {
+          throw new BadRequestException(
+            `A questão "${questao.titulo || 'Nova Questão'}" é discursiva e requer um exemplo de resposta para a correção por I.A.`,
+          );
+        }
       }
     }
 

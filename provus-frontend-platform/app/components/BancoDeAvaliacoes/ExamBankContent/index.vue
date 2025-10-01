@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import ExamBankItem from "~/components/BancoDeAvaliacoes/ExamBankItem/index.vue";
 import ExamBankFolder from "~/components/BancoDeAvaliacoes/ExamBankFolder/index.vue";
-
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
-
-import isFolder from "~/guards/isFolder";
-import type { IFolder } from "~/types/IBank";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
 import { useExamBankStore } from "~/store/assessmentBankStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
-import type { IAplicacao } from "~/types/IAplicacao";
+import type { FolderEntity } from "~/types/entities/Item.entity";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import type { UpdateAvaliacaoRequest } from "~/types/api/request/Avaliacao.request";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+
+function isFolder(item: AvaliacaoEntity | FolderEntity): item is FolderEntity {
+  return item.tipo === TipoItemEnum.PASTA;
+}
 
 const props = defineProps({
   mode: {
@@ -19,45 +24,49 @@ const props = defineProps({
   },
 });
 
-defineEmits(["path-changed"]);
-
 const examBankStore = useExamBankStore();
 const applicationsStore = useApplicationsStore();
 const router = useRouter();
+
 const showCreateFolder = ref(false);
-const editingFolder = ref<IFolder | null>(null);
-const internalCurrentPath = ref("/");
+const editingItem = ref<AvaliacaoEntity | FolderEntity | null>(null);
 const selectedItems = ref({
   folders: new Set<number>(),
   exams: new Set<number>(),
 });
+const applicationToStart = ref<AplicacaoEntity | null>(null);
 
-const applicationToStart = ref<IAplicacao | null>(null);
 const isDialogVisible = computed({
   get: () => !!applicationToStart.value,
   set: (value) => {
-    if (!value) {
-      applicationToStart.value = null;
-    }
+    if (!value) applicationToStart.value = null;
   },
 });
 
-const filters = reactive({
-  search: "",
-  sort: "Última modificação",
-});
+const filters = reactive({ search: "", sort: "Última modificação" });
 
 onMounted(() => {
-  examBankStore.fetchItems();
+  examBankStore.initialize();
 });
 
-function handleItemClick(item: IFolder | IAvaliacaoImpl) {
+const items = computed(() =>
+  examBankStore.items.filter((item) =>
+    item.titulo.toLowerCase().includes(filters.search.toLowerCase())
+  )
+);
+const breadcrumbs = computed(() =>
+  examBankStore.breadcrumbs.map((crumb, index) => ({
+    label: crumb.titulo,
+    index,
+  }))
+);
+const currentPathLabel = computed(() =>
+  examBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
+);
+
+function handleItemClick(item: AvaliacaoEntity | FolderEntity) {
   if (isFolder(item)) {
-    const newPath =
-      internalCurrentPath.value === "/"
-        ? `/${item.titulo}`
-        : `${internalCurrentPath.value}/${item.titulo}`;
-    internalCurrentPath.value = newPath;
+    examBankStore.navigateToFolder(item);
   } else if (props.mode === "select" && item.id) {
     handleSelectItem(item);
   } else {
@@ -65,118 +74,68 @@ function handleItemClick(item: IFolder | IAvaliacaoImpl) {
   }
 }
 
-function handleSelectItem(item: IFolder | IAvaliacaoImpl) {
+function handleSelectItem(item: AvaliacaoEntity | FolderEntity) {
+  if (!item.id) return;
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
     : selectedItems.value.exams;
-  const isSelected = targetSet.has(item.id!);
-
-  if (isSelected) {
-    targetSet.delete(item.id!);
+  if (targetSet.has(item.id)) {
+    targetSet.delete(item.id);
   } else {
-    targetSet.add(item.id!);
+    targetSet.add(item.id);
   }
 }
 
 function handleCreateModelo() {
-  router.push(`/avaliacao/editor?path=${internalCurrentPath.value}`);
+  router.push(`/avaliacao/editor?paiId=${examBankStore.currentFolderId || ""}`);
 }
 
-function handleApply(item: IAvaliacaoImpl) {
-  const newApp = applicationsStore.createApplication(item);
-  applicationToStart.value = newApp;
-}
-
-function handleStartNow() {
-  if (applicationToStart.value) {
-    applicationsStore.startApplication(applicationToStart.value.id);
-    applicationToStart.value = null;
-    const firstApp = applicationsStore.applications[0];
-    if (firstApp) {
-      router.push(`/aplicacoes/aplicacao/${firstApp.id}/monitoramento`);
-    }
+async function handleApply(item: AvaliacaoEntity) {
+  const newApp = await applicationsStore.createApplication(item);
+  if (newApp) {
+    applicationToStart.value = newApp;
   }
 }
 
-function handleEdit(item: IFolder | IAvaliacaoImpl) {
+async function handleStartNow() {
+  if (applicationToStart.value) {
+    const appId = applicationToStart.value.id;
+    await applicationsStore.updateApplicationStatus(
+      appId,
+      EstadoAplicacaoEnum.EM_ANDAMENTO
+    );
+    applicationToStart.value = null;
+    router.push(`/aplicacoes/aplicacao/${appId}/monitoramento`);
+  }
+}
+
+function handleEdit(item: AvaliacaoEntity | FolderEntity) {
   if (isFolder(item)) {
-    editingFolder.value = item;
+    editingItem.value = item;
   } else {
     router.push(`/avaliacao/editor/${item.id}`);
   }
 }
 
 function handleCreateFolder(data: { titulo: string }) {
-  examBankStore.createFolder({
-    titulo: data.titulo,
-    path: internalCurrentPath.value,
-  });
+  examBankStore.createFolder(data);
   showCreateFolder.value = false;
 }
 
-function handleUpdateFolder({ newTitle }: { newTitle: string }) {
-  if (!editingFolder.value) return;
-  examBankStore.updateItem({ item: editingFolder.value, newTitle });
-  editingFolder.value = null;
+function handleUpdate(
+  updatedData: { newTitle: string } | UpdateAvaliacaoRequest
+) {
+  if (!editingItem.value) return;
+  const dataToSend =
+    "newTitle" in updatedData ? { titulo: updatedData.newTitle } : updatedData;
+  examBankStore.updateItem(editingItem.value, dataToSend);
+  editingItem.value = null;
 }
 
-function handleDelete(itemToDelete: IFolder | IAvaliacaoImpl) {
+function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
   examBankStore.deleteItem(itemToDelete);
 }
 
-const pathSegments = computed(() => {
-  if (internalCurrentPath.value === "/") return [];
-  return internalCurrentPath.value.substring(1).split("/");
-});
-
-const currentPath = computed(() => {
-  if (pathSegments.value.length === 0) return "/";
-  return `/${pathSegments.value.join("/")}`;
-});
-
-const breadcrumbs = computed(() => {
-  const crumbs = [{ label: "Banco de Avaliações", to: "/banco-de-avaliacoes" }];
-  const currentCrumbPath: string[] = [];
-  for (const segment of pathSegments.value) {
-    currentCrumbPath.push(segment);
-    crumbs.push({
-      label: segment,
-      to: `/banco-de-avaliacoes/${currentCrumbPath.join("/")}`,
-    });
-  }
-  return crumbs;
-});
-
-const itemsInCurrentFolder = computed(() =>
-  examBankStore.items
-    .filter((item) => isFolder(item) || item.isModelo === true)
-    .filter((item) => item.path === currentPath.value)
-    .sort((a, b) => {
-      const aIsFolder = isFolder(a);
-      const bIsFolder = isFolder(b);
-      if (aIsFolder && !bIsFolder) return -1;
-      if (!aIsFolder && bIsFolder) return 1;
-      const dateA = new Date(a.atualizadoEm ?? 0).getTime();
-      const dateB = new Date(b.atualizadoEm ?? 0).getTime();
-      return dateB - dateA;
-    })
-);
-
-function getChildCount(folder: IFolder): number {
-  const childPath =
-    folder.path === "/"
-      ? `/${folder.titulo}`
-      : `${folder.path}/${folder.titulo}`;
-  return examBankStore.items.filter((item) => item.path === childPath).length;
-}
-
-function navigateFromBreadcrumb(path: string) {
-  if (path === "/banco-de-avaliacoes") {
-    internalCurrentPath.value = "/";
-  } else {
-    internalCurrentPath.value = path.replace("/banco-de-avaliacoes", "");
-  }
-}
 </script>
 
 <template>
@@ -186,45 +145,42 @@ function navigateFromBreadcrumb(path: string) {
       :aplicacao="applicationToStart"
       @start-now="handleStartNow"
     />
-
     <CreateFolderDialog
       v-model="showCreateFolder"
-      :current-path-label="breadcrumbs.map((c) => c.label).join(' > ')"
+      :current-path-label="currentPathLabel"
       @create="handleCreateFolder"
     />
     <EditFolderDialog
-      :model-value="!!editingFolder"
-      :folder="editingFolder"
-      @update:model-value="editingFolder = null"
-      @update="handleUpdateFolder"
+      v-if="editingItem && isFolder(editingItem)"
+      :model-value="!!editingItem"
+      :folder="editingItem as FolderEntity"
+      @update:model-value="editingItem = null"
+      @update="handleUpdate"
     />
 
     <div class="flex justify-end mb-8">
       <div class="mt-4 sm:mt-0 space-x-3">
-        <UButton icon="i-lucide-folder-plus" @click="showCreateFolder = true">
-          Nova pasta
-        </UButton>
+        <UButton icon="i-lucide-folder-plus" @click="showCreateFolder = true"
+          >Nova pasta</UButton
+        >
         <UButton
           color="secondary"
           icon="i-lucide-plus"
           @click="handleCreateModelo"
+          >Novo modelo de avaliação</UButton
         >
-          Novo modelo de avaliação
-        </UButton>
       </div>
     </div>
 
-    <div v-if="pathSegments.length > 0" class="mb-6">
-      <UBreadcrumb :items="breadcrumbs">
-        <template #item="{ item }">
-          <span
-            class="cursor-pointer hover:underline"
-            @click.prevent="navigateFromBreadcrumb(item.to)"
-          >
-            {{ item.label }}
-          </span>
-        </template>
-      </UBreadcrumb>
+    <div v-if="examBankStore.breadcrumbs.length > 1" class="mb-6">
+      <UBreadcrumb
+        :links="
+          breadcrumbs.map((b) => ({
+            label: b.label,
+            click: () => examBankStore.navigateToBreadcrumb(b.index),
+          }))
+        "
+      />
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
@@ -251,16 +207,15 @@ function navigateFromBreadcrumb(path: string) {
       </div>
     </div>
 
-    <div class="space-y-4">
-      <div
-        v-if="itemsInCurrentFolder.length === 0"
-        class="text-center text-gray-500 py-10"
-      >
+    <div v-if="examBankStore.isLoading" class="text-center text-gray-500 py-10">
+      Carregando...
+    </div>
+    <div v-else class="space-y-4">
+      <div v-if="items.length === 0" class="text-center text-gray-500 py-10">
         Esta pasta está vazia.
       </div>
       <div
-        v-for="item in itemsInCurrentFolder"
-        v-else
+        v-for="item in items"
         :key="item.id"
         class="cursor-pointer"
         @click.prevent="handleItemClick(item)"
@@ -268,7 +223,7 @@ function navigateFromBreadcrumb(path: string) {
         <ExamBankFolder
           v-if="isFolder(item)"
           :item="item"
-          :child-count="getChildCount(item)"
+          :child-count="item.childCount || 0"
           :selectable="mode === 'select'"
           :is-selected="selectedItems.folders.has(item.id!)"
           @select="handleSelectItem(item)"
@@ -278,6 +233,7 @@ function navigateFromBreadcrumb(path: string) {
         <ExamBankItem
           v-else
           :item="item"
+          :selectable="mode === 'select'"
           :is-selected="selectedItems.exams.has(item.id!)"
           @select="handleSelectItem(item)"
           @edit="handleEdit(item)"

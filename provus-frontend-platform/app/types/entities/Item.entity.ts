@@ -12,4 +12,5 @@ export interface ItemEntity {
 
 export interface FolderEntity extends ItemEntity {
   tipo: TipoItemEnum.PASTA;
+  childCount?: number;
 }

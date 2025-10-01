@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import QuestionBankContent from "@/components/BancoDeQuestoes/QuestionBankContent/index.vue";
 import { useQuestionBankStore } from "~/store/questionBankstore";
-import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import type { CreateQuestaoRequest } from "~/types/api/request/Questao.request";
 
 const props = defineProps<{
   modelValue: boolean;
-  questionToSave: IQuestao | null; 
+  questionToSave: QuestaoEntity | null;
 }>();
 
 const emit = defineEmits(["update:modelValue"]);
 
 const questionBankStore = useQuestionBankStore();
-const currentPathInBank = ref("/"); 
 
 function saveQuestionHere() {
   if (!props.questionToSave) return;
 
-  questionBankStore.createQuestion({
-    formData: props.questionToSave as TQuestionForm,
-    path: currentPathInBank.value,
-  });
+  questionBankStore.createQuestion(
+    props.questionToSave as CreateQuestaoRequest
+  );
 
   emit("update:modelValue", false);
 }
@@ -34,10 +33,7 @@ function saveQuestionHere() {
     @update:open="$emit('update:modelValue', $event)"
   >
     <template #body>
-      <QuestionBankContent
-        :items="questionBankStore.items"
-        @path-changed="(newPath) => (currentPathInBank = newPath)"
-      />
+      <QuestionBankContent :items="questionBankStore.items" />
     </template>
     <template #footer>
       <div class="flex justify-end gap-4 w-full">

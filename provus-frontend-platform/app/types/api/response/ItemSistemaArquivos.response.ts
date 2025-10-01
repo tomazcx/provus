@@ -8,4 +8,6 @@ export interface ItemSistemaArquivosApiResponse {
   avaliadorId: number;
   criadoEm: string;
   atualizadoEm: string;
+  path?: string;
+  childCount?: number;
 }

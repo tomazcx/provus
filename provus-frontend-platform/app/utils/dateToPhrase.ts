@@ -43,7 +43,7 @@ export function dateToPhrase(isoString: string): string {
   }
 
   if (target >= startOfWeek && target <= endOfWeek) {
-    const diaSemana = target.getDay(); // 0..6
+    const diaSemana = target.getDay();
     const nomeDia = DAY_NAMES[diaSemana];
     return `Próxima ${nomeDia} às ${time}`;
   }

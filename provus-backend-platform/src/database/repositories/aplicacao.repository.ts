@@ -16,66 +16,59 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
   async createAplicacao(
     dto: CreateAplicacaoDto,
     codigoAcesso: string,
+    avaliador: AvaliadorModel,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
-      const aplicacao = new AplicacaoModel();
-      aplicacao.codigoAcesso = codigoAcesso;
-      aplicacao.estado = dto.estado;
-
       const avaliacaoEntity = await manager.findOne(AvaliacaoModel, {
-        where: { id: dto.avaliacaoId },
-        relations: [
-          'configuracaoAvaliacao',
-          'configuracaoAvaliacao.configuracoesGerais',
-        ],
+        where: {
+          id: dto.avaliacaoId,
+          item: { avaliador: { id: avaliador.id } },
+        },
+        relations: ['configuracaoAvaliacao.configuracoesGerais'],
       });
 
       if (!avaliacaoEntity) {
         throw new BadRequestException(
-          `Avaliação com ID ${dto.avaliacaoId} não encontrada`,
+          `Avaliação com ID ${dto.avaliacaoId} não encontrada.`,
         );
       }
 
+      const aplicacao = new AplicacaoModel();
+      aplicacao.codigoAcesso = codigoAcesso;
       aplicacao.avaliacao = avaliacaoEntity;
 
-      const tipoAplicacao =
-        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais.tipoAplicacao;
-      const tempoMaximoMs =
-        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais.tempoMaximo *
-        60 *
-        1000;
+      const configGerais =
+        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais;
+      const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
 
-      if (
-        dto.estado === EstadoAplicacaoEnum.AGENDADA &&
-        tipoAplicacao !== TipoAplicacaoEnum.AGENDADA
-      ) {
-        throw new BadRequestException(
-          'Estado AGENDADA só é permitido para avaliações do tipo AGENDADA',
+      if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
+        if (!configGerais.dataAgendamento) {
+          throw new BadRequestException(
+            'A avaliação é do tipo "Agendada", mas não possui uma data de agendamento configurada.',
+          );
+        }
+        aplicacao.estado = EstadoAplicacaoEnum.AGENDADA;
+        aplicacao.dataInicio = configGerais.dataAgendamento;
+        aplicacao.dataFim = new Date(
+          configGerais.dataAgendamento.getTime() + tempoMaximoMs,
         );
-      }
-
-      const dataAgendamento =
-        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais
-          .dataAgendamento;
-      if (!dataAgendamento) {
-        throw new BadRequestException(
-          'Data de agendamento não configurada para avaliação agendada',
-        );
-      }
-      aplicacao.dataInicio = dataAgendamento;
-      aplicacao.dataFim = new Date(dataAgendamento.getTime() + tempoMaximoMs);
-      if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
+      } else {
         const now = new Date();
-        aplicacao.dataInicio = now;
-        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+        if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
+          aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+          aplicacao.dataInicio = now;
+          aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+        } else {
+          aplicacao.estado = EstadoAplicacaoEnum.CRIADA;
+          aplicacao.dataInicio = now;
+          aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+        }
       }
 
       const savedAplicacao = await manager.save(aplicacao);
-
       return savedAplicacao.id;
     });
   }
-
   async updateAplicacao(
     id: number,
     avaliacao: AvaliacaoModel,

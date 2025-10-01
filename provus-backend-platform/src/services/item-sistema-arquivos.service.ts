@@ -27,11 +27,13 @@ import { StorageProvider } from 'src/providers/storage.provider';
 import { UpdateItemRequest } from 'src/http/models/response/update-items.request';
 import { QuestaoResponse } from 'src/http/models/response/questao.response';
 import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
+import { AvaliacaoResponse } from 'src/http/models/response/avaliacao.response';
 
 type ConteudoPastaResponse =
   | ItemSistemaArquivosResponse
   | QuestaoResponse
-  | ArquivoResponse;
+  | ArquivoResponse
+  | AvaliacaoResponse;
 @Injectable()
 export class ItemSistemaArquivosService {
   constructor(
@@ -46,16 +48,34 @@ export class ItemSistemaArquivosService {
   ): Promise<ConteudoPastaResponse[]> {
     const items = await this.itemRepository.findByParent(paiId, avaliadorId);
 
+    const folderIds = items
+      .filter((item) => item.tipo === TipoItemEnum.PASTA)
+      .map((item) => item.id);
+
+    let counts: { pai_id: number; count: string }[] = [];
+    if (folderIds.length > 0) {
+      counts = await this.itemRepository.query(
+        'SELECT pai_id, COUNT(*)::text FROM item_sistema_arquivos WHERE pai_id = ANY($1) GROUP BY pai_id',
+        [folderIds],
+      );
+    }
+
+    const childCounts = new Map(counts.map((c) => [c.pai_id, Number(c.count)]));
+
     return items.map((item) => {
-      if (item.tipo === TipoItemEnum.QUESTAO && item.questao) {
-        const questaoResponse = QuestaoResponse.fromModel(item);
-        return questaoResponse;
+      if (item.tipo === TipoItemEnum.PASTA) {
+        item.childCount = childCounts.get(item.id) || 0;
       }
 
+      if (item.tipo === TipoItemEnum.QUESTAO && item.questao) {
+        return QuestaoResponse.fromModel(item);
+      }
       if (item.tipo === TipoItemEnum.ARQUIVO && item.arquivo) {
         return ArquivoResponse.fromModel(item);
       }
-
+      if (item.tipo === TipoItemEnum.AVALIACAO && item.avaliacao) {
+        return AvaliacaoResponse.fromModel(item);
+      }
       return ItemSistemaArquivosResponse.fromModel(item);
     });
   }
@@ -95,6 +115,13 @@ export class ItemSistemaArquivosService {
     await this.dataSource.transaction(async (manager) => {
       await this._recursiveDelete(itemId, avaliadorId, manager);
     });
+  }
+
+  async findAllFileIdsInFolders(
+    folderIds: number[],
+    avaliadorId: number,
+  ): Promise<number[]> {
+    return this.itemRepository.findAllFileIdsInFolders(folderIds, avaliadorId);
   }
 
   private async _recursiveDelete(

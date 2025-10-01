@@ -2,11 +2,12 @@ import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import { AlternativaResultDto } from '../alternativa/alternativa.result';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 export class QuestaoResultDto {
   id: number;
   titulo: string;
-  paiId?: number;
+  paiId: number | null;
   path?: string;
   criadoEm: string;
   atualizadoEm: string;
@@ -18,6 +19,7 @@ export class QuestaoResultDto {
   tipoQuestao: TipoQuestaoEnum;
   textoRevisao?: string;
   alternativas: AlternativaResultDto[];
+  tipo: TipoItemEnum;
 
   constructor(questaoModel: QuestaoModel, path?: string) {
     this.id = questaoModel.id;
@@ -32,6 +34,8 @@ export class QuestaoResultDto {
     this.tipoQuestao = questaoModel.tipoQuestao;
     this.textoRevisao = questaoModel.textoRevisao;
     this.path = path;
+    this.paiId = questaoModel.item.paiId;
+    this.tipo = questaoModel.item.tipo;
 
     this.alternativas = (questaoModel.alternativas || []).map((altModel) => {
       const altDto = new AlternativaResultDto();

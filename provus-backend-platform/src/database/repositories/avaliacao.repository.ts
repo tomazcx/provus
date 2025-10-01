@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import TipoItemEnum from 'src/enums/tipo-item.enum';
 import { AvaliadorModel } from '../config/models/avaliador.model';
@@ -15,10 +19,18 @@ import { QuestoesAvaliacoesModel } from '../config/models/questoes-avaliacoes.mo
 import { ArquivosAvaliacoesModel } from '../config/models/arquivos-avaliacoes.model';
 import { ConfiguracoesRandomizacaoModel } from '../config/models/configuracoes-randomizacao.model';
 import { QuestaoModel } from '../config/models/questao.model';
+import { AlternativaModel } from '../config/models/alternativa.model';
+import { InjectRepository } from '@nestjs/typeorm';
+import { BancoDeConteudoModel } from '../config/models/banco-de-conteudo.model';
+import { TipoBancoEnum } from 'src/enums/tipo-banco';
 
 @Injectable()
 export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
-  constructor(private dataSource: DataSource) {
+  constructor(
+    private dataSource: DataSource,
+    @InjectRepository(BancoDeConteudoModel)
+    private readonly bancoDeConteudoRepository: Repository<BancoDeConteudoModel>,
+  ) {
     super(AvaliacaoModel, dataSource.createEntityManager());
   }
 
@@ -27,63 +39,111 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
     avaliador: AvaliadorModel,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
-      const itemSistemaArquivos = new ItemSistemaArquivosModel();
-      itemSistemaArquivos.titulo = dto.titulo;
-      itemSistemaArquivos.tipo = TipoItemEnum.AVALIACAO;
-      itemSistemaArquivos.avaliador = avaliador;
+      let paiParaSalvar: { id: number } | null = null;
 
       if (dto.paiId) {
-        const pai = await manager.findOne(ItemSistemaArquivosModel, {
-          where: { id: dto.paiId },
+        paiParaSalvar = { id: dto.paiId };
+      } else {
+        const banco = await this.bancoDeConteudoRepository.findOne({
+          where: {
+            avaliadorId: avaliador.id,
+            tipoBanco: TipoBancoEnum.AVALIACOES,
+          },
+          relations: ['pastaRaiz'],
         });
-        itemSistemaArquivos.pai = pai;
+        if (banco && banco.pastaRaiz) {
+          paiParaSalvar = { id: banco.pastaRaiz.id };
+        }
       }
 
-      const savedItem = await manager.save(itemSistemaArquivos);
-
-      const avaliacao = new AvaliacaoModel();
-      avaliacao.id = savedItem.id;
-      avaliacao.item = savedItem;
-      avaliacao.descricao = dto.descricao;
-      avaliacao.isModelo = dto.isModelo;
-
-      const savedAvaliacao = await manager.save(avaliacao);
+      const itemSistemaArquivos = manager.create(ItemSistemaArquivosModel, {
+        titulo: dto.titulo,
+        tipo: TipoItemEnum.AVALIACAO,
+        avaliador: avaliador,
+        pai: paiParaSalvar,
+      });
+      await manager.save(itemSistemaArquivos);
 
       const savedConfiguracaoAvaliacao = await this._createConfigurations(
         manager,
         dto,
       );
 
-      savedAvaliacao.configuracaoAvaliacao = savedConfiguracaoAvaliacao;
-      await manager.save(savedAvaliacao);
+      const avaliacao = manager.create(AvaliacaoModel, {
+        id: itemSistemaArquivos.id,
+        item: itemSistemaArquivos,
+        descricao: dto.descricao,
+        isModelo: dto.isModelo,
+        configuracaoAvaliacao: savedConfiguracaoAvaliacao,
+      });
+      await manager.save(avaliacao);
 
       if (dto.questoes && dto.questoes.length > 0) {
-        const questoesAvaliacoes = dto.questoes.map((questaoDto) => {
-          const questaoAvaliacao = new QuestoesAvaliacoesModel();
-          questaoAvaliacao.questaoId = questaoDto.questaoId;
-          questaoAvaliacao.avaliacaoId = savedAvaliacao.id;
-          questaoAvaliacao.ordem = questaoDto.ordem;
-          questaoAvaliacao.pontuacao = questaoDto.pontuacao;
-          return questaoAvaliacao;
-        });
+        for (const questaoDto of dto.questoes) {
+          let questaoIdParaLinkar: number;
 
-        await manager.save(questoesAvaliacoes);
+          if (questaoDto.questaoId) {
+            questaoIdParaLinkar = questaoDto.questaoId;
+          } else {
+            if (
+              !questaoDto.titulo ||
+              !questaoDto.tipoQuestao ||
+              !questaoDto.dificuldade
+            ) {
+              throw new BadRequestException(
+                'Para criar uma nova questão na avaliação, os campos titulo, tipoQuestao e dificuldade são obrigatórios.',
+              );
+            }
+
+            const novoItemQuestao = manager.create(ItemSistemaArquivosModel, {
+              titulo: questaoDto.titulo,
+              tipo: TipoItemEnum.QUESTAO,
+              avaliador: avaliador,
+            });
+            await manager.save(novoItemQuestao);
+
+            const novaQuestao = manager.create(QuestaoModel, {
+              id: novoItemQuestao.id,
+              item: novoItemQuestao,
+              dificuldade: questaoDto.dificuldade,
+              tipoQuestao: questaoDto.tipoQuestao,
+              descricao: questaoDto.descricao,
+              isModelo: false,
+              exemploRespostaIa: questaoDto.exemploRespostaIa,
+              textoRevisao: questaoDto.textoRevisao,
+              pontuacao: questaoDto.pontuacao,
+              alternativas: questaoDto.alternativas?.map((alt) =>
+                manager.create(AlternativaModel, alt),
+              ),
+            });
+            await manager.save(novaQuestao);
+
+            questaoIdParaLinkar = novaQuestao.id;
+          }
+
+          const questaoAvaliacao = manager.create(QuestoesAvaliacoesModel, {
+            avaliacaoId: avaliacao.id,
+            questaoId: questaoIdParaLinkar,
+            ordem: questaoDto.ordem,
+            pontuacao: questaoDto.pontuacao,
+          });
+          await manager.save(questaoAvaliacao);
+        }
       }
 
       if (dto.arquivos && dto.arquivos.length > 0) {
-        const arquivosAvaliacoes = dto.arquivos.map((arquivoDto) => {
-          const arquivoAvaliacao = new ArquivosAvaliacoesModel();
-          arquivoAvaliacao.arquivoId = arquivoDto.arquivoId;
-          arquivoAvaliacao.avaliacaoId = savedAvaliacao.id;
-          arquivoAvaliacao.permitirConsultaPorEstudante =
-            arquivoDto.permitirConsultaPorEstudante;
-          return arquivoAvaliacao;
-        });
-
+        const arquivosAvaliacoes = dto.arquivos.map((arquivoDto) =>
+          manager.create(ArquivosAvaliacoesModel, {
+            arquivoId: arquivoDto.arquivoId,
+            avaliacaoId: avaliacao.id,
+            permitirConsultaPorEstudante:
+              arquivoDto.permitirConsultaPorEstudante,
+          }),
+        );
         await manager.save(arquivosAvaliacoes);
       }
 
-      return savedAvaliacao.id;
+      return avaliacao.id;
     });
   }
 
@@ -99,23 +159,20 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
           'item',
           'configuracaoAvaliacao',
           'configuracaoAvaliacao.configuracoesGerais',
-          'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
           'configuracaoAvaliacao.configuracoesSeguranca',
-          'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-          'configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
-          'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
         ],
       });
 
+      if (!avaliacao) {
+        throw new NotFoundException(`Avaliação com ID ${id} não encontrada.`);
+      }
+
       avaliacao.item.titulo = dto.titulo;
       await manager.save(avaliacao.item);
-
       avaliacao.descricao = dto.descricao;
       avaliacao.isModelo = dto.isModelo;
-      await manager.save(avaliacao);
 
       await this._clearOldConfigurations(manager, avaliacao);
-
       avaliacao.configuracaoAvaliacao = await this._createConfigurations(
         manager,
         dto,
@@ -123,38 +180,74 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
       await manager.save(avaliacao);
 
       await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId: id });
-
       if (dto.questoes && dto.questoes.length > 0) {
-        const questoesAvaliacoes = dto.questoes.map((questaoDto) => {
-          const questaoAvaliacao = new QuestoesAvaliacoesModel();
-          questaoAvaliacao.questaoId = questaoDto.questaoId;
-          questaoAvaliacao.avaliacaoId = id;
-          questaoAvaliacao.ordem = questaoDto.ordem;
-          questaoAvaliacao.pontuacao = questaoDto.pontuacao;
-          return questaoAvaliacao;
-        });
+        for (const questaoDto of dto.questoes) {
+          let questaoIdParaLinkar: number;
 
-        await manager.save(questoesAvaliacoes);
+          if (questaoDto.questaoId) {
+            questaoIdParaLinkar = questaoDto.questaoId;
+          } else {
+            if (
+              !questaoDto.titulo ||
+              !questaoDto.tipoQuestao ||
+              !questaoDto.dificuldade
+            ) {
+              throw new BadRequestException(
+                'Para criar uma nova questão na avaliação, os campos titulo, tipoQuestao e dificuldade são obrigatórios.',
+              );
+            }
+            const novoItemQuestao = manager.create(ItemSistemaArquivosModel, {
+              titulo: questaoDto.titulo,
+              tipo: TipoItemEnum.QUESTAO,
+              avaliador: avaliador,
+            });
+            await manager.save(novoItemQuestao);
+
+            const novaQuestao = manager.create(QuestaoModel, {
+              id: novoItemQuestao.id,
+              item: novoItemQuestao,
+              dificuldade: questaoDto.dificuldade,
+              tipoQuestao: questaoDto.tipoQuestao,
+              descricao: questaoDto.descricao,
+              isModelo: false,
+              exemploRespostaIa: questaoDto.exemploRespostaIa,
+              textoRevisao: questaoDto.textoRevisao,
+              pontuacao: questaoDto.pontuacao,
+              alternativas: questaoDto.alternativas?.map((alt) =>
+                manager.create(AlternativaModel, alt),
+              ),
+            });
+            await manager.save(novaQuestao);
+
+            questaoIdParaLinkar = novaQuestao.id;
+          }
+
+          const questaoAvaliacao = manager.create(QuestoesAvaliacoesModel, {
+            avaliacaoId: id,
+            questaoId: questaoIdParaLinkar,
+            ordem: questaoDto.ordem,
+            pontuacao: questaoDto.pontuacao,
+          });
+          await manager.save(questaoAvaliacao);
+        }
       }
 
       await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId: id });
       if (dto.arquivos && dto.arquivos.length > 0) {
-        const arquivosAvaliacoes = dto.arquivos.map((arquivoDto) => {
-          const arquivoAvaliacao = new ArquivosAvaliacoesModel();
-          arquivoAvaliacao.arquivoId = arquivoDto.arquivoId;
-          arquivoAvaliacao.avaliacaoId = id;
-          arquivoAvaliacao.permitirConsultaPorEstudante =
-            arquivoDto.permitirConsultaPorEstudante;
-          return arquivoAvaliacao;
-        });
-
+        const arquivosAvaliacoes = dto.arquivos.map((arquivoDto) =>
+          manager.create(ArquivosAvaliacoesModel, {
+            arquivoId: arquivoDto.arquivoId,
+            avaliacaoId: id,
+            permitirConsultaPorEstudante:
+              arquivoDto.permitirConsultaPorEstudante,
+          }),
+        );
         await manager.save(arquivosAvaliacoes);
       }
 
       return avaliacao.id;
     });
   }
-
   private async _clearOldConfigurations(
     manager: EntityManager,
     avaliacao: AvaliacaoModel,

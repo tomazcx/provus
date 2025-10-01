@@ -23,6 +23,7 @@ import { QuestaoRepository } from './repositories/questao.repository';
 import { ArquivoRepository } from './repositories/arquivo.repository';
 import { AvaliacaoRepository } from './repositories/avaliacao.repository';
 import { AplicacaoRepository } from './repositories/aplicacao.repository';
+import { BancoDeConteudoModel } from './config/models/banco-de-conteudo.model';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AplicacaoRepository } from './repositories/aplicacao.repository';
       SubmissaoModel,
       SubmissaoRespostasModel,
       AplicacaoModel,
+      BancoDeConteudoModel,
     ]),
   ],
   providers: [

@@ -1,145 +1,311 @@
+import { defineStore } from "pinia";
+import type { FolderEntity } from "~/types/entities/Item.entity";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import type {
+  AvaliacaoApiResponse,
+  AvaliacaoListItemApiResponse,
+} from "~/types/api/response/Avaliacao.response";
+import type { ItemSistemaArquivosApiResponse } from "~/types/api/response/ItemSistemaArquivos.response";
+import type {
+  CreateAvaliacaoRequest,
+  UpdateAvaliacaoRequest,
+} from "~/types/api/request/Avaliacao.request";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+import { getBlankAssessment } from "./assessmentStore";
+import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 import isFolder from "~/guards/isFolder";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import type { IFolder } from "~/types/IBank";
 
-type TExamBankItem = IFolder | IAvaliacaoImpl;
+function mapListApiResponseToEntity(
+  item: AvaliacaoListItemApiResponse | ItemSistemaArquivosApiResponse
+): AvaliacaoEntity | FolderEntity {
+  if (item.tipo === TipoItemEnum.AVALIACAO) {
+    const avaliacaoItem = item as AvaliacaoListItemApiResponse;
+    return {
+      id: avaliacaoItem.id,
+      titulo: avaliacaoItem.titulo,
+      tipo: TipoItemEnum.AVALIACAO,
+      paiId: avaliacaoItem.paiId,
+      criadoEm: avaliacaoItem.criadoEm,
+      atualizadoEm: avaliacaoItem.atualizadoEm,
+      descricao: avaliacaoItem.descricao,
+      isModelo: avaliacaoItem.isModelo,
+      path: avaliacaoItem.path,
+      pontuacao: avaliacaoItem.questoes.reduce(
+        (acc, q) => acc + q.pontuacao,
+        0
+      ),
+      questoes: [],
+      arquivos: [],
+      configuracao: getBlankAssessment().configuracao,
+    };
+  } else {
+    return {
+      id: item.id,
+      titulo: item.titulo,
+      tipo: TipoItemEnum.PASTA,
+      paiId: item.paiId,
+      criadoEm: item.criadoEm,
+      atualizadoEm: item.atualizadoEm,
+      childCount: (item as ItemSistemaArquivosApiResponse).childCount, 
+    };
+  }
+}
 
 export const useExamBankStore = defineStore("examBank", () => {
-  const items = ref<TExamBankItem[]>([]);
-  const isLoading = ref(false);
+  const { $api } = useNuxtApp();
+  const toast = useToast();
 
-  async function fetchItems() {
-    if (items.value.length > 0) return;
+  const items = ref<(AvaliacaoEntity | FolderEntity)[]>([]);
+  const breadcrumbs = ref<{ id: number; titulo: string }[]>([]);
+  const isLoading = ref(false);
+  const rootFolderId = ref<number | null>(null);
+  const isInitialized = ref(false);
+
+  const currentFolderId = computed(
+    () => breadcrumbs.value[breadcrumbs.value.length - 1]?.id ?? null
+  );
+
+  async function fetchFolderContent(folderId: number) {
     isLoading.value = true;
     try {
-      const { mockExamBankResponse } = await import(
-        "~/mock/mockExamBankResponse"
-      );
+      const endpoint =
+        folderId === rootFolderId.value
+          ? "/backoffice/bancos-de-conteudo/AVALIACOES/conteudo"
+          : `/backoffice/pastas/${folderId}/conteudo`;
 
-      items.value = mockExamBankResponse;
-    } catch (error) {
-      console.error("Erro ao buscar itens do banco de avaliações:", error);
+      const response = await $api<
+        (AvaliacaoListItemApiResponse | ItemSistemaArquivosApiResponse)[]
+      >(endpoint);
+      items.value = response.map(mapListApiResponseToEntity);
+    } catch {
+      toast.add({ title: "Erro ao buscar avaliações", color: "error" });
     } finally {
       isLoading.value = false;
     }
   }
 
-  function getItemById(id: number) {
-    const item = items.value.find((item) => !isFolder(item) && item.id === id);
-    return item as IAvaliacaoImpl | undefined;
-  }
-
-  async function createFolder(newFolderData: { titulo: string; path: string }) {
-    const createdFolder: IFolder = {
-      id: Date.now(),
-      ...newFolderData,
-      filhos: [],
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    };
-    items.value.push(createdFolder);
-  }
-
-  async function createModelo(data: {
-    modeloData: IAvaliacaoImpl;
-    path: string;
-  }): Promise<IAvaliacaoImpl> {
-    const newModelo: IAvaliacaoImpl = {
-      ...data.modeloData,
-      id: Date.now(),
-      path: data.path,
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    };
-
-    items.value.push(newModelo);
-
-    return newModelo;
-  }
-
-  async function deleteItem(itemToDelete: TExamBankItem) {
-    if (!isFolder(itemToDelete)) {
-      const index = items.value.findIndex(
-        (item) => item.id === itemToDelete.id
+  async function initialize() {
+    if (isInitialized.value) return;
+    isLoading.value = true;
+    try {
+      const bancos = await $api<
+        { tipoBanco: string; titulo: string; pastaId: number }[]
+      >("/backoffice/bancos-de-conteudo");
+      const bancoDeAvaliacoes = bancos.find(
+        (b) => b.tipoBanco === "AVALIACOES"
       );
-      if (index !== -1) items.value.splice(index, 1);
-    } else {
-      const pathPrefix =
-        itemToDelete.path === "/"
-          ? `/${itemToDelete.titulo}`
-          : `${itemToDelete.path}/${itemToDelete.titulo}`;
-      items.value = items.value.filter((item) => {
-        const shouldDelete =
-          item.id === itemToDelete.id ||
-          (item.path && item.path.startsWith(pathPrefix));
-        return !shouldDelete;
+
+      if (!bancoDeAvaliacoes) {
+        throw new Error("Banco de Avaliações não encontrado.");
+      }
+
+      rootFolderId.value = bancoDeAvaliacoes.pastaId;
+      breadcrumbs.value = [
+        { id: bancoDeAvaliacoes.pastaId, titulo: bancoDeAvaliacoes.titulo },
+      ];
+      await fetchFolderContent(bancoDeAvaliacoes.pastaId);
+      isInitialized.value = true;
+    } catch {
+      toast.add({
+        title: "Erro ao inicializar o banco de avaliações",
+        color: "error",
+      });
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function refreshCurrentFolder() {
+    if (currentFolderId.value !== null) {
+      await fetchFolderContent(currentFolderId.value);
+    }
+  }
+
+  async function navigateToFolder(folder: FolderEntity) {
+    breadcrumbs.value.push({ id: folder.id, titulo: folder.titulo });
+    await fetchFolderContent(folder.id);
+  }
+
+  async function navigateToBreadcrumb(breadcrumbIndex: number) {
+    const targetCrumb = breadcrumbs.value[breadcrumbIndex];
+    if (!targetCrumb) return;
+    breadcrumbs.value = breadcrumbs.value.slice(0, breadcrumbIndex + 1);
+    await fetchFolderContent(targetCrumb.id);
+  }
+
+  async function createFolder(newFolderData: { titulo: string }) {
+    try {
+      await $api("/backoffice/pastas", {
+        method: "POST",
+        body: {
+          titulo: newFolderData.titulo,
+          paiId: currentFolderId.value,
+        },
+      });
+      toast.add({ title: "Pasta criada com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao criar pasta",
+        description: errorMessage,
+        color: "error",
       });
     }
   }
 
-  async function updateItem(payload: {
-    item: TExamBankItem;
-    newTitle?: string;
-    updatedData?: Partial<IAvaliacaoImpl>;
-  }): Promise<TExamBankItem | undefined> {
-    const { item, newTitle, updatedData } = payload;
-
-    if (isFolder(item) && newTitle) {
-      const oldTitle = item.titulo;
-      const oldChildPath =
-        item.path === "/" ? `/${oldTitle}` : `${item.path}/${oldTitle}`;
-      const newChildPath =
-        item.path === "/" ? `/${newTitle}` : `${item.path}/${newTitle}`;
-
-      const folderInArray = items.value.find((i) => i.id === item.id) as
-        | IFolder
-        | undefined;
-      if (folderInArray) {
-        folderInArray.titulo = newTitle;
-        folderInArray.atualizadoEm = new Date().toISOString();
-      }
-
-      items.value.forEach((i) => {
-        if (i.path && i.path.startsWith(oldChildPath)) {
-          i.path = i.path.replace(oldChildPath, newChildPath);
-        }
+  async function createModelo(modeloData: CreateAvaliacaoRequest) {
+    try {
+      const payload = { ...modeloData, paiId: currentFolderId.value };
+      await $api("/backoffice/avaliacao", { method: "POST", body: payload });
+      toast.add({
+        title: "Modelo de avaliação salvo com sucesso!",
+        color: "secondary",
       });
-
-      return items.value.find((i) => i.id === item.id);
-    } else if (!isFolder(item) && updatedData) {
-      const index = items.value.findIndex((f) => f.id === item.id);
-      if (index !== -1) {
-        const current = items.value[index] as IAvaliacaoImpl;
-        items.value[index] = {
-          ...current,
-          ...updatedData,
-          titulo: updatedData.titulo ?? current.titulo,
-          pontuacao: updatedData.pontuacao ?? current.pontuacao,
-          descricao: updatedData.descricao ?? current.descricao,
-          isModelo: updatedData.isModelo ?? current.isModelo,
-          questoes: updatedData.questoes ?? current.questoes,
-          configuracoes: updatedData.configuracoes ?? current.configuracoes,
-          atualizadoEm: new Date().toISOString(),
-        };
-
-        return items.value[index]; 
+      await refreshCurrentFolder();
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
       }
+      toast.add({
+        title: "Erro ao salvar modelo",
+        description: errorMessage,
+        color: "error",
+      });
     }
   }
 
-  const getItemsByPath = (path: string) => {
-    return items.value.filter((item) => item.path === path);
-  };
+  async function updateItem(
+    itemToUpdate: AvaliacaoEntity | FolderEntity,
+    updatedData: UpdateAvaliacaoRequest | { titulo: string }
+  ) {
+    try {
+      const isFolderUpdate = isFolder(itemToUpdate);
+      const endpoint = isFolderUpdate
+        ? `/backoffice/item-sistema-arquivos/${itemToUpdate.id}`
+        : `/backoffice/avaliacao/${itemToUpdate.id}`;
+
+      const method = isFolderUpdate ? "PATCH" : "PUT";
+
+      await $api(endpoint, { method, body: updatedData });
+      toast.add({ title: "Item atualizado com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao atualizar item",
+        description: errorMessage,
+        color: "error",
+      });
+    }
+  }
+
+  async function deleteItem(itemToDelete: AvaliacaoEntity | FolderEntity) {
+    try {
+      await $api(`/backoffice/item-sistema-arquivos/${itemToDelete.id}`, {
+        method: "DELETE",
+      });
+      toast.add({ title: "Item deletado com sucesso!", color: "secondary" });
+      await refreshCurrentFolder();
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao deletar item",
+        description: errorMessage,
+        color: "error",
+      });
+    }
+  }
+
+  async function getItemById(id: number): Promise<AvaliacaoEntity | undefined> {
+    isLoading.value = true;
+    try {
+      const response = await $api<AvaliacaoApiResponse>(
+        `/backoffice/avaliacao/${id}`
+      );
+      return mapAvaliacaoApiResponseToEntity(response);
+    } catch {
+      toast.add({
+        title: "Erro ao buscar detalhes da avaliação",
+        color: "error",
+      });
+      return undefined;
+    } finally {
+      isLoading.value = false;
+    }
+  }
 
   return {
     items,
+    breadcrumbs,
     isLoading,
-    getItemById,
-    fetchItems,
+    currentFolderId,
+    rootFolderId,
+    initialize,
+    navigateToFolder,
+    navigateToBreadcrumb,
     createFolder,
     createModelo,
-    deleteItem,
     updateItem,
-    getItemsByPath,
+    deleteItem,
+    getItemById,
   };
 });

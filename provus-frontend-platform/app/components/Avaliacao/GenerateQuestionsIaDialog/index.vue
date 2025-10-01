@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { IRegraGeracaoIA } from "~/types/IConfiguracoesAvaliacoes";
-import type { IFile } from "~/types/IFile";
+import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 
 const props = defineProps<{
   modelValue: boolean;
-  materiaisAnexados: IFile[];
+  materiaisAnexados: ArquivoEntity[];
 }>();
 
 const emit = defineEmits([
@@ -16,7 +16,7 @@ const emit = defineEmits([
   "view-materials",
 ]);
 
-const regras = ref<IRegraGeracaoIA[]>([]);
+const regras = ref<RegraGeracaoIaEntity[]>([]);
 const isLoading = ref(false);
 
 const dificuldadeOptions = Object.values(DificuldadeQuestaoEnum);
@@ -37,17 +37,17 @@ function removeIaRule(ruleId: number) {
   regras.value = regras.value.filter((rule) => rule.id !== ruleId);
 }
 
-function openMaterialsBankForRule(rule: IRegraGeracaoIA) {
+function openMaterialsBankForRule(rule: RegraGeracaoIaEntity) {
   emit("open-materials-bank", rule);
 }
 
-function viewMaterialsForRule(rule: IRegraGeracaoIA) {
+function viewMaterialsForRule(rule: RegraGeracaoIaEntity) {
   emit("view-materials", rule);
 }
 
 async function handleGenerate() {
   isLoading.value = true;
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 1500));
   emit("generate", regras.value);
   isLoading.value = false;
   emit("update:modelValue", false);

@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
@@ -80,7 +81,7 @@ export class CreateConfiguracoesGeraisRequest {
     example: '2021-01-01',
   })
   @IsDate()
-  @IsNotEmpty()
+  @IsOptional()
   dataAgendamento: Date;
 
   @ApiProperty({

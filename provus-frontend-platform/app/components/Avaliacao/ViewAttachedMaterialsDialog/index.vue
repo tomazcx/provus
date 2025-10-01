@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import MaterialsBankFileItem from "~/components/BancoDeMateriais/MaterialsBankFileItem/index.vue";
-import type { IFile } from "~/types/IFile";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 
 defineProps<{
   modelValue: boolean;
-  selectedMaterials: IFile[];
+  selectedMaterials: ArquivoEntity[];
 }>();
 
 const emit = defineEmits([
@@ -13,11 +13,11 @@ const emit = defineEmits([
   "edit-material",
 ]);
 
-function handleRemove(file: IFile) {
+function handleRemove(file: ArquivoEntity) {
   emit("remove-material", file.id);
 }
 
-function handleEdit(file: IFile) {
+function handleEdit(file: ArquivoEntity) {
   emit("edit-material", file);
 }
 </script>
@@ -31,7 +31,7 @@ function handleEdit(file: IFile) {
     @update:open="emit('update:modelValue', $event)"
   >
     <template #body>
-      <div class="max-h-96 overflow-y-auto">
+      <div class="max-h-96 overflow-y-auto p-1">
         <p v-if="selectedMaterials.length === 0" class="text-sm text-gray-500">
           Nenhum material anexado.
         </p>

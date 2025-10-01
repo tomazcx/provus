@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { IAlternativa, IQuestao } from "~/types/IQuestao";
+import type {
+  AlternativaEntity,
+  QuestaoEntity,
+} from "~/types/entities/Questao.entity";
 
-const model = defineModel<IQuestao>({ required: true });
+const model = defineModel<QuestaoEntity>({ required: true });
 
 const props = defineProps<{ numero: number; autocorrecaoAtiva?: boolean }>();
 
@@ -11,13 +14,25 @@ const emit = defineEmits(["remover", "save-to-bank"]);
 
 const isModeloRespostaRequired = computed(() => {
   return (
-    props.autocorrecaoAtiva && model.value.tipo === TipoQuestaoEnum.DISCURSIVA
+    props.autocorrecaoAtiva &&
+    model.value.tipoQuestao === TipoQuestaoEnum.DISCURSIVA
   );
 });
 
 const isQuestionValid = computed(() => {
   return model.value?.titulo?.trim() !== "";
 });
+
+watch(
+  () => model.value.tipoQuestao,
+  (newType) => {
+    if (newType === TipoQuestaoEnum.DISCURSIVA) {
+      model.value.alternativas = [];
+    } else if (model.value.alternativas.length === 0) {
+      addAlternative();
+    }
+  }
+);
 
 function addAlternative() {
   if (model.value) {
@@ -40,9 +55,9 @@ function removeAlternative(id: number) {
   }
 }
 
-function toggleCorrect(alt: IAlternativa) {
+function toggleCorrect(alt: AlternativaEntity) {
   if (model.value && "alternativas" in model.value) {
-    if (model.value.tipo === TipoQuestaoEnum.OBJETIVA) {
+    if (model.value.tipoQuestao === TipoQuestaoEnum.OBJETIVA) {
       model.value.alternativas?.forEach((o) => (o.isCorreto = false));
     }
     alt.isCorreto = !alt.isCorreto;
@@ -73,18 +88,13 @@ const tipos = [
           {{ numero }}
         </div>
         <UFormField label="Tipo" size="sm">
-          <USelectMenu
-            v-model="model.tipo"
-            :items="tipos"
-            by="value"
-            option-attribute="label"
-          />
+          <USelectMenu v-model="model.tipoQuestao" :items="tipos" />
         </UFormField>
         <UFormField label="Dificuldade" size="sm">
           <USelect v-model="model.dificuldade" :items="dificuldade" />
         </UFormField>
         <UFormField label="Pontos" size="sm">
-          <UInputNumber v-model.number="model.pontuacao" class="w-20" />
+          <UInputNumber v-model="model.pontuacao" class="w-20" />
         </UFormField>
       </div>
 
@@ -133,9 +143,8 @@ const tipos = [
         />
       </UFormField>
 
-      <template v-if="model.tipo === TipoQuestaoEnum.DISCURSIVA">
+      <template v-if="model.tipoQuestao === TipoQuestaoEnum.DISCURSIVA">
         <UFormField
-          v-if="isModeloRespostaRequired"
           :label="
             isModeloRespostaRequired
               ? 'Modelo de Resposta para I.A. (Obrigatório)'
@@ -145,7 +154,7 @@ const tipos = [
           name="exemploDeResposta"
         >
           <UTextarea
-            v-model="model.exemploDeResposta"
+            v-model="model.exemploRespostaIa"
             placeholder="Digite a resposta esperada para esta questão..."
             class="w-full"
             autoresize
@@ -155,9 +164,9 @@ const tipos = [
 
       <template
         v-else-if="
-          model.tipo === TipoQuestaoEnum.OBJETIVA ||
-          model.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA ||
-          model.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO
+          model.tipoQuestao === TipoQuestaoEnum.OBJETIVA ||
+          model.tipoQuestao === TipoQuestaoEnum.MULTIPLA_ESCOLHA ||
+          model.tipoQuestao === TipoQuestaoEnum.VERDADEIRO_FALSO
         "
       >
         <UFormField label="Alternativas">

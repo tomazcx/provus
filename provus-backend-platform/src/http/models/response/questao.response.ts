@@ -5,6 +5,7 @@ import { AlternativaResponse } from './alternativa.response';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
 import TipoItemEnum from 'src/enums/tipo-item.enum';
+import { AlternativaResultDto } from 'src/dto/result/alternativa/alternativa.result';
 
 export class QuestaoResponse {
   @ApiProperty({
@@ -18,6 +19,12 @@ export class QuestaoResponse {
     example: 'Qual o sentido da vida?',
   })
   titulo: string;
+
+  @ApiProperty({ enum: TipoItemEnum })
+  tipo: TipoItemEnum;
+
+  @ApiProperty({ type: 'number', nullable: true })
+  paiId: number | null;
 
   @ApiProperty({
     description:
@@ -91,44 +98,16 @@ export class QuestaoResponse {
   })
   alternativas: AlternativaResponse[];
 
-  static fromDto(dto: QuestaoResultDto): QuestaoResponse {
-    const response = new QuestaoResponse();
-
-    response.id = dto.id;
-    response.titulo = dto.titulo;
-    response.path = dto.path;
-    response.criadoEm = dto.criadoEm;
-    response.atualizadoEm = dto.atualizadoEm;
-    response.descricao = dto.descricao;
-    response.dificuldade = dto.dificuldade;
-    response.exemploRespostaIa = dto.exemploRespostaIa;
-    response.pontuacao = dto.pontuacao;
-    response.isModelo = dto.isModelo;
-    response.tipoQuestao = dto.tipoQuestao;
-    response.textoRevisao = dto.textoRevisao;
-
-    response.alternativas = (dto.alternativas || []).map((altDto) => {
-      const altResponse = new AlternativaResponse();
-      altResponse.id = altDto.id;
-      altResponse.descricao = altDto.descricao;
-      altResponse.isCorreto = altDto.isCorreto;
-      return altResponse;
-    });
-
-    return response;
-  }
-
   static fromModel(model: ItemSistemaArquivosModel): QuestaoResponse {
     if (model.tipo !== TipoItemEnum.QUESTAO || !model.questao) {
-      throw new Error(
-        `Item com ID ${model.id} não é uma questão ou não teve os dados da questão carregados.`,
-      );
+      throw new Error(`Item com ID ${model.id} não é uma questão.`);
     }
-
     const response = new QuestaoResponse();
 
     response.id = model.id;
     response.titulo = model.titulo;
+    response.tipo = model.tipo;
+    response.paiId = model.paiId;
     response.criadoEm = model.criadoEm.toISOString();
     response.atualizadoEm = model.atualizadoEm.toISOString();
 
@@ -140,10 +119,34 @@ export class QuestaoResponse {
     response.isModelo = model.questao.isModelo;
     response.textoRevisao = model.questao.textoRevisao;
 
-    response.alternativas = (model.questao.alternativas || []).map((alt) =>
-      AlternativaResponse.fromModel(alt),
-    );
+    response.alternativas = (model.questao.alternativas || []).map((alt) => {
+      const dto = new AlternativaResultDto();
+      dto.id = alt.id;
+      dto.descricao = alt.descricao;
+      dto.isCorreto = alt.isCorreto;
+      return dto;
+    });
 
+    return response;
+  }
+
+  static fromDto(dto: QuestaoResultDto): QuestaoResponse {
+    const response = new QuestaoResponse();
+    response.id = dto.id;
+    response.titulo = dto.titulo;
+    response.paiId = dto.paiId;
+    response.path = dto.path;
+    response.criadoEm = dto.criadoEm;
+    response.atualizadoEm = dto.atualizadoEm;
+    response.descricao = dto.descricao;
+    response.dificuldade = dto.dificuldade;
+    response.exemploRespostaIa = dto.exemploRespostaIa;
+    response.pontuacao = dto.pontuacao;
+    response.isModelo = dto.isModelo;
+    response.tipoQuestao = dto.tipoQuestao;
+    response.textoRevisao = dto.textoRevisao;
+    response.alternativas = dto.alternativas;
+    response.tipo = TipoItemEnum.QUESTAO;
     return response;
   }
 }

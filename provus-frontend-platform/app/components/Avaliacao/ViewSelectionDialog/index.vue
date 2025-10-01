@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import QuestionsBankQuestionItem from "~/components/BancoDeQuestoes/QuestionsBankQuestionItem/index.vue";
-import type { IQuestao } from "~/types/IQuestao";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 
 defineProps<{
   modelValue: boolean;
-  selectedQuestions: IQuestao[];
+  selectedQuestions: QuestaoEntity[];
 }>();
 
 const emit = defineEmits([
@@ -13,11 +13,11 @@ const emit = defineEmits([
   "edit-question",
 ]);
 
-function handleRemove(question: IQuestao) {
+function handleRemove(question: QuestaoEntity) {
   emit("remove-question", question.id);
 }
 
-function handleEdit(question: IQuestao) {
+function handleEdit(question: QuestaoEntity) {
   emit("edit-question", question);
 }
 </script>
@@ -28,10 +28,10 @@ function handleEdit(question: IQuestao) {
     title="Questões selecionadas"
     description="Veja o grupo de questões que foram selecionadas para participarem da randomização."
     class="min-w-3xl"
-    @update:open="emit('update:modelValue', $event)"
+    @update:open="$emit('update:modelValue', $event)"
   >
     <template #body>
-      <div class="max-h-96 overflow-y-auto">
+      <div class="max-h-96 overflow-y-auto p-1">
         <p v-if="selectedQuestions.length === 0" class="text-sm text-gray-500">
           Nenhuma questão selecionada.
         </p>
@@ -52,7 +52,7 @@ function handleEdit(question: IQuestao) {
         <UButton
           color="primary"
           variant="ghost"
-          @click="emit('update:modelValue', false)"
+          @click="$emit('update:modelValue', false)"
         >
           Fechar
         </UButton>

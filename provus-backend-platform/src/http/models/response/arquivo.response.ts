@@ -1,12 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
+import { ArquivoDto } from 'src/dto/result/arquivo/arquivo.dto';
 import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 export class ArquivoResponse {
-  @ApiProperty({
-    description: 'ID do arquivo.',
-    example: 1,
-  })
+  @ApiProperty({ description: 'ID do arquivo.', example: 1 })
   id: number;
 
   @ApiProperty({
@@ -30,10 +28,7 @@ export class ArquivoResponse {
   })
   descricao?: string;
 
-  @ApiProperty({
-    description: 'Tamanho do arquivo em bytes.',
-    example: 1024,
-  })
+  @ApiProperty({ description: 'Tamanho do arquivo em bytes.', example: 1024 })
   tamanhoEmBytes: number;
 
   @ApiProperty({
@@ -62,19 +57,28 @@ export class ArquivoResponse {
     }
 
     const response = new ArquivoResponse();
-
     response.id = model.id;
     response.titulo = model.titulo;
-    // response.tipo = TipoItemEnum.ARQUIVO;
     response.criadoEm = model.criadoEm.toISOString();
     response.atualizadoEm = model.atualizadoEm.toISOString();
-
     response.url = model.arquivo.url;
     response.descricao = model.arquivo.descricao;
     response.tamanhoEmBytes = model.arquivo.tamanhoEmBytes;
+    response.paiId = model.paiId;
+    return response;
+  }
 
-    response.paiId = model.pai ? model.pai.id : null;
-
+  static fromDto(dto: ArquivoDto): ArquivoResponse {
+    const response = new ArquivoResponse();
+    response.id = dto.id;
+    response.titulo = dto.titulo;
+    response.url = dto.url;
+    response.paiId = dto.paiId;
+    response.descricao = dto.descricao;
+    response.tamanhoEmBytes = dto.tamanhoEmBytes;
+    response.path = dto.path;
+    response.criadoEm = dto.criadoEm;
+    response.atualizadoEm = dto.atualizadoEm;
     return response;
   }
 }

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionItem/index.vue";
-import type { IQuestao } from "~/types/IQuestao";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 
-const questoes = defineModel<IQuestao[]>("questoes", { required: true });
+const questoes = defineModel<QuestaoEntity[]>("questoes", { required: true });
 
 defineProps<{
   autocorrecaoAtiva?: boolean;

@@ -1,19 +1,33 @@
 <script setup lang="ts">
-import type { IConfiguracoes } from "~/types/IConfiguracoesAvaliacoes";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
+import DificuldadeRandomizacaoEnum from "~/enums/DificuldadeRandomizacaoEnum";
 
-const model = defineModel<IConfiguracoes>({ required: true });
+const model = defineModel<AvaliacaoEntity>({ required: true });
 
 const isRandomizacaoSimplesActive = computed({
-  get: () => model.value.tipoRandomizacao === TipoRandomizacaoEnum.SIMPLES,
+  get: () =>
+    model.value.configuracao.configuracoesGerais.configuracoesRandomizacao[0]
+      ?.tipo === TipoRandomizacaoEnum.SIMPLES,
   set: (value) => {
-    if (
-      model.value.tipoRandomizacao &&
-      model.value.tipoRandomizacao !== TipoRandomizacaoEnum.SIMPLES
-    ) {
-      return;
+    const gerais = model.value.configuracao.configuracoesGerais;
+    const currentType = gerais.configuracoesRandomizacao[0]?.tipo;
+
+    if (value) {
+      gerais.configuracoesRandomizacao = [
+        {
+          id: Date.now(),
+          tipo: TipoRandomizacaoEnum.SIMPLES,
+          dificuldade:
+            gerais.configuracoesRandomizacao[0]?.dificuldade ||
+            DificuldadeRandomizacaoEnum.QUALQUER,
+          quantidade: 0,
+          questoes: [],
+        },
+      ];
+    } else if (currentType === TipoRandomizacaoEnum.SIMPLES) {
+      gerais.configuracoesRandomizacao = [];
     }
-    model.value.tipoRandomizacao = value ? TipoRandomizacaoEnum.SIMPLES : null;
   },
 });
 </script>
@@ -31,24 +45,39 @@ const isRandomizacaoSimplesActive = computed({
 
       <div class="flex items-center justify-between">
         <span class="text-sm text-gray-700">Exibir Pontuação ao Finalizar</span>
-        <USwitch v-model="model.exibirPontuacaDaSubmissao" />
+        <USwitch
+          v-model="model.configuracao.configuracoesGerais.mostrarPontuacao"
+        />
       </div>
 
       <div class="flex items-center justify-between">
         <span class="text-sm text-gray-700"
           >Autocorreção de discursivas via I.A</span
         >
-        <USwitch v-model="model.autocorrecaoIa" />
+        <USwitch
+          v-model="
+            model.configuracao.configuracoesSeguranca
+              .ativarCorrecaoDiscursivaViaIa
+          "
+        />
       </div>
 
       <div class="flex items-center justify-between">
         <span class="text-sm text-gray-700">Tempo Mínimo (minutos)</span>
-        <UInputNumber v-model="model.tempoMinimo" class="w-32" />
+        <UInputNumber
+          v-model="model.configuracao.configuracoesGerais.tempoMinimo"
+          class="w-32"
+        />
       </div>
 
       <div class="flex items-center justify-between">
         <span class="text-sm text-gray-700">Tentativas Permitidas</span>
-        <UInputNumber v-model="model.numeroMaximoDeEnvios" class="w-28" />
+        <UInputNumber
+          v-model="
+            model.configuracao.configuracoesSeguranca.quantidadeTentativas
+          "
+          class="w-28"
+        />
       </div>
     </div>
   </UCard>

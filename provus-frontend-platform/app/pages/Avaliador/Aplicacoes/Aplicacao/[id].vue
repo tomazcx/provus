@@ -1,66 +1,65 @@
 <script setup lang="ts">
 import Header from "@/components/Aplicacoes/AplicacoesHeader/index.vue";
-import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
-import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
-import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
-import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
+// import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
+// import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
+// import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
+// import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 
 import { useApplicationsStore } from "~/store/applicationsStore";
-import { useExamBankStore } from "~/store/assessmentBankStore";
-import type { IAplicacao } from "~/types/IAplicacao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 
 const applicationsStore = useApplicationsStore();
-const examBankStore = useExamBankStore();
 const route = useRoute();
 
-const aplicacao = ref<IAplicacao | null>(null);
-const modeloDaAplicacao = ref<IAvaliacaoImpl | null>(null);
+const aplicacao = ref<AplicacaoEntity | null>(null);
+const modeloDaAplicacao = ref<AvaliacaoEntity | null>(null);
 
-onMounted(async () => {
-  await applicationsStore.fetchItems();
-  await examBankStore.fetchItems();
+watchEffect(() => {
+  if (applicationsStore.applications.length > 0) {
+    const applicationId = parseInt(route.params.id as string, 10);
+    const foundApplication =
+      applicationsStore.getApplicationById(applicationId);
 
-  const applicationId = parseInt(route.params.id as string, 10);
-  const foundApplication = applicationsStore.getApplicationById(applicationId);
-
-  if (foundApplication) {
-    aplicacao.value = foundApplication;
-    const foundModelo = examBankStore.getItemById(
-      foundApplication.avaliacaoModeloId
-    );
-    if (foundModelo) {
-      modeloDaAplicacao.value = foundModelo;
+    if (foundApplication) {
+      aplicacao.value = foundApplication;
+      modeloDaAplicacao.value = foundApplication.avaliacao;
+    } else {
+      console.error("Aplicação não encontrada!");
     }
-  } else {
-    console.error("Aplicação não encontrada!");
+  }
+});
+
+onMounted(() => {
+  if (applicationsStore.applications.length === 0) {
+    applicationsStore.fetchApplications();
   }
 });
 </script>
 
 <template>
   <div v-if="aplicacao && modeloDaAplicacao">
-    <Breadcrumbs :aplicacao="aplicacao" level="details" />
+    <!-- <Breadcrumbs :aplicacao="aplicacao" level="details" /> -->
 
     <Header
       :titulo="modeloDaAplicacao.titulo"
       :descricao="modeloDaAplicacao.descricao"
-      :data-aplicacao="aplicacao.dataAplicacao"
+      :data-aplicacao="aplicacao.dataInicio.toISOString()"
     />
 
     <div class="bg-green-100 border border-green-200 rounded-lg px-4 py-3 mb-8">
       <div class="flex items-center space-x-2">
         <Icon name="i-lucide-check-circle" class="text-green-600" />
         <span class="font-medium text-green-800">{{ aplicacao.estado }}</span>
-        <span class="text-green-600"
-          >• {{ aplicacao.participantes }} participantes</span
-        >
+        <UTooltip text="Disponível após a finalização da aplicação">
+          <span class="text-green-600">• -- participantes</span>
+        </UTooltip>
       </div>
     </div>
 
-    <OverviewStats :aplicacao="aplicacao" />
-    <AnalysisGrid :aplicacao="aplicacao" :modelo="modeloDaAplicacao" />
-    <ViolationsTable :aplicacao="aplicacao" />
+    <!-- <OverviewStats :aplicacao="aplicacao" /> -->
+    <!-- <AnalysisGrid :aplicacao="aplicacao" :modelo="modeloDaAplicacao" /> -->
+    <!-- <ViolationsTable :aplicacao="aplicacao" /> -->
   </div>
   <div v-else>
     <p class="text-gray-500">Carregando dados da aplicação...</p>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import MaterialsBankContent from "@/components/BancoDeMateriais/MaterialsBankContent/index.vue";
 import { useMaterialsBankStore } from "~/store/materialsBankStore";
-
-import type { IFile } from "~/types/IFile";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { ItemEntity } from "~/types/entities/Item.entity";
 import isFolder from "~/guards/isFolder";
 
 defineProps<{ modelValue: boolean }>();
@@ -11,17 +11,13 @@ const emit = defineEmits<{
   (
     e: "add-materials",
     payload: {
-      files: IFile[];
+      files: ArquivoEntity[];
       rawSelection: { folders: number[]; files: number[] };
     }
   ): void;
 }>();
 
 const materialsBankStore = useMaterialsBankStore();
-
-onMounted(() => {
-  materialsBankStore.fetchItems();
-});
 
 const materialsContentRef = ref<InstanceType<
   typeof MaterialsBankContent
@@ -47,7 +43,7 @@ function addSelectedMaterials() {
           ? `/${folder.titulo}`
           : `${folder.path}/${folder.titulo}`;
 
-      materialsBankStore.items.forEach((item) => {
+      materialsBankStore.items.forEach((item: ItemEntity) => {
         if (item.path?.startsWith(pathPrefix) && !isFolder(item)) {
           finalFileIds.add(item.id!);
         }
@@ -57,7 +53,7 @@ function addSelectedMaterials() {
 
   const filesToAdd = materialsBankStore.items.filter(
     (item) => item.id && finalFileIds.has(item.id)
-  ) as IFile[];
+  ) as ArquivoEntity[];
 
   const fileClones = JSON.parse(JSON.stringify(filesToAdd));
 

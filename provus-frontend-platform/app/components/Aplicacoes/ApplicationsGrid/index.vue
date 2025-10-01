@@ -3,15 +3,16 @@ import ApplicationCard from "~/components/Aplicacoes/ApplicationCard/index.vue";
 import ViewConfigurationDialog from "~/components/Aplicacoes/Detalhes/ViewConfigurationDialog.vue";
 import { useApplicationsStore } from "~/store/applicationsStore";
 import { useExamBankStore } from "~/store/assessmentBankStore";
-import type { IAplicacao } from "~/types/IAplicacao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 
 const applicationsStore = useApplicationsStore();
 const examBankStore = useExamBankStore();
 const router = useRouter();
 
 const applications = computed(() => applicationsStore.applications);
-const applicationToStart = ref<IAplicacao | null>(null);
+const applicationToStart = ref<AplicacaoEntity | null>(null);
 const isDialogVisible = computed({
   get: () => !!applicationToStart.value,
   set: (value) => {
@@ -21,48 +22,51 @@ const isDialogVisible = computed({
   },
 });
 const isConfigDialogOpen = ref(false);
-const modeloParaVisualizar = ref<IAvaliacaoImpl | null>(null);
+const modeloParaVisualizar = ref<AvaliacaoEntity | null>(null);
 
 onMounted(() => {
-  applicationsStore.fetchItems();
-  examBankStore.fetchItems();
+  applicationsStore.fetchApplications();
+  examBankStore.initialize();
 });
 
-function handleViewConfig(aplicacao: IAplicacao) {
-  const foundModelo = examBankStore.getItemById(aplicacao.avaliacaoModeloId);
-  if (foundModelo) {
-    modeloParaVisualizar.value = foundModelo;
-    isConfigDialogOpen.value = true;
-  } else {
-    console.error("Modelo da aplicação não encontrado!");
-  }
+function handleViewConfig(aplicacao: AplicacaoEntity) {
+  modeloParaVisualizar.value = aplicacao.avaliacao;
+  isConfigDialogOpen.value = true;
 }
 
-function handleApplyNow(aplicacao: IAplicacao) {
-  const appUpdated = applicationsStore.applyScheduledNow(aplicacao.id);
-  if (appUpdated) {
-    applicationToStart.value = appUpdated;
-  }
+function handleApplyNow(aplicacao: AplicacaoEntity) {
+  applicationsStore.updateApplicationStatus(
+    aplicacao.id,
+    EstadoAplicacaoEnum.EM_ANDAMENTO
+  );
 }
 
-function handleCancelSchedule(aplicacao: IAplicacao) {
-  applicationsStore.cancelScheduled(aplicacao.id);
+function handleCancelSchedule(aplicacao: AplicacaoEntity) {
+  applicationsStore.updateApplicationStatus(
+    aplicacao.id,
+    EstadoAplicacaoEnum.CANCELADA
+  );
 }
 
-function handleReopen(aplicacao: IAplicacao) {
-  applicationsStore.reopenApplication(aplicacao.id);
+function handleReopen(aplicacao: AplicacaoEntity) {
+  applicationsStore.updateApplicationStatus(
+    aplicacao.id,
+    EstadoAplicacaoEnum.CRIADA
+  );
 }
 
-function handleStartNowFromCard(aplicacao: IAplicacao) {
+function handleStartNowFromCard(aplicacao: AplicacaoEntity) {
   applicationToStart.value = aplicacao;
 }
 
 function handleStartNowFromDialog() {
   if (applicationToStart.value) {
     const appId = applicationToStart.value.id;
-    applicationsStore.startApplication(appId);
+    applicationsStore.updateApplicationStatus(
+      appId,
+      EstadoAplicacaoEnum.EM_ANDAMENTO
+    );
     applicationToStart.value = null;
-
     router.push(`/aplicacoes/aplicacao/${appId}/monitoramento`);
   }
 }

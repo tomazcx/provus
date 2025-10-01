@@ -229,6 +229,7 @@ defineExpose({
           v-if="isFolder(item)"
           :item="item"
           :selectable="mode === 'select'"
+          :child-count="item.childCount || 0"
           :is-selected="selectedItems.folders.has(item.id!)"
           @select="handleSelectItem(item)"
           @edit="editingItem = item"

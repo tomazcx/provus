@@ -1,16 +1,40 @@
 <script setup lang="ts">
 import TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import type {
-  IRegraDeOcorrencia,
-  IRegraSeguranca,
-} from "~/types/IConfiguracoesAvaliacoes";
+import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import type { PunicaoPorOcorrenciaEntity } from "~/types/entities/Configuracoes.entity";
 
 const props = defineProps<{
-  form: Partial<IAvaliacaoImpl>;
-  poolQuestoesCount: number;
+  form: AvaliacaoEntity;
 }>();
+
+const emit = defineEmits(["update:form"]);
+
+const infracoesDisponiveis = {
+  [TipoInfracaoEnum.TROCA_ABAS]: {
+    label: "Troca de Abas",
+    description: "Detecte se o estudante sair da aba da avaliação.",
+    flag: "proibirTrocarAbas" as const,
+  },
+  [TipoInfracaoEnum.PRINT_SCREEN]: {
+    label: "Print Screen",
+    description: "Detecte se o estudante tirar um print da tela.",
+    flag: "proibirPrintScreen" as const,
+  },
+  [TipoInfracaoEnum.COPIAR_COLAR]: {
+    label: "Copiar e Colar",
+    description:
+      "Detecte se o estudante tentar copiar ou colar algum conteúdo.",
+    flag: "proibirCopiarColar" as const,
+  },
+  [TipoInfracaoEnum.DEV_TOOLS]: {
+    label: "Ferramentas de Desenvolvedor",
+    description:
+      "Detecte se o estudante abrir as ferramentas de desenvolvedor da página.",
+    flag: "proibirDevtools" as const,
+  },
+};
 
 const formState = computed({
   get: () => props.form,
@@ -20,104 +44,76 @@ const formState = computed({
 });
 
 function addIpField() {
-  if (formState.value.configuracoes) {
-    if (!formState.value.configuracoes.ipsPermitidos) {
-      formState.value.configuracoes.ipsPermitidos = [];
-    }
-    formState.value.configuracoes.ipsPermitidos.push("");
-  }
+  formState.value.configuracao.configuracoesSeguranca.ipsPermitidos.push("");
 }
-
 function removeIpField(index: number) {
-  if (formState.value.configuracoes?.ipsPermitidos) {
-    formState.value.configuracoes.ipsPermitidos.splice(index, 1);
-  }
+  formState.value.configuracao.configuracoesSeguranca.ipsPermitidos.splice(
+    index,
+    1
+  );
 }
 
 const punitionOptions = Object.values(TipoPenalidadeEnum);
 
-function addOcorrenciaRule(regra: IRegraSeguranca) {
-  regra.regrasDeOcorrencia.push({
-    id: Date.now(),
-    ocorrencias: 1,
-    punicoes: [],
+function addOcorrenciaRule(tipoInfracao: TipoInfracaoEnum) {
+  formState.value.configuracao.configuracoesSeguranca.punicoes.push({
+    tipoInfracao: tipoInfracao,
+    quantidadeOcorrencias: 1,
+    tipoPenalidade: TipoPenalidadeEnum.ALERTAR_ESTUDANTE,
+    pontuacaoPerdida: 0,
+    tempoReduzido: 0,
   });
 }
-
-function removeOcorrenciaRule(regra: IRegraSeguranca, ocorrenciaId: number) {
-  regra.regrasDeOcorrencia = regra.regrasDeOcorrencia.filter(
-    (o) => o.id !== ocorrenciaId
-  );
-}
-
-function addPunition(ocorrenciaRule: IRegraDeOcorrencia) {
-  ocorrenciaRule.punicoes.push({
-    id: Date.now(),
-    tipo: null,
-    valor: 0,
-  });
-}
-
-function removePunition(ocorrenciaRule: IRegraDeOcorrencia, punicaoId: number) {
-  ocorrenciaRule.punicoes = ocorrenciaRule.punicoes.filter(
-    (p) => p.id !== punicaoId
-  );
+function removeOcorrenciaRule(ruleToRemove: PunicaoPorOcorrenciaEntity) {
+  const punicoes = formState.value.configuracao.configuracoesSeguranca.punicoes;
+  const index = punicoes.indexOf(ruleToRemove);
+  if (index > -1) {
+    punicoes.splice(index, 1);
+  }
 }
 
 const isEmailNotificationSelected = computed({
   get() {
-    return (
-      formState.value.configuracoes?.tipoNotificacao?.includes(
-        TipoNotificacaoEnum.EMAIL
-      ) ?? false
+    return formState.value.configuracao.configuracoesSeguranca.notificacoes.includes(
+      TipoNotificacaoEnum.EMAIL
     );
   },
   set(value) {
-    if (!formState.value.configuracoes) return;
-
     const selection = new Set(
-      formState.value.configuracoes.tipoNotificacao || []
+      formState.value.configuracao.configuracoesSeguranca.notificacoes
     );
-
     if (value) {
       selection.add(TipoNotificacaoEnum.EMAIL);
     } else {
       selection.delete(TipoNotificacaoEnum.EMAIL);
     }
-
-    formState.value.configuracoes.tipoNotificacao = Array.from(selection);
+    formState.value.configuracao.configuracoesSeguranca.notificacoes =
+      Array.from(selection);
   },
 });
-
 const isPushNotificationSelected = computed({
   get() {
-    return (
-      formState.value.configuracoes?.tipoNotificacao?.includes(
-        TipoNotificacaoEnum.PUSH_NOTIFICATION
-      ) ?? false
+    return formState.value.configuracao.configuracoesSeguranca.notificacoes.includes(
+      TipoNotificacaoEnum.PUSH_NOTIFICATION
     );
   },
   set(value) {
-    if (!formState.value.configuracoes) return;
-
     const selection = new Set(
-      formState.value.configuracoes.tipoNotificacao || []
+      formState.value.configuracao.configuracoesSeguranca.notificacoes
     );
-
     if (value) {
       selection.add(TipoNotificacaoEnum.PUSH_NOTIFICATION);
     } else {
       selection.delete(TipoNotificacaoEnum.PUSH_NOTIFICATION);
     }
-
-    formState.value.configuracoes.tipoNotificacao = Array.from(selection);
+    formState.value.configuracao.configuracoesSeguranca.notificacoes =
+      Array.from(selection);
   },
 });
-
-const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
 </script>
+
 <template>
-  <div v-if="formState.configuracoes" class="w-full flex flex-col gap-6">
+  <div v-if="formState.configuracao" class="w-full flex flex-col gap-6">
     <UCard variant="subtle">
       <template #header>
         <div class="flex justify-between">
@@ -126,26 +122,31 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
       </template>
       <div class="flex flex-col gap-5">
         <div
-          v-for="(regra, tipoInfracao) in formState.configuracoes
-            .regrasDeSeguranca"
+          v-for="(regra, tipoInfracao) in infracoesDisponiveis"
           :key="tipoInfracao"
         >
           <USwitch
-            v-model="regra.ativo"
-            :label="tipoInfracao"
-            :description="regra.descricao"
+            v-model="formState.configuracao.configuracoesSeguranca[regra.flag]"
+            :label="regra.label"
+            :description="regra.description"
           />
-
-          <div v-if="regra.ativo" class="pl-8 pt-4 space-y-4">
+          <div
+            v-if="formState.configuracao.configuracoesSeguranca[regra.flag]"
+            class="pl-8 pt-4 space-y-4"
+          >
             <UCard
-              v-for="ocorrenciaRule in regra.regrasDeOcorrencia"
-              :key="ocorrenciaRule.id"
+              v-for="(
+                ocorrenciaRule, index
+              ) in formState.configuracao.configuracoesSeguranca.punicoes.filter(
+                (p) => p.tipoInfracao === tipoInfracao
+              )"
+              :key="index"
               variant="outline"
             >
               <div class="flex items-center gap-2 text-sm">
                 <span>Após</span>
                 <UInputNumber
-                  v-model="ocorrenciaRule.ocorrencias"
+                  v-model="ocorrenciaRule.quantidadeOcorrencias"
                   class="w-20"
                 />
                 <span>ocorrências, aplicar:</span>
@@ -154,54 +155,43 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
                   variant="outline"
                   icon="i-lucide-trash-2"
                   class="ml-auto -mr-2"
-                  @click="removeOcorrenciaRule(regra, ocorrenciaRule.id)"
+                  @click="removeOcorrenciaRule(ocorrenciaRule)"
                 />
               </div>
-
               <div class="pl-6 pt-3 space-y-3">
-                <div
-                  v-for="punicao in ocorrenciaRule.punicoes"
-                  :key="punicao.id"
-                  class="flex items-center gap-2"
-                >
+                <div class="flex items-center gap-2">
                   <USelect
-                    v-model="punicao.tipo!"
+                    v-model="ocorrenciaRule.tipoPenalidade"
                     :items="punitionOptions"
                     class="flex-1"
                     placeholder="Selecione uma punição..."
                   />
                   <UInputNumber
                     v-if="
-                      punicao.tipo === TipoPenalidadeEnum.REDUZIR_PONTOS ||
-                      punicao.tipo === TipoPenalidadeEnum.REDUZIR_TEMPO
+                      ocorrenciaRule.tipoPenalidade ===
+                      TipoPenalidadeEnum.REDUZIR_PONTOS
                     "
-                    v-model="punicao.valor"
+                    v-model="ocorrenciaRule.pontuacaoPerdida"
                     class="w-24"
                   />
-                  <UButton
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-x"
-                    @click="removePunition(ocorrenciaRule, punicao.id)"
+                  <UInputNumber
+                    v-if="
+                      ocorrenciaRule.tipoPenalidade ===
+                      TipoPenalidadeEnum.REDUZIR_TEMPO
+                    "
+                    v-model="ocorrenciaRule.tempoReduzido"
+                    class="w-24"
                   />
                 </div>
-                <UButton
-                  label="Adicionar Punição"
-                  variant="link"
-                  size="xs"
-                  icon="i-lucide-plus"
-                  @click="addPunition(ocorrenciaRule)"
-                />
               </div>
             </UCard>
-
             <UButton
               label="Adicionar Gatilho de Ocorrência"
               variant="outline"
               size="sm"
               icon="i-lucide-plus"
               class="mt-2"
-              @click="addOcorrenciaRule(regra)"
+              @click="addOcorrenciaRule(tipoInfracao)"
             />
           </div>
         </div>
@@ -210,47 +200,56 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
 
     <UCard variant="subtle">
       <template #header>
-        <div class="flex justify-between">
-          <h2 class="font-bold">Controle de acesso</h2>
-        </div>
+        <h2 class="font-bold">Controle de acesso</h2>
       </template>
-
       <div class="space-y-5">
         <UFormField
           label="Quantidade de tentativas"
           description="Defina quantas vezes o aluno pode fazer a avaliação."
         >
           <UInputNumber
-            v-model="formState.configuracoes.numeroMaximoDeEnvios"
+            v-model="
+              formState.configuracao.configuracoesSeguranca.quantidadeTentativas
+            "
           />
         </UFormField>
-
         <UFormField
           label="Quantidade de acessos simultâneos"
           description="Defina quantas pessoas podem acessar uma mesma prova ao mesmo tempo."
         >
           <UInputNumber
-            v-model="formState.configuracoes.quantidadeAcessosSimultaneos"
+            v-model="
+              formState.configuracao.configuracoesSeguranca
+                .quantidadeAcessosSimultaneos
+            "
           />
         </UFormField>
         <div class="space-y-2">
           <USwitch
-            v-model="formState.configuracoes.ativarControleIp"
+            v-model="
+              formState.configuracao.configuracoesSeguranca.ativarControleIp
+            "
             label="Ativar controle de acesso por IP"
             description="Apenas os endereços de IP listados poderão acessar a avaliação."
           />
-
           <div
-            v-if="formState.configuracoes.ativarControleIp"
+            v-if="
+              formState.configuracao.configuracoesSeguranca.ativarControleIp
+            "
             class="pl-8 space-y-3"
           >
             <div
-              v-for="(ip, index) in formState.configuracoes.ipsPermitidos"
+              v-for="(ip, index) in formState.configuracao
+                .configuracoesSeguranca.ipsPermitidos"
               :key="index"
               class="flex items-center gap-2"
             >
               <UInput
-                v-model="formState.configuracoes.ipsPermitidos[index]"
+                v-model="
+                  formState.configuracao.configuracoesSeguranca.ipsPermitidos[
+                    index
+                  ]
+                "
                 placeholder="Ex: 192.168.1.1"
               />
               <UButton
@@ -260,7 +259,6 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
                 @click="removeIpField(index)"
               />
             </div>
-
             <UButton
               label="Adicionar IP"
               variant="outline"
@@ -274,24 +272,26 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
 
     <UCard variant="subtle">
       <template #header>
-        <div class="flex justify-between">
-          <h2 class="font-bold">Alertas</h2>
-        </div>
+        <h2 class="font-bold">Alertas</h2>
         <p class="text-sm">
           Configure os alertas que podem aparecer aos estudantes.
         </p>
       </template>
       <div class="flex flex-col gap-5">
-        <div class="flex justify-between">
-          <UFormField
-            label="Duração do alerta (segundos)"
-            description="Por quanto tempo o alerta ficará visível."
-          >
-            <UInputNumber v-model="formState.configuracoes.duracaoDoAlerta" />
-          </UFormField>
-        </div>
+        <UFormField
+          label="Duração do alerta (segundos)"
+          description="Por quanto tempo o alerta ficará visível."
+        >
+          <UInputNumber
+            v-model="
+              formState.configuracao.configuracoesSeguranca.duracaoAlertas
+            "
+          />
+        </UFormField>
         <USwitch
-          v-model="formState.configuracoes.permitirFecharAlerta"
+          v-model="
+            formState.configuracao.configuracoesSeguranca.permitirFecharAlertas
+          "
           label="Permitir fechar alerta"
           description="O estudante poderá fechar o alerta antes que o tempo de duração termine."
         />
@@ -300,9 +300,7 @@ const emit = defineEmits(["update:form", "open-bank-dialog", "view-selection"]);
 
     <UCard variant="subtle">
       <template #header>
-        <div class="flex justify-between">
-          <h2 class="font-bold">Notificações</h2>
-        </div>
+        <h2 class="font-bold">Notificações</h2>
         <p class="text-sm">
           Configure suas notificações quando alguém infrigir as regras.
         </p>

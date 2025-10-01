@@ -4,21 +4,20 @@ import OpenQuestionBankDialog from "~/components/Avaliacao/OpenQuestionBankDialo
 import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/index.vue";
 import GeneralSettings from "./GeneralSettings.vue";
 import SecuritySettings from "./SecuritySettings.vue";
+import IaSettings from "./IaSettings.vue";
 import OpenMaterialsBankDialog from "~/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
 import ViewAttachedMaterialsDialog from "~/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
 import EditFileDialog from "~/components/BancoDeMateriais/EditFileDialog/index.vue";
 
-import type { IQuestao, TQuestionForm } from "~/types/IQuestao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import type {
-  IRandomizationRule,
-  IRegraGeracaoIA,
-} from "~/types/IConfiguracoesAvaliacoes";
-import type { IFile } from "~/types/IFile";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { RandomizationRuleEntity } from "~/types/entities/Configuracoes.entity";
+import type { UpdateQuestaoRequest } from "~/types/api/request/Questao.request";
 
 const props = defineProps<{
   modelValue: boolean;
-  initialData: IAvaliacaoImpl | null;
+  initialData: AvaliacaoEntity | null;
 }>();
 
 const emit = defineEmits(["update:modelValue", "save"]);
@@ -27,37 +26,27 @@ const isViewSelectionDialogOpen = ref(false);
 const isBankDialogOpen = ref(false);
 const isMaterialsBankDialogOpen = ref(false);
 const isViewMaterialsDialogOpen = ref(false);
-const configuringIaRule = ref<IRegraGeracaoIA | null>(null);
-const materialsToView = ref<IFile[]>([]);
-const viewingIaRule = ref<IRegraGeracaoIA | null>(null);
 
-const editingPoolQuestion = ref<IQuestao | null>(null);
-const editingAttachedMaterial = ref<IFile | null>(null);
+const editingPoolQuestion = ref<QuestaoEntity | null>(null);
+const editingAttachedMaterial = ref<ArquivoEntity | null>(null);
 
-const configuringRuleId = ref<number | null>(null);
+const configuringRule = ref<RandomizationRuleEntity | null>(null);
+const questionsToView = ref<QuestaoEntity[]>([]);
 
-const questionsToView = ref<IQuestao[]>([]);
-
-const formState = reactive<Partial<IAvaliacaoImpl>>({});
+const formState = reactive<Partial<AvaliacaoEntity>>({});
 
 const activeSection = ref("geral");
-
-const poolQuestoesCount = computed(() => {
-  return formState.configuracoes?.poolSelecaoBanco.questoes.length || 0;
-});
 
 watch(
   () => props.initialData,
   (newData) => {
     if (newData) {
       const dataCopy = JSON.parse(JSON.stringify(newData));
-
-      if (dataCopy.configuracoes?.dataAgendada) {
-        dataCopy.configuracoes.dataAgendada = new Date(
-          dataCopy.configuracoes.dataAgendada
+      if (dataCopy.configuracao?.configuracoesGerais?.dataAgendamento) {
+        dataCopy.configuracao.configuracoesGerais.dataAgendamento = new Date(
+          dataCopy.configuracao.configuracoesGerais.dataAgendamento
         );
       }
-
       Object.assign(formState, dataCopy);
     }
   },
@@ -89,38 +78,17 @@ const menuItems = computed(() => [
 ]);
 
 function handleSave() {
-  emit("save", formState);
+  emit("save", formState as AvaliacaoEntity);
   emit("update:modelValue", false);
 }
 
-function handleOpenBankDialog({
-  context,
-  ruleId,
-}: {
-  context: string;
-  ruleId?: number;
-}) {
-  if (context === "configurable" && ruleId) {
-    configuringRuleId.value = ruleId;
-  } else {
-    configuringRuleId.value = null;
-  }
+function handleOpenBankDialog({ rule }: { rule: RandomizationRuleEntity }) {
+  configuringRule.value = rule;
   isBankDialogOpen.value = true;
 }
 
-function handleViewSelection({
-  context,
-  rule,
-}: {
-  context: string;
-  rule?: IRandomizationRule;
-}) {
-  if (context === "simple") {
-    questionsToView.value =
-      formState.configuracoes?.poolSelecaoBanco.questoes || [];
-  } else if (context === "configurable" && rule) {
-    questionsToView.value = rule.grupo.questoes;
-  }
+function handleViewSelection({ rule }: { rule: RandomizationRuleEntity }) {
+  questionsToView.value = rule.questoes;
   isViewSelectionDialogOpen.value = true;
 }
 
@@ -133,37 +101,20 @@ function handleRemoveFromSelection(questionIdToRemove: number) {
   }
 }
 
-function handleBankSelection(selection: {
-  questions: IQuestao[];
-  rawSelection: { folders: number[]; questions: number[] };
-}) {
-  const questionClones = selection.questions.map((q) =>
-    JSON.parse(JSON.stringify(q))
-  );
-
-  if (configuringRuleId.value !== null) {
-    const rule = formState.configuracoes?.regrasRandomizacaoConfiguravel?.find(
-      (r) => r.id === configuringRuleId.value
+function handleBankSelection(selection: { questions: QuestaoEntity[] }) {
+  if (configuringRule.value) {
+    configuringRule.value.questoes = JSON.parse(
+      JSON.stringify(selection.questions)
     );
-    if (rule) {
-      rule.grupo.questoes = questionClones;
-      rule.grupo.pastas = selection.rawSelection.folders;
-    }
-    configuringRuleId.value = null;
-  } else {
-    if (formState.configuracoes) {
-      formState.configuracoes.poolSelecaoBanco.questoes = questionClones;
-      formState.configuracoes.poolSelecaoBanco.pastas =
-        selection.rawSelection.folders;
-    }
   }
+  configuringRule.value = null;
 }
 
-function handleEditFromPool(question: IQuestao) {
+function handleEditFromPool(question: QuestaoEntity) {
   editingPoolQuestion.value = question;
 }
 
-function handleUpdateInPool(updatedData: TQuestionForm) {
+function handleUpdateInPool(updatedData: UpdateQuestaoRequest) {
   if (!editingPoolQuestion.value) return;
   const questionInView = questionsToView.value.find(
     (q) => q.id === editingPoolQuestion.value!.id
@@ -174,116 +125,51 @@ function handleUpdateInPool(updatedData: TQuestionForm) {
   editingPoolQuestion.value = null;
 }
 
-function handleOpenMaterialsBank() {
-  isMaterialsBankDialogOpen.value = true;
-}
-
-function handleOpenMaterialsBankForRule(rule: IRegraGeracaoIA) {
-  configuringIaRule.value = rule;
-  isMaterialsBankDialogOpen.value = true;
-}
-
-function handleEditMaterial(fileToEdit: IFile) {
+function handleEditMaterial(fileToEdit: ArquivoEntity) {
   editingAttachedMaterial.value = fileToEdit;
 }
 
-function handleUpdateMaterial(updatedData: Partial<IFile>) {
-  if (!editingAttachedMaterial.value) return;
-
-  const originalFile =
-    formState.configuracoes?.materiaisAnexados?.arquivos.find(
-      (f) => f.id === editingAttachedMaterial.value!.id
-    );
-
-  if (originalFile) {
-    Object.assign(originalFile, updatedData);
+function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
+  if (!editingAttachedMaterial.value || !formState.arquivos) return;
+  const originalFileWrapper = formState.arquivos.find(
+    (aw) => aw.arquivo.id === editingAttachedMaterial.value!.id
+  );
+  if (originalFileWrapper) {
+    Object.assign(originalFileWrapper.arquivo, updatedData);
   }
-
   editingAttachedMaterial.value = null;
 }
 
-function handleFormUpdate(updatedForm: Partial<IAvaliacaoImpl>) {
+function handleFormUpdate(updatedForm: Partial<AvaliacaoEntity>) {
   Object.assign(formState, updatedForm);
 }
 
-function handleViewMaterials() {
-  viewingIaRule.value = null;
-  isViewMaterialsDialogOpen.value = true;
-}
-
-function handleMaterialsBankSelection(selection: {
-  files: IFile[];
-  rawSelection: { folders: number[]; files: number[] };
-}) {
-  if (configuringIaRule.value) {
-    const selectedFileIds = selection.files.map((f) => f.id!);
-
-    selection.files.forEach((file) => {
-      const anexoExistente =
-        formState.configuracoes?.materiaisAnexados?.arquivos.find(
-          (f) => f.id === file.id
-        );
-      if (!anexoExistente) {
-        formState.configuracoes?.materiaisAnexados?.arquivos.push(file);
-      }
-    });
-
-    configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
-    configuringIaRule.value = null;
-  } else {
-    if (formState.configuracoes?.materiaisAnexados) {
-      formState.configuracoes.materiaisAnexados.arquivos.push(
-        ...selection.files
-      );
-      formState.configuracoes.materiaisAnexados.pastas =
-        selection.rawSelection.folders;
-    }
+function handleMaterialsBankSelection(selection: { files: ArquivoEntity[] }) {
+  if (!formState.arquivos) {
+    formState.arquivos = [];
   }
+  const newFileWrappers = selection.files
+    .filter(
+      (file) => !formState.arquivos!.some((aw) => aw.arquivo.id === file.id)
+    )
+    .map((file) => ({
+      arquivo: file,
+      permitirConsultaPorEstudante: true,
+    }));
+  formState.arquivos.push(...newFileWrappers);
 }
 
 function handleRemoveMaterial(fileId: number) {
-  if (viewingIaRule.value) {
-    const index = viewingIaRule.value.materiaisAnexadosIds.indexOf(fileId);
-    if (index > -1) {
-      viewingIaRule.value.materiaisAnexadosIds.splice(index, 1);
-    }
-    const viewIndex = materialsToView.value.findIndex((m) => m.id === fileId);
-    if (viewIndex > -1) {
-      materialsToView.value.splice(viewIndex, 1);
-    }
-    if (materialsToView.value.length === 0) {
-      isViewMaterialsDialogOpen.value = false;
-    }
-  } else {
-    if (formState.configuracoes?.materiaisAnexados) {
-      const { arquivos } = formState.configuracoes.materiaisAnexados;
-      const index = arquivos.findIndex((f) => f.id === fileId);
-      if (index > -1) {
-        arquivos.splice(index, 1);
-      }
-    }
-  }
-}
-
-function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
-  if (rule.materiaisAnexadosIds && rule.materiaisAnexadosIds.length > 0) {
-    const materiais =
-      formState.configuracoes?.materiaisAnexados?.arquivos.filter((m) =>
-        rule.materiaisAnexadosIds.includes(m.id!)
-      );
-    if (materiais && materiais.length > 0) {
-      viewingIaRule.value = rule;
-      materialsToView.value = materiais;
-      isViewMaterialsDialogOpen.value = true;
-    }
+  if (!formState.arquivos) return;
+  const index = formState.arquivos.findIndex((aw) => aw.arquivo.id === fileId);
+  if (index > -1) {
+    formState.arquivos.splice(index, 1);
   }
 }
 </script>
 
 <template>
   <UModal
-    title="Configurações da Avaliação"
-    description="Ajuste os detalhes e regras da sua prova"
     class="min-w-[1080px] min-h-[900px]"
     :open="modelValue"
     @update:open="$emit('update:modelValue', $event)"
@@ -325,31 +211,26 @@ function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
         <div
           class="flex-1 border-l border-gray-200 pl-8 overflow-auto max-h-[700px]"
         >
-          <div v-if="activeSection === 'geral'">
+          <div v-if="activeSection === 'geral' && formState.configuracao">
             <GeneralSettings
-              :form="formState"
-              :pool-questoes-count="poolQuestoesCount"
+              :form="formState as AvaliacaoEntity"
               @update:form="handleFormUpdate"
               @open-bank-dialog="handleOpenBankDialog"
               @view-selection="handleViewSelection"
-              @open-materials-bank="handleOpenMaterialsBank"
-              @view-materials="handleViewMaterials"
             />
           </div>
-          <div v-else-if="activeSection === 'seguranca'">
+          <div
+            v-else-if="activeSection === 'seguranca' && formState.configuracao"
+          >
             <SecuritySettings
-              v-model:form="formState"
-              :pool-questoes-count="poolQuestoesCount"
-              @open-bank-dialog="handleOpenBankDialog"
-              @view-selection="handleViewSelection"
+              :form="formState as AvaliacaoEntity"
+              @update:form="handleFormUpdate"
             />
           </div>
-          <div v-else-if="activeSection === 'ia'">
+          <div v-else-if="activeSection === 'ia' && formState.configuracao">
             <IaSettings
-              :form="formState"
+              :form="formState as AvaliacaoEntity"
               @update:form="handleFormUpdate"
-              @open-materials-bank-for-rule="handleOpenMaterialsBankForRule"
-              @view-material-for-rule="handleViewMaterialForRule"
             />
           </div>
         </div>
@@ -361,7 +242,7 @@ function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
         <UButton
           variant="ghost"
           color="primary"
-          @click="emit('update:modelValue', false)"
+          @click="$emit('update:modelValue', false)"
           >Cancelar</UButton
         >
         <UButton color="primary" @click="handleSave"
@@ -397,11 +278,7 @@ function handleViewMaterialForRule(rule: IRegraGeracaoIA) {
 
   <ViewAttachedMaterialsDialog
     v-model="isViewMaterialsDialogOpen"
-    :selected-materials="
-      materialsToView.length > 0
-        ? materialsToView
-        : formState.configuracoes?.materiaisAnexados?.arquivos || []
-    "
+    :selected-materials="formState.arquivos?.map((aw) => aw.arquivo) || []"
     @remove-material="handleRemoveMaterial"
     @edit-material="handleEditMaterial"
   />

@@ -17,7 +17,7 @@ export class ArquivoDto {
     this.url = model.url;
     this.descricao = model.descricao;
     this.tamanhoEmBytes = model.tamanhoEmBytes;
-    this.paiId = model.item.pai ? model.item.pai.id : null;
+    this.paiId = model.item.paiId;
     this.criadoEm = model.item.criadoEm.toISOString();
     this.atualizadoEm = model.item.atualizadoEm.toISOString();
     this.path = path;

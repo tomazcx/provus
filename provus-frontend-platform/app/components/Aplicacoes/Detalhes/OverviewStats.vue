@@ -32,9 +32,7 @@ defineProps<{
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm text-gray-600">Taxa de conclusão</p>
-          <p class="text-3xl font-bold">
-            {{ aplicacao.taxaDeConclusao }}%
-          </p>
+          <p class="text-3xl font-bold">{{ aplicacao.taxaDeConclusao }}%</p>
         </div>
       </div>
     </UCard>

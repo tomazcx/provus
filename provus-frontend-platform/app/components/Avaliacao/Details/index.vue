@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 
-const model = defineModel<IAvaliacaoImpl | null>({ required: true });
+const model = defineModel<AvaliacaoEntity | null>({ required: true });
 </script>
 
 <template>
@@ -19,7 +19,7 @@ const model = defineModel<IAvaliacaoImpl | null>({ required: true });
       <div class="flex flex-col lg:flex-row gap-4">
         <UFormField label="Duração" class="w-full">
           <UInputNumber
-            v-model="model.configuracoes.tempoMaximo"
+            v-model="model.configuracao.configuracoesGerais.tempoMaximo"
             class="w-full"
           />
         </UFormField>

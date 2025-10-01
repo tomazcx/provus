@@ -5,6 +5,7 @@ import formatDate from "~/utils/formatDate";
 
 defineProps<{
   item: FolderEntity;
+  childCount: number;
   isSelected?: boolean;
   selectable?: boolean;
 }>();
@@ -35,7 +36,8 @@ const emit = defineEmits(["edit", "delete", "select"]);
     <div>
       <h3 class="font-medium text-gray-900">{{ item.titulo }}</h3>
       <p class="text-sm text-gray-600">
-        Modificado em {{ formatDate(item.atualizadoEm) }}
+        {{ childCount }} itens • Modificado em
+        {{ formatDate(item.atualizadoEm) }}
       </p>
     </div>
   </Item>

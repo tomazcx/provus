@@ -38,6 +38,7 @@ function mapApiResponseToEntity(
       paiId: item.paiId,
       criadoEm: new Date(item.criadoEm).toISOString(),
       atualizadoEm: new Date(item.atualizadoEm).toISOString(),
+      childCount: (item as ItemSistemaArquivosApiResponse).childCount || 0,
     };
   }
 }

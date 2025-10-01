@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import Item from "@/components/ui/BankItem/index.vue";
 
 defineProps<{
-  item: IAvaliacaoImpl;
+  item: AvaliacaoEntity;
   isSelected?: boolean;
+  selectable?: boolean;
 }>();
 
-const emit = defineEmits(["edit", "delete", "apply"]);
+const emit = defineEmits(["edit", "delete", "apply", "select"]);
 </script>
 
 <template>
@@ -17,18 +18,22 @@ const emit = defineEmits(["edit", "delete", "apply"]);
     @edit="emit('edit')"
     @delete="emit('delete')"
   >
+    <div v-if="selectable" class="flex items-center pr-2" @click.stop>
+      <UCheckbox
+        :model-value="isSelected"
+        @update:model-value="emit('select', item)"
+      />
+    </div>
     <div
       class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"
     >
       <Icon name="i-lucide-clipboard-list" class="text-purple-600 text-lg" />
     </div>
-
     <div class="flex-1 min-w-0">
       <h3 class="font-medium text-gray-900 truncate">{{ item.titulo }}</h3>
       <p v-if="item.descricao" class="text-sm text-gray-600 mt-1 truncate">
         {{ item.descricao }}
       </p>
-
       <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
         <div class="flex items-center gap-1">
           <Icon name="i-lucide-file-question" class="h-4 w-4" />
@@ -40,7 +45,6 @@ const emit = defineEmits(["edit", "delete", "apply"]);
         </div>
       </div>
     </div>
-
     <div class="ml-4 flex-shrink-0">
       <UButton
         label="Aplicar"

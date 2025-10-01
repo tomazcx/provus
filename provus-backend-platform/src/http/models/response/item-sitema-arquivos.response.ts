@@ -16,6 +16,13 @@ export class ItemSistemaArquivosResponse {
   titulo: string;
 
   @ApiProperty({
+    description: 'A quantidade de itens dentro de uma pasta.',
+    example: 5,
+    required: false,
+  })
+  childCount?: number;
+
+  @ApiProperty({
     description:
       'O tipo do item, para que o frontend possa renderizar o ícone correto.',
     enum: TipoItemEnum,
@@ -47,9 +54,14 @@ export class ItemSistemaArquivosResponse {
     response.id = model.id;
     response.titulo = model.titulo;
     response.tipo = model.tipo;
-    response.paiId = model.pai ? model.pai.id : null;
+    response.paiId = model.paiId;
     response.criadoEm = model.criadoEm;
     response.atualizadoEm = model.atualizadoEm;
+
+    if (model.tipo === TipoItemEnum.PASTA) {
+      response.childCount = Number(model.childCount) || 0;
+    }
+
     return response;
   }
 }

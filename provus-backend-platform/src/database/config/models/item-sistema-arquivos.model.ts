@@ -26,9 +26,14 @@ export class ItemSistemaArquivosModel {
   @Column()
   titulo: string;
 
+  childCount: number;
+
   @TreeParent()
   @JoinColumn({ name: 'pai_id' })
   pai: ItemSistemaArquivosModel;
+
+  @Column({ name: 'pai_id', nullable: true })
+  paiId: number | null;
 
   @Column({ type: 'enum', enum: TipoItemEnum })
   tipo: TipoItemEnum;

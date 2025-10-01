@@ -2,12 +2,11 @@
 import GeneralSettings from "@/components/Avaliacao/SettingsDialog/GeneralSettings.vue";
 import SecuritySettings from "@/components/Avaliacao/SettingsDialog/SecuritySettings.vue";
 import IaSettings from "@/components/Avaliacao/SettingsDialog/IaSettings.vue";
-
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 
 defineProps<{
   modelValue: boolean;
-  configuracao: IAvaliacaoImpl | null;
+  configuracao: AvaliacaoEntity | null;
 }>();
 
 defineEmits(["update:modelValue"]);
@@ -68,31 +67,13 @@ const menuItems = computed(() => [
         <div class="flex-1 border-l border-gray-200 pl-8">
           <fieldset v-if="configuracao" disabled class="contents">
             <div v-if="activeSection === 'geral'">
-              <GeneralSettings
-                :form="configuracao"
-                :pool-questoes-count="
-                  configuracao.configuracoes.poolSelecaoBanco.questoes.length ||
-                  0
-                "
-              />
+              <GeneralSettings :form="configuracao" />
             </div>
             <div v-else-if="activeSection === 'seguranca'">
-              <SecuritySettings
-                :form="configuracao"
-                :pool-questoes-count="
-                  configuracao.configuracoes.poolSelecaoBanco.questoes.length ||
-                  0
-                "
-              />
+              <SecuritySettings :form="configuracao" />
             </div>
             <div v-else-if="activeSection === 'ia'">
-              <IaSettings
-                :form="configuracao"
-                :pool-questoes-count="
-                  configuracao.configuracoes.poolSelecaoBanco.questoes.length ||
-                  0
-                "
-              />
+              <IaSettings :form="configuracao" />
             </div>
           </fieldset>
           <div v-else>

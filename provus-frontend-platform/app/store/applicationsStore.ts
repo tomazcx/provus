@@ -1,29 +1,42 @@
+import { defineStore } from "pinia";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
-import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
-import type { IAplicacao } from "~/types/IAplicacao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type {
+  CreateAplicacaoRequest,
+  UpdateAplicacaoRequest,
+} from "~/types/api/request/Aplicacao.request";
+import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 
-function generateAccessCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+function mapAplicacaoApiResponseToEntity(
+  apiResponse: AplicacaoApiResponse
+): AplicacaoEntity {
+  return {
+    id: apiResponse.id,
+    codigoAcesso: apiResponse.codigoAcesso,
+    estado: apiResponse.estado,
+    dataInicio: new Date(apiResponse.dataInicio),
+    dataFim: new Date(apiResponse.dataFim),
+    avaliacao: mapAvaliacaoApiResponseToEntity(apiResponse.avaliacao),
+  };
 }
 
 export const useApplicationsStore = defineStore("applications", () => {
-  const applications = ref<IAplicacao[]>([]);
-  const isLoading = ref(false);
+  const { $api } = useNuxtApp();
   const toast = useToast();
+  const applications = ref<AplicacaoEntity[]>([]);
+  const isLoading = ref(false);
 
-  async function fetchItems() {
-    if (applications.value.length > 0) return;
-
+  async function fetchApplications() {
     isLoading.value = true;
     try {
-      const { mockApplicationsResponse } = await import(
-        "~/mock/mockApplicationsResponse"
+      const response = await $api<AplicacaoApiResponse[]>(
+        "/backoffice/aplicacoes"
       );
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      applications.value = mockApplicationsResponse;
-    } catch (error) {
-      console.error("Erro ao buscar aplicações:", error);
+      applications.value = response.map(mapAplicacaoApiResponseToEntity);
+    } catch {
+      toast.add({ title: "Erro ao buscar aplicações", color: "error" });
     } finally {
       isLoading.value = false;
     }
@@ -33,138 +46,137 @@ export const useApplicationsStore = defineStore("applications", () => {
     return applications.value.find((app) => app.id === id);
   }
 
-  function createApplication(modelo: IAvaliacaoImpl): IAplicacao {
-    const isAgendada =
-      modelo.configuracoes.tipoAplicacao === TipoAplicacaoEnum.AGENDADA &&
-      modelo.configuracoes.dataAgendada &&
-      new Date(modelo.configuracoes.dataAgendada) > new Date();
-
-    const newApplication: IAplicacao = {
-      id: Date.now(),
-      estado: isAgendada
-        ? EstadoAplicacaoEnum.AGENDADA
-        : EstadoAplicacaoEnum.CRIADA,
-      codigoDeAcesso: generateAccessCode(),
-      titulo: modelo.titulo,
-      descricao: modelo.descricao,
-      dataAplicacao: isAgendada
-        ? new Date(modelo.configuracoes.dataAgendada!).toISOString()
-        : new Date().toISOString(),
-      participantes: 0,
-      avaliacaoModeloId: modelo.id!,
-      taxaDeConclusao: 0,
-      tempoMedio: 0,
-      mediaGeral: 0,
-      maiorNota: 0,
-      menorNota: 0,
-      desvioPadrao: 0,
-      notaMedia: 0,
-      penalidades: [],
-      ajusteDeTempoEmSegundos: 0,
-    };
-
-    applications.value.unshift(newApplication);
-    return newApplication;
+  async function createApplication(
+    modelo: AvaliacaoEntity
+  ): Promise<AplicacaoEntity | null> {
+    try {
+      const payload: CreateAplicacaoRequest = {
+        avaliacaoId: modelo.id,
+        estado: modelo.configuracao.configuracoesGerais.dataAgendamento
+          ? EstadoAplicacaoEnum.AGENDADA
+          : EstadoAplicacaoEnum.CRIADA,
+      };
+      const newApplicationResponse = await $api<AplicacaoApiResponse>(
+        "/backoffice/aplicacao",
+        {
+          method: "POST",
+          body: payload,
+        }
+      );
+      await fetchApplications();
+      return mapAplicacaoApiResponseToEntity(newApplicationResponse);
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao criar aplicação",
+        description: errorMessage,
+        color: "error",
+      });
+      return null;
+    }
   }
 
-  function updateApplicationStatus(
+  async function updateApplicationStatus(
     applicationId: number,
     newStatus: EstadoAplicacaoEnum
   ) {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (app) {
-      app.estado = newStatus;
-      console.log(app.estado);
-    }
-  }
+    try {
+      const payload: UpdateAplicacaoRequest = { estado: newStatus };
+      const updatedResponse = await $api<AplicacaoApiResponse>(
+        `/backoffice/aplicacao/${applicationId}`,
+        {
+          method: "PUT",
+          body: payload,
+        }
+      );
 
-  function ajustarTempoAplicacao(applicationId: number, segundos: number) {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (app) {
-      if (!app.ajusteDeTempoEmSegundos) {
-        app.ajusteDeTempoEmSegundos = 0;
+      const updatedEntity = mapAplicacaoApiResponseToEntity(updatedResponse);
+
+      const appIndex = applications.value.findIndex(
+        (a) => a.id === applicationId
+      );
+
+      if (appIndex !== -1) {
+        applications.value[appIndex] = updatedEntity;
       }
-      app.ajusteDeTempoEmSegundos += segundos;
 
       toast.add({
-        title: `Tempo da avaliação ajustado em ${segundos > 0 ? "+" : ""}${
-          segundos / 60
-        } minutos.`,
-        icon: "i-lucide-timer",
-      });
-    }
-  }
-
-  function startApplication(applicationId: number) {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (app && app.estado === EstadoAplicacaoEnum.CRIADA) {
-      app.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
-      app.dataAplicacao = new Date().toISOString();
-      toast.add({
-        title: "Avaliação iniciada!",
-        description: "Os alunos já podem começar.",
-        icon: "i-lucide-play-circle",
+        title: "Status da aplicação atualizado!",
         color: "secondary",
       });
-    }
-  }
-
-  function reiniciarTimerAplicacao(applicationId: number) {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (app) {
-      app.dataAplicacao = new Date().toISOString();
-      app.ajusteDeTempoEmSegundos = 0;
-
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
       toast.add({
-        title: "Timer da avaliação reiniciado!",
-        icon: "i-lucide-rotate-cw",
-      });
-    }
-  }
-
-  function applyScheduledNow(applicationId: number): IAplicacao | undefined {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (app && app.estado === EstadoAplicacaoEnum.AGENDADA) {
-      app.estado = EstadoAplicacaoEnum.CRIADA;
-      app.dataAplicacao = new Date().toISOString();
-      app.codigoDeAcesso = generateAccessCode();
-      toast.add({
-        title: "Aplicação pronta para iniciar!",
-        description: "Compartilhe o código com os alunos.",
-        icon: "i-lucide-key-round",
-      });
-      return app;
-    }
-  }
-
-  function cancelScheduled(applicationId: number) {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (app && app.estado === EstadoAplicacaoEnum.AGENDADA) {
-      app.estado = EstadoAplicacaoEnum.CANCELADA;
-      toast.add({
-        title: "Agendamento cancelado.",
-        icon: "i-lucide-calendar-x-2",
+        title: "Erro ao atualizar status",
+        description: errorMessage,
         color: "error",
       });
     }
   }
 
-  function reopenApplication(applicationId: number) {
-    const app = applications.value.find((a) => a.id === applicationId);
-    if (
-      app &&
-      (app.estado === EstadoAplicacaoEnum.CONCLUIDA ||
-        app.estado === EstadoAplicacaoEnum.FINALIZADA)
-    ) {
-      app.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
-      app.dataAplicacao = new Date().toISOString();
-      app.ajusteDeTempoEmSegundos = 0;
-
+  async function deleteApplication(applicationId: number) {
+    try {
+      await $api(`/backoffice/aplicacao/${applicationId}`, {
+        method: "DELETE",
+      });
+      applications.value = applications.value.filter(
+        (a) => a.id !== applicationId
+      );
       toast.add({
-        title: "Aplicação reaberta!",
-        description: "A avaliação está em andamento novamente.",
-        icon: "i-lucide-refresh-cw",
-        color: "primary",
+        title: "Aplicação deletada com sucesso!",
+        color: "secondary",
+      });
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao deletar aplicação",
+        description: errorMessage,
+        color: "error",
       });
     }
   }
@@ -172,15 +184,10 @@ export const useApplicationsStore = defineStore("applications", () => {
   return {
     applications,
     isLoading,
-    fetchItems,
+    fetchApplications,
     getApplicationById,
     createApplication,
     updateApplicationStatus,
-    ajustarTempoAplicacao,
-    reiniciarTimerAplicacao,
-    applyScheduledNow,
-    cancelScheduled,
-    reopenApplication,
-    startApplication,
+    deleteApplication,
   };
 });
