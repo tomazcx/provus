@@ -9,6 +9,9 @@ import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { EstudanteService } from './estudante.service';
 import { SubmissaoResultDto } from 'src/dto/result/submissao/submissao.result';
+import { SubmissaoQuestoesResultDto } from 'src/dto/result/submissao/submissao-questoes.result';
+import { AvaliacaoModel } from 'src/database/config/models/avaliacao.model';
+import { QuestaoModel } from 'src/database/config/models/questao.model';
 
 @Injectable()
 export class SubmissaoService {
@@ -22,7 +25,7 @@ export class SubmissaoService {
 
   async createSubmissao(
     body: CreateSubmissaoRequest,
-  ): Promise<SubmissaoResultDto> {
+  ): Promise<SubmissaoQuestoesResultDto> {
     try {
       const aplicacao = await this.aplicacaoService.findByCode(
         body.codigoAcesso,
@@ -50,7 +53,7 @@ export class SubmissaoService {
           return manager.save(novaSubmissao);
         },
       );
-      return new SubmissaoResultDto(submissaoSalva);
+      return {} as any;
     } catch (error) {
       console.log('Falha ao criar a submissão', error);
       throw error;
@@ -94,5 +97,12 @@ export class SubmissaoService {
       .update(data)
       .digest('hex')
       .substring(0, 16);
+  }
+
+  private async _randomizeQuestoes(
+    avaliacao: AvaliacaoModel,
+    submissao: SubmissaoModel,
+  ): Promise<QuestaoModel[]> {
+    return [];
   }
 }
