@@ -37,12 +37,8 @@ export class QuestaoResultDto {
     this.paiId = questaoModel.item.paiId;
     this.tipo = questaoModel.item.tipo;
 
-    this.alternativas = (questaoModel.alternativas || []).map((altModel) => {
-      const altDto = new AlternativaResultDto();
-      altDto.id = altModel.id;
-      altDto.descricao = altModel.descricao;
-      altDto.isCorreto = altModel.isCorreto;
-      return altDto;
-    });
+    this.alternativas = (questaoModel.alternativas || []).map(
+      (altModel) => new AlternativaResultDto(altModel),
+    );
   }
 }

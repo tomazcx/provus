@@ -119,13 +119,9 @@ export class QuestaoResponse {
     response.isModelo = model.questao.isModelo;
     response.textoRevisao = model.questao.textoRevisao;
 
-    response.alternativas = (model.questao.alternativas || []).map((alt) => {
-      const dto = new AlternativaResultDto();
-      dto.id = alt.id;
-      dto.descricao = alt.descricao;
-      dto.isCorreto = alt.isCorreto;
-      return dto;
-    });
+    response.alternativas = (model.questao.alternativas || []).map(
+      (alt) => new AlternativaResultDto(alt),
+    );
 
     return response;
   }
