@@ -12,7 +12,9 @@ export class CreateSubmissaoController {
 
   @Post()
   @CreateSubmissaoDecorators()
-  async handle(@Body() body: CreateSubmissaoRequest): Promise<void> {
-    await this.submissaoService.createSubmissao(body);
+  async handle(
+    @Body() body: CreateSubmissaoRequest,
+  ): Promise<SubmissaoResponse> {
+    return await this.submissaoService.createSubmissao(body);
   }
 }

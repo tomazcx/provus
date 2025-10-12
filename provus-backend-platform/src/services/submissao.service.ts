@@ -21,6 +21,9 @@ import { EmailTemplatesProvider } from 'src/providers/email-templates.provider';
 import { Env } from 'src/shared/env';
 import { EstudanteModel } from 'src/database/config/models/estudante.model';
 import { SubmissaoQuestoesResultDto } from 'src/dto/result/submissao/submissao-questoes.result';
+import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
+import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
+import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 
 @Injectable()
 export class SubmissaoService {
@@ -47,7 +50,10 @@ export class SubmissaoService {
   ): Promise<SubmissaoResultDto> {
     try {
       const aplicacao = await this.aplicacaoRepository.findOne({
-        where: { codigoAcesso: body.codigoAcesso },
+        where: {
+          codigoAcesso: body.codigoAcesso,
+          estado: EstadoAplicacaoEnum.EM_ANDAMENTO,
+        },
         relations: [
           'avaliacao',
           'avaliacao.item',
@@ -86,7 +92,9 @@ export class SubmissaoService {
 
           const codigoEntrega =
             await this._generateUniqueSubmissionCode(manager);
-          const hash = this._createShortHash(body.codigoAcesso);
+          const hash = this._createShortHash(
+            body.codigoAcesso + estudante.email,
+          );
 
           const questoes = await this._randomizeQuestoes(aplicacao.avaliacao);
 
@@ -199,6 +207,18 @@ export class SubmissaoService {
       .substring(0, 16);
   }
 
+  private _mapDificuldadeQuestaoToRandomizacao(
+    dificuldadeQuestao: DificuldadeQuestaoEnum,
+  ): DificuldadeRandomizacaoEnum {
+    const mapeamento = {
+      [DificuldadeQuestaoEnum.FACIL]: DificuldadeRandomizacaoEnum.FACIL,
+      [DificuldadeQuestaoEnum.MEDIO]: DificuldadeRandomizacaoEnum.MEDIO,
+      [DificuldadeQuestaoEnum.DIFICIL]: DificuldadeRandomizacaoEnum.DIFICIL,
+    };
+
+    return mapeamento[dificuldadeQuestao];
+  }
+
   private async _randomizeQuestoes(
     avaliacao: AvaliacaoModel,
   ): Promise<QuestaoModel[]> {
@@ -227,9 +247,37 @@ export class SubmissaoService {
         (config) => config.tipo === TipoRandomizacaoEnum.BANCO_SIMPLES,
       )
     ) {
-      return configuracoesRandomizacao[0].poolDeQuestoes;
+      const questoes = configuracoesRandomizacao[0].poolDeQuestoes.sort(
+        () => Math.random() - 0.5,
+      );
+
+      return questoes.slice(0, configuracoesRandomizacao[0].quantidade);
     }
 
-    return [];
+    const questoes = [];
+    for (const configuracao of configuracoesRandomizacao) {
+      if (configuracao.tipo !== TipoRandomizacaoEnum.BANCO_CONFIGURAVEL) {
+        continue;
+      }
+
+      let pool: QuestaoModel[];
+      if (configuracao.dificuldade === DificuldadeRandomizacaoEnum.QUALQUER) {
+        pool = configuracao.poolDeQuestoes;
+      } else {
+        pool = configuracao.poolDeQuestoes.filter(
+          (questao) =>
+            this._mapDificuldadeQuestaoToRandomizacao(questao.dificuldade) ===
+            configuracao.dificuldade,
+        );
+      }
+
+      questoes.push(
+        ...pool
+          .sort(() => Math.random() - 0.5)
+          .slice(0, configuracao.quantidade),
+      );
+    }
+
+    return questoes.sort((a, b) => a.ordem - b.ordem);
   }
 }
