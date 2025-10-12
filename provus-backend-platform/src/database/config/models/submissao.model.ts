@@ -13,6 +13,7 @@ import { EstudanteModel } from './estudante.model';
 import { SubmissaoRespostasModel } from './submissao-respostas.model';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { AplicacaoModel } from './aplicacao.model';
+import { RegistroPunicaoPorOcorrenciaModel } from './registro-punicao-por-ocorrencia.model';
 
 @Entity('submissao')
 export class SubmissaoModel {
@@ -57,4 +58,10 @@ export class SubmissaoModel {
 
   @OneToMany(() => SubmissaoRespostasModel, (resposta) => resposta.submissao)
   respostas: SubmissaoRespostasModel[];
+
+  @OneToMany(
+    () => RegistroPunicaoPorOcorrenciaModel,
+    (registro) => registro.submissao,
+  )
+  registrosPunicaoPorOcorrencia: RegistroPunicaoPorOcorrenciaModel[];
 }

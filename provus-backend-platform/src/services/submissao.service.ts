@@ -24,6 +24,8 @@ import { SubmissaoQuestoesResultDto } from 'src/dto/result/submissao/submissao-q
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import { ProcessPunicaoPorCorrenciaDto } from 'src/dto/request/submissao/process-punicao-por-correncia.dto';
+import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 
 @Injectable()
 export class SubmissaoService {
@@ -279,5 +281,94 @@ export class SubmissaoService {
     }
 
     return questoes.sort((a, b) => a.ordem - b.ordem);
+  }
+
+  async processarPunicaoPorOcorrencia(
+    submissaoHash: string,
+    dto: ProcessPunicaoPorCorrenciaDto,
+  ): Promise<void> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { hash: submissaoHash },
+      relations: [
+        'estudante',
+        'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.item',
+        'aplicacao.avaliacao.item.avaliador',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
+      ],
+    });
+
+    if (
+      !submissao ||
+      ![EstadoSubmissaoEnum.INICIADA, EstadoSubmissaoEnum.ENVIADA].includes(
+        submissao.estado,
+      )
+    ) {
+      throw new NotFoundException('Submissão não encontrada');
+    }
+
+    /*
+    ======================================================
+    Escrever aqui lógica para processar a punicao por ocorrencia
+
+    No momento toda infração recebida pelo socket disparara uma notificação para o AVALIADOR caso a notificação configurada no backend seja EMAIL ou PUSH_NOTIFICATION.
+    A lógica a ser feita aqui deve considerar a quantidade de infrações minimas para disparo para o AVALIADOR e para o ESTUDANTE, caso esteja configurado para tal.
+    A lógica para disparar a notificação para o ESTUDANTE deve ser feita por meio do gateway de submissao.
+
+    OBS: Lembrar de, caso a infração tenha como punição encerrar avaliação, deve-se alterar o status da submissão para finalizada,
+    disparar a notificação para o ESTUDANTE e encerrar a conexão do backend com o socket por meio do gateway de submissao.
+    ======================================================
+    */
+
+    const quantidadeOcorrencias = 1; // TODO: Implementar lógica para contar as ocorrências
+
+    const notificacoesConfiguradas =
+      submissao.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca
+        .notificacoes;
+
+    if (
+      notificacoesConfiguradas.some(
+        (notificacao) =>
+          notificacao.tipoNotificacao === TipoNotificacaoEnum.PUSH_NOTIFICATION,
+      )
+    ) {
+      await this.notificationProvider.sendNotificationViaSocket(
+        submissao.aplicacao.avaliacao.item.avaliador.id,
+        {
+          estudanteId: submissao.estudante.id,
+          nomeEstudante: submissao.estudante.nome,
+          nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
+          dataHoraInfracao: new Date().toLocaleString(),
+          quantidadeOcorrencias: quantidadeOcorrencias,
+          tipoInfracao: dto.tipoInfracao,
+        },
+      );
+    }
+
+    if (
+      notificacoesConfiguradas.some(
+        (notificacao) =>
+          notificacao.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
+      )
+    ) {
+      const html = this.emailTemplatesProvider.punicaoPorOcorrencia({
+        nomeEstudante: submissao.estudante.nome,
+        nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
+        dataHoraInfracao: new Date().toLocaleString(),
+        quantidadeOcorrencias: quantidadeOcorrencias,
+        tipoInfracao: dto.tipoInfracao,
+        urlPlataforma: `${Env.FRONTEND_URL}`,
+      });
+
+      await this.notificationProvider.sendEmail(
+        submissao.estudante.email,
+        'Provus - Infração de segurança detectada',
+        html,
+      );
+    }
   }
 }

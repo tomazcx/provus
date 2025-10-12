@@ -3,6 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { recoverPasswordTemplate } from 'src/shared/email-templates/recover-password.template';
 import { confirmEmailTemplate } from 'src/shared/email-templates/confirm-email.template';
 import { submissaoCriadaTemplate } from 'src/shared/email-templates/submissao-criada';
+import {
+  punicaoPorOcorrenciaTemplate,
+  PunicaoPorOcorrenciaTemplateData,
+} from 'src/shared/email-templates/punicao-por-ocorrencia.template';
 
 @Injectable()
 export class EmailTemplatesProvider {
@@ -20,6 +24,12 @@ export class EmailTemplatesProvider {
 
   submissaoCriada(url: string, nomeProva?: string): string {
     const { html } = mjml2html(submissaoCriadaTemplate(url, nomeProva));
+
+    return html;
+  }
+
+  punicaoPorOcorrencia(data: PunicaoPorOcorrenciaTemplateData): string {
+    const { html } = mjml2html(punicaoPorOcorrenciaTemplate(data));
 
     return html;
   }
