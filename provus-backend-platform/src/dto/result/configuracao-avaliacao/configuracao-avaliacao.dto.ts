@@ -34,6 +34,8 @@ export class ConfiguracaoGeralDto {
   dataAgendamento: Date;
   mostrarPontuacao: boolean;
   exibirPontuacaoQuestoes: boolean;
+  permitirRevisao: boolean;
+  permitirMultiplosEnvios: boolean;
   configuracoesRandomizacao: ConfiguracaoRandomizacaoDto[];
 
   constructor(model: ConfiguracoesGeraisModel) {
@@ -43,12 +45,14 @@ export class ConfiguracaoGeralDto {
     this.dataAgendamento = model.dataAgendamento;
     this.mostrarPontuacao = model.mostrarPontuacao;
     this.exibirPontuacaoQuestoes = model.exibirPontuacaoQuestoes;
-    this.configuracoesRandomizacao = model.configuracoesRandomizacao.map(
-      (configuracao) => new ConfiguracaoRandomizacaoDto(configuracao),
-    );
+    this.permitirRevisao = model.permitirRevisao;
+    this.permitirMultiplosEnvios = model.permitirMultiplosEnvios;
+    this.configuracoesRandomizacao =
+      model.configuracoesRandomizacao?.map(
+        (configuracao) => new ConfiguracaoRandomizacaoDto(configuracao),
+      ) || [];
   }
 }
-
 export class PunicaoPorOcorrenciaDto {
   tipoInfracao: TipoInfracaoEnum;
   quantidadeOcorrencias: number;

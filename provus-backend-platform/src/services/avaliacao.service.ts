@@ -28,19 +28,24 @@ export class AvaliacaoService {
     const avaliacao = await this.avaliacaoRepository.findOne({
       where: { id, item: { avaliador: { id: avaliador.id } } },
       relations: [
+        'item',
         'arquivos',
+        'arquivos.arquivo',
+        'arquivos.arquivo.item',
         'questoes',
         'questoes.questao',
-        'arquivos.arquivo',
+        'questoes.questao.item',
+        'questoes.questao.alternativas',
         'configuracaoAvaliacao',
         'configuracaoAvaliacao.configuracoesGerais',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.item',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'configuracaoAvaliacao.configuracoesSeguranca',
         'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
         'configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
-        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
-        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
-        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
       ],
     });
 
@@ -88,6 +93,26 @@ export class AvaliacaoService {
   ): Promise<AvaliacaoDto> {
     const avaliacao = await this.avaliacaoRepository.findOne({
       where: { id, item: { avaliador: { id: avaliador.id } } },
+      relations: [
+        'item',
+        'arquivos',
+        'arquivos.arquivo',
+        'arquivos.arquivo.item',
+        'questoes',
+        'questoes.questao',
+        'questoes.questao.item',
+        'questoes.questao.alternativas',
+        'configuracaoAvaliacao',
+        'configuracaoAvaliacao.configuracoesGerais',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.item',
+        'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
+        'configuracaoAvaliacao.configuracoesSeguranca',
+        'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+        'configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
+        'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
+      ],
     });
 
     if (!avaliacao) {

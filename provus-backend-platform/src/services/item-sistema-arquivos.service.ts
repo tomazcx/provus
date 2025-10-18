@@ -28,6 +28,7 @@ import { UpdateItemRequest } from 'src/http/models/response/update-items.request
 import { QuestaoResponse } from 'src/http/models/response/questao.response';
 import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 import { AvaliacaoResponse } from 'src/http/models/response/avaliacao.response';
+import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
 
 type ConteudoPastaResponse =
   | ItemSistemaArquivosResponse
@@ -181,13 +182,15 @@ export class ItemSistemaArquivosService {
       ],
     });
 
+    await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
+    await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
+
+    await manager.delete(AplicacaoModel, { avaliacao: { id: avaliacaoId } });
+
     if (!avaliacao || !avaliacao.configuracaoAvaliacao) {
-      await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
-      await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
       await manager.delete(AvaliacaoModel, { id: avaliacaoId });
       return;
     }
-
     const configuracaoAvaliacaoId = avaliacao.configuracaoAvaliacao.id;
     const configuracoesGeraisId =
       avaliacao.configuracaoAvaliacao.configuracoesGerais?.id;
