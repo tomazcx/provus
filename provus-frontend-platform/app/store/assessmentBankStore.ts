@@ -14,6 +14,9 @@ import TipoItemEnum from "~/enums/TipoItemEnum";
 import { getBlankAssessment } from "./assessmentStore";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 import isFolder from "~/guards/isFolder";
+import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 
 function mapListApiResponseToEntity(
   item: AvaliacaoListItemApiResponse | ItemSistemaArquivosApiResponse
@@ -34,7 +37,19 @@ function mapListApiResponseToEntity(
         (acc, q) => acc + q.pontuacao,
         0
       ),
-      questoes: [],
+      questoes: (avaliacaoItem.questoes || []).map((q, index) => ({
+        id: index,
+        titulo: `Questão ${index + 1}`,
+        tipo: TipoItemEnum.QUESTAO,
+        paiId: null,
+        criadoEm: "",
+        atualizadoEm: "",
+        dificuldade: DificuldadeQuestaoEnum.FACIL,
+        tipoQuestao: TipoQuestaoEnum.OBJETIVA,
+        pontuacao: q.pontuacao || 0,
+        isModelo: false,
+        alternativas: [],
+      })) as QuestaoEntity[],
       arquivos: [],
       configuracao: getBlankAssessment().configuracao,
     };
@@ -46,7 +61,7 @@ function mapListApiResponseToEntity(
       paiId: item.paiId,
       criadoEm: item.criadoEm,
       atualizadoEm: item.atualizadoEm,
-      childCount: (item as ItemSistemaArquivosApiResponse).childCount, 
+      childCount: (item as ItemSistemaArquivosApiResponse).childCount,
     };
   }
 }

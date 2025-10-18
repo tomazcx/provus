@@ -17,8 +17,7 @@ interface ArquivosAvaliacoesApiResponse {
   permitirConsultaPorEstudante: boolean;
 }
 
-interface QuestoesAvaliacoesApiResponse {
-  questao: QuestaoApiResponse;
+export interface QuestoesDaAvaliacaoApiResponse extends QuestaoApiResponse {
   ordem: number;
   pontuacao: number;
 }
@@ -34,6 +33,6 @@ export interface AvaliacaoApiResponse {
   criadoEm: string;
   atualizadoEm: string;
   arquivos: ArquivosAvaliacoesApiResponse[];
-  questoes: QuestoesAvaliacoesApiResponse[];
+  questoes: QuestoesDaAvaliacaoApiResponse[];
   configuracaoAvaliacao: ConfiguracaoAvaliacaoApiResponse;
 }

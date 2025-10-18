@@ -11,11 +11,22 @@ export function mapAvaliacaoApiResponseToEntity(
   apiResponse: AvaliacaoApiResponse
 ): AvaliacaoEntity {
   const questoesEntity: QuestaoEntity[] = apiResponse.questoes.map((qa) => ({
-    ...qa.questao,
-    pontuacao: qa.pontuacao,
+    id: qa.id,
+    titulo: qa.titulo,
     tipo: TipoItemEnum.QUESTAO,
+    paiId: qa.paiId,
+    criadoEm: qa.criadoEm,
+    atualizadoEm: qa.atualizadoEm,
+    dificuldade: qa.dificuldade,
+    tipoQuestao: qa.tipoQuestao,
+    descricao: qa.descricao,
+    isModelo: qa.isModelo,
+    alternativas: qa.alternativas ?? [],
+    exemploRespostaIa: qa.exemploRespostaIa,
+    textoRevisao: qa.textoRevisao,
+    path: qa.path,
+    pontuacao: qa.pontuacao,
   }));
-
   const arquivosEntity: ArquivoAvaliacaoEntity[] = apiResponse.arquivos.map(
     (aa) => ({
       permitirConsultaPorEstudante: aa.permitirConsultaPorEstudante,
@@ -53,7 +64,7 @@ export function mapAvaliacaoApiResponseToEntity(
             (rule) => ({
               id: Math.random(),
               ...rule,
-              questoes: rule.poolDeQuestoes.map((q) => ({
+              questoes: (rule.questoes ?? []).map((q) => ({
                 ...q,
                 tipo: TipoItemEnum.QUESTAO,
               })),
