@@ -36,6 +36,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
   const mostrarPontuacao = ref<boolean | null>(null);
   const permitirRevisao = ref<boolean | null>(null);
   const reviewQuestions = ref<QuestaoRevisaoResponse[] | null>(null);
+  const quantidadeTentativas = ref<number | null>(null);
 
   const tituloAvaliacao = ref<string | null>(null);
   const nomeAvaliador = ref<string | null>(null);
@@ -290,6 +291,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     isLoading.value = true;
     error.value = null;
     reviewQuestions.value = null;
+    quantidadeTentativas.value = null;
 
     try {
       const response = await $api<FindSubmissaoRevisaoResponse>(
@@ -306,7 +308,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         permitirRevisao.value = response.permitirRevisao;
         tituloAvaliacao.value = response.tituloAvaliacao;
         nomeAvaliador.value = response.nomeAvaliador;
-
+        quantidadeTentativas.value = response.quantidadeTentativas;
         reviewQuestions.value = response.questoes;
 
         if (response.permitirRevisao === false) {
@@ -351,6 +353,11 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         color: "error",
         icon: "i-lucide-alert-triangle",
       });
+
+      isLoading.value = true;
+      reviewQuestions.value = null;
+      quantidadeTentativas.value = null;
+
       return false;
     } finally {
       isSubmitting.value = false;
@@ -371,6 +378,8 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     permitirRevisao,
     tituloAvaliacao,
     nomeAvaliador,
+    reviewQuestions,
+    quantidadeTentativas,
     createStudentSubmission,
     fetchSubmissionDataByHash,
     submitStudentAnswers,

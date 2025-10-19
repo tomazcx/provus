@@ -177,7 +177,7 @@ function backToHome() {
                   pontuacaoTotalPossivel
                 }}
               </p>
-              <UProgress :value="scorePercent" class="mt-4" />
+              <UProgress v-model="scorePercent" class="mt-4" />
             </div>
           </UCard>
         </template>

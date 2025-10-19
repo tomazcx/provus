@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineProps<{
   tituloAvaliacao: string | null;
+  allowRetake: boolean;
 }>();
 const router = useRouter();
 
@@ -32,7 +33,12 @@ function retakeTest() {
       </div>
 
       <div class="flex items-center space-x-3">
-        <UButton color="white" variant="outline" @click="retakeTest">
+        <UButton
+          v-if="allowRetake"
+          color="white"
+          variant="outline"
+          @click="retakeTest"
+        >
           <Icon name="i-lucide-refresh-cw" class="mr-2 h-4 w-4" /> Refazer
           Avaliação
         </UButton>

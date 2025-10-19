@@ -7,9 +7,9 @@ definePageMeta({
 });
 
 const schema = z.object({
-  fullName: z.string().min(3, "Nome completo é obrigatório"),
+  nome: z.string().min(3, "Nome completo é obrigatório"),
   email: z.string().email("Digite um e-mail válido"),
-  examCode: z.string().length(6, "O código deve ter 6 dígitos"),
+  codigoAcesso: z.string().length(6, "O código deve ter 6 dígitos"),
 });
 
 const formState = reactive({
@@ -52,15 +52,7 @@ async function handleSubmit() {
     localStorage.removeItem("student_email");
 
     await router.push(`/aluno/submissao/${submissionHash}`);
-  } else {
-    toast.add({
-      title: "Falha na Verificação",
-      description:
-        studentAssessmentStore.error || "Código inválido ou erro inesperado.",
-      icon: "i-lucide-alert-triangle",
-      color: "error",
-    });
-  }
+  } 
 }
 </script>
 <template>

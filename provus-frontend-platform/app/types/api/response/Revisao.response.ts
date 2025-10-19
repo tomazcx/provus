@@ -22,7 +22,7 @@ export interface QuestaoRevisaoResponse {
   tipo: TipoQuestaoEnum;
   alternativas: AlternativaRevisaoResponse[];
   dadosResposta: DadosResposta | null;
-  pontuacaoObtida: number | null;
+  pontuacaoObtida: string | null;
   estadoCorrecao: EstadoQuestaoCorrigida | null;
   textoRevisao: string | null;
   exemploRespostaIa: string | null;
@@ -39,4 +39,5 @@ export interface FindSubmissaoRevisaoResponse {
   permitirRevisao: boolean | null;
   tituloAvaliacao: string | null;
   nomeAvaliador: string | null;
+  quantidadeTentativas: number | null;
 }

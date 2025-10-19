@@ -13,7 +13,7 @@ const props = defineProps<{
 
 const status = computed(() => {
   const estado = props.questao.estadoCorrecao;
-  const pontuacaoObtida = props.questao.pontuacaoObtida ?? 0;
+  const pontuacaoObtida = parseFloat(props.questao.pontuacaoObtida ?? "0");
 
   switch (estado) {
     case EstadoQuestaoCorrigida.CORRETA:
@@ -30,7 +30,7 @@ const status = computed(() => {
       };
     case EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA:
       return {
-        text: `Parcial (${pontuacaoObtida.toFixed(1)} pts)`,
+        text: `Parcial (${pontuacaoObtida.toFixed(1)} pontos)`,
         color: "warning" as const,
         icon: "i-lucide-alert-circle",
       };
@@ -177,7 +177,7 @@ function getAlternativeStatus(
                 'border-2 border-green-500 bg-white':
                   getAlternativeStatus(alt) === 'correct-unselected',
                 'border-2 border-gray-300 bg-white':
-                  getAlternativeStatus(alt) === 'neutral', 
+                  getAlternativeStatus(alt) === 'neutral',
               }"
             >
               <Icon

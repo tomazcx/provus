@@ -27,7 +27,7 @@ export interface SubmissaoResponse {
   codigoEntrega: number;
   hash: string;
   estado: EstadoSubmissaoEnum;
-  pontuacaoTotal: number;
+  pontuacaoTotal: string | null;
   criadoEm: string;
   atualizadoEm: string;
   finalizadoEm: string | null;
