@@ -1,170 +1,379 @@
-import { useApplicationsStore } from "./applicationsStore";
-import { useExamBankStore } from "./assessmentBankStore";
-import type { IAplicacao } from "~/types/IAplicacao";
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
-import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
-import type { ISubmissao } from "~/types/ISubmissao";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+import type {
+  SubmitRespostaRequestPayload,
+  SubmitAvaliacaoRequestPayload,
+} from "~/types/api/request/Submissao.request";
+import type {
+  FindSubmissaoByHashResponse,
+  SubmissaoResponse,
+  QuestaoSubmissaoResponse,
+  ArquivoSubmissaoResponse,
+} from "~/types/api/response/Submissao.response";
 
 import type {
-  IRespostaDiscursiva,
-  IRespostaObjetiva,
-  IRespostaMultiplaEscolha,
-} from "~/types/IQuestao";
+  FindSubmissaoRevisaoResponse,
+  QuestaoRevisaoResponse,
+} from "~/types/api/response/Revisao.response";
 
-type TAnswerData =
-  | IRespostaDiscursiva["dados"]
-  | IRespostaObjetiva["dados"]
-  | IRespostaMultiplaEscolha["dados"];
-
+export type StudentAnswerData =
+  | { texto: string }
+  | { alternativaId: number | null | undefined }
+  | { alternativasId: number[] };
 export const useStudentAssessmentStore = defineStore("studentExam", () => {
-  const application = ref<IAplicacao | null>(null);
-  const assessment = ref<IAvaliacaoImpl | null>(null);
-  const currentSubmission = ref<ISubmissao | null>(null);
+  const { $api } = useNuxtApp();
+  const toast = useToast();
+
+  const submissionDetails = ref<SubmissaoResponse | null>(null);
+  const submissionQuestions = ref<QuestaoSubmissaoResponse[] | null>(null);
+  const submissionFiles = ref<ArquivoSubmissaoResponse[] | null>(null);
   const isLoading = ref(false);
+  const isSubmitting = ref(false);
   const error = ref<string | null>(null);
 
-  async function findApplicationByCode(
-    code: string
-  ): Promise<IAplicacao | null> {
+  const dataInicioAplicacao = ref<string | null>(null);
+  const tempoMaximoAvaliacao = ref<number | null>(null);
+  const descricaoAvaliacao = ref<string | null>(null);
+  const mostrarPontuacao = ref<boolean | null>(null);
+  const permitirRevisao = ref<boolean | null>(null);
+  const reviewQuestions = ref<QuestaoRevisaoResponse[] | null>(null);
+
+  const tituloAvaliacao = ref<string | null>(null);
+  const nomeAvaliador = ref<string | null>(null);
+
+  async function createStudentSubmission(
+    nome: string,
+    email: string,
+    codigoAcesso: string
+  ): Promise<string | null> {
     isLoading.value = true;
     error.value = null;
+    try {
+      const response = await $api<SubmissaoResponse>(
+        "/backoffice/encontrar-avaliacao",
+        {
+          method: "POST",
+          body: {
+            nome,
+            email,
+            codigoAcesso,
+          },
+        }
+      );
 
-    const applicationsStore = useApplicationsStore();
-    await applicationsStore.fetchItems();
+      if (response && response.hash) {
+        return response.hash;
+      } else {
+        throw new Error("Resposta inválida do servidor ao criar submissão.");
+      }
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao acessar a avaliação",
+        description: errorMessage,
+        color: "error",
+      });
 
-    const foundApplication = applicationsStore.applications.find(
-      (app) => app.codigoDeAcesso === code
-    );
-
-    if (!foundApplication) {
-      error.value = "Código da avaliação inválido ou não encontrado.";
-      isLoading.value = false;
       return null;
-    }
-
-    const validStates = [
-      EstadoAplicacaoEnum.CRIADA,
-      EstadoAplicacaoEnum.EM_ANDAMENTO,
-    ];
-    if (!validStates.includes(foundApplication.estado)) {
-      error.value =
-        "Esta avaliação não está disponível no momento. Verifique com seu professor.";
+    } finally {
       isLoading.value = false;
-      return null;
     }
-
-    isLoading.value = false;
-    return foundApplication;
   }
 
-  async function fetchExamByCode(code: string) {
+  async function fetchSubmissionDataByHash(hash: string): Promise<void> {
+    submissionDetails.value = null;
+    submissionQuestions.value = null;
+    submissionFiles.value = null;
+    dataInicioAplicacao.value = null;
+    tempoMaximoAvaliacao.value = null;
+    descricaoAvaliacao.value = null;
+    mostrarPontuacao.value = null;
+    permitirRevisao.value = null;
+    tituloAvaliacao.value = null;
+    nomeAvaliador.value = null;
     isLoading.value = true;
     error.value = null;
-    application.value = null;
-    assessment.value = null;
+    try {
+      const response = await $api<FindSubmissaoByHashResponse>(
+        `/backoffice/submissao/${hash}`
+      );
 
-    const foundApplication = await findApplicationByCode(code);
+      if (response) {
+        submissionDetails.value = response.submissao;
+        submissionQuestions.value = response.questoes;
+        submissionFiles.value = response.arquivos;
+        dataInicioAplicacao.value = response.dataInicioAplicacao;
+        tempoMaximoAvaliacao.value = response.tempoMaximoAvaliacao;
+        descricaoAvaliacao.value = response.descricaoAvaliacao;
+        mostrarPontuacao.value = response.mostrarPontuacao;
+        permitirRevisao.value = response.permitirRevisao;
+        tituloAvaliacao.value = response.tituloAvaliacao;
+        nomeAvaliador.value = response.nomeAvaliador;
+      } else {
+        throw new Error(
+          "Resposta inválida do servidor ao buscar dados da submissão."
+        );
+      }
+    } catch (error: unknown) {
+      console.error("Erro ao buscar dados da submissão:", error);
+      let errorMessage = "Ocorreu um erro desconhecido.";
 
-    if (!foundApplication) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido.";
+      }
+      toast.add({
+        title: "Erro ao acessar a avaliação",
+        description: errorMessage,
+        color: "error",
+      });
+
+      submissionDetails.value = null;
+      submissionQuestions.value = null;
+      submissionFiles.value = null;
+      tituloAvaliacao.value = null;
+      nomeAvaliador.value = null;
+    } finally {
       isLoading.value = false;
-      return;
     }
-
-    application.value = foundApplication;
-
-    const examBankStore = useExamBankStore();
-    await examBankStore.fetchItems();
-
-    const foundAssessment = examBankStore.getItemById(
-      foundApplication.avaliacaoModeloId
-    );
-
-    if (!foundAssessment) {
-      error.value = "A avaliação vinculada a este código não foi encontrada.";
-      isLoading.value = false;
-      return;
-    }
-
-    assessment.value = foundAssessment;
-    isLoading.value = false;
   }
 
-  function submitExam(
-    respostas: Record<number, TAnswerData | undefined>,
-    studentInfo: { name: string; email: string }
-  ) {
-    if (!assessment.value || !application.value) {
-      error.value =
-        "Não foi possível enviar a avaliação. Dados não encontrados.";
+  async function submitStudentAnswers(
+    answers: Record<number, StudentAnswerData | undefined | null>
+  ): Promise<boolean> {
+    if (!submissionDetails.value?.hash) {
+      error.value = "Hash da submissão não encontrado para envio.";
+      toast.add({
+        title: "Erro Interno",
+        description: error.value,
+        color: "error",
+      });
       return false;
     }
 
-    let calculatedScore = 0;
+    isSubmitting.value = true;
+    error.value = null;
 
-    assessment.value.questoes.forEach((q) => {
-      const respostaAluno = respostas[q.id!];
-      if (!respostaAluno) return;
+    try {
+      const respostasPayload: SubmitRespostaRequestPayload[] = Object.entries(
+        answers
+      )
+        .filter(
+          ([_, answerData]) => answerData !== undefined && answerData !== null
+        )
+        .map(([questaoIdStr, answerData]) => {
+          const questaoId = parseInt(questaoIdStr, 10);
+          const payload: Partial<SubmitRespostaRequestPayload> & {
+            questaoId: number;
+          } = { questaoId: questaoId };
 
-      if (
-        q.tipo === TipoQuestaoEnum.OBJETIVA &&
-        "alternativaId" in respostaAluno
-      ) {
-        const alternativaCorreta = q.alternativas?.find((alt) => alt.isCorreto);
-        if (
-          alternativaCorreta &&
-          respostaAluno.alternativaId === alternativaCorreta.id
-        ) {
-          calculatedScore += q.pontuacao ?? 0;
-        }
-      } else if (
-        (q.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA ||
-          q.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) &&
-        "alternativasId" in respostaAluno
-      ) {
-        const idsCorretos = new Set(
-          (
-            q.alternativas
-              ?.filter((alt) => alt.isCorreto)
-              .map((alt) => alt.id) ?? []
-          ).filter((id): id is number => typeof id === "number")
+          if (answerData && typeof answerData === "object") {
+            if (
+              "texto" in answerData &&
+              typeof answerData.texto === "string" &&
+              answerData.texto.trim() !== ""
+            ) {
+              payload.texto = answerData.texto;
+            } else if (
+              "alternativaId" in answerData &&
+              (typeof answerData.alternativaId === "number" ||
+                answerData.alternativaId === null)
+            ) {
+              payload.alternativa_id = answerData.alternativaId;
+            } else if (
+              "alternativasId" in answerData &&
+              Array.isArray(answerData.alternativasId)
+            ) {
+              payload.alternativas_id = answerData.alternativasId;
+            } else {
+              console.warn(
+                `Formato inesperado para resposta da questão ${questaoId}:`,
+                answerData
+              );
+              return null;
+            }
+          } else {
+            console.warn(
+              `Estrutura de resposta inválida para questão ${questaoId}:`,
+              answerData
+            );
+            return null;
+          }
+          return payload as SubmitRespostaRequestPayload;
+        })
+        .filter(
+          (resposta): resposta is SubmitRespostaRequestPayload =>
+            resposta !== null
         );
-        const idsAluno = new Set(respostaAluno.alternativasId);
 
-        if (
-          idsCorretos.size === idsAluno.size &&
-          [...idsCorretos].every((id) => idsAluno.has(id))
-        ) {
-          calculatedScore += q.pontuacao ?? 0;
+      const payload: SubmitAvaliacaoRequestPayload = {
+        respostas: respostasPayload,
+      };
+
+      await $api(
+        `/backoffice/submissao/${submissionDetails.value.hash}/enviar`,
+        {
+          method: "PATCH",
+          body: payload,
         }
+      );
+
+      if (submissionDetails.value) {
+        submissionDetails.value.estado = EstadoSubmissaoEnum.ENVIADA;
+        submissionDetails.value.finalizadoEm = new Date().toISOString();
       }
-    });
 
-    currentSubmission.value = {
-      id: Date.now(),
-      pontuacaoTotal: calculatedScore,
-      estado: EstadoSubmissaoEnum.ENVIADA,
-      finalizadoEm: new Date().toISOString(),
-      aluno: {
-        id: Date.now() + 1,
-        nome: studentInfo.name,
-        email: studentInfo.email,
-      },
-      questoesRespondidas: [],
-    };
+      toast.add({
+        title: "Avaliação enviada!",
+        description: "Suas respostas foram registradas com sucesso.",
+        color: "secondary",
+        icon: "i-lucide-check-circle",
+      });
+      return true;
+    } catch (error: unknown) {
+      console.error("Erro ao enviar respostas:", error);
+      let errorMessage =
+        "Ocorreu um erro desconhecido ao enviar suas respostas.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ?? "Ocorreu um erro desconhecido ao enviar suas respostas.";
+      }
+      toast.add({
+        title: "Erro ao Enviar",
+        description: errorMessage,
+        color: "error",
+        icon: "i-lucide-alert-triangle",
+      });
+      return false;
+    } finally {
+      isSubmitting.value = false;
+    }
+  }
 
-    return true;
+  async function fetchSubmissionReviewData(hash: string): Promise<boolean> {
+    isLoading.value = true;
+    error.value = null;
+    reviewQuestions.value = null;
+
+    try {
+      const response = await $api<FindSubmissaoRevisaoResponse>(
+        `/backoffice/submissao/${hash}/revisao`
+      );
+
+      if (response) {
+        submissionDetails.value = response.submissao;
+        submissionFiles.value = response.arquivos;
+        dataInicioAplicacao.value = response.dataInicioAplicacao;
+        tempoMaximoAvaliacao.value = response.tempoMaximoAvaliacao;
+        descricaoAvaliacao.value = response.descricaoAvaliacao;
+        mostrarPontuacao.value = response.mostrarPontuacao;
+        permitirRevisao.value = response.permitirRevisao;
+        tituloAvaliacao.value = response.tituloAvaliacao;
+        nomeAvaliador.value = response.nomeAvaliador;
+
+        reviewQuestions.value = response.questoes;
+
+        if (response.permitirRevisao === false) {
+          throw new Error("A revisão não está permitida para esta avaliação.");
+        }
+        const estadosPermitidos = [EstadoSubmissaoEnum.AVALIADA];
+        if (!estadosPermitidos.includes(response.submissao.estado)) {
+          throw new Error(
+            `A revisão não está disponível para o estado "${response.submissao.estado}".`
+          );
+        }
+
+        return true;
+      } else {
+        throw new Error(
+          "Resposta inválida do servidor ao buscar dados da revisão."
+        );
+      }
+    } catch (error: unknown) {
+      console.error("Erro ao buscar dados da revisão:", error);
+      let errorMessage =
+        "Ocorreu um erro desconhecido ao buscar dados da revisão.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data === "object" &&
+        (error as { data?: { message?: string } }).data !== null &&
+        "message" in (error as { data?: { message?: string } }).data!
+      ) {
+        errorMessage =
+          (
+            (error as { data?: { message?: string } }).data as {
+              message?: string;
+            }
+          ).message ??
+          "Ocorreu um erro desconhecido ao buscar dados da revisão.";
+      }
+      toast.add({
+        title: "Erro ao buscar dados da revisão",
+        description: errorMessage,
+        color: "error",
+        icon: "i-lucide-alert-triangle",
+      });
+      return false;
+    } finally {
+      isSubmitting.value = false;
+    }
   }
 
   return {
-    application,
-    assessment,
-    currentSubmission,
+    submissionDetails,
+    submissionQuestions,
+    submissionFiles,
     isLoading,
+    isSubmitting,
     error,
-    findApplicationByCode,
-    fetchExamByCode,
-    submitExam,
+    dataInicioAplicacao,
+    tempoMaximoAvaliacao,
+    descricaoAvaliacao,
+    mostrarPontuacao,
+    permitirRevisao,
+    tituloAvaliacao,
+    nomeAvaliador,
+    createStudentSubmission,
+    fetchSubmissionDataByHash,
+    submitStudentAnswers,
+    fetchSubmissionReviewData,
   };
 });

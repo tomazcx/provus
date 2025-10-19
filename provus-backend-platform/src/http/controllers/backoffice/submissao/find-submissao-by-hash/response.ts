@@ -1,7 +1,36 @@
 import { ApiProperty } from '@nestjs/swagger';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
+import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
+
+export class DadosRespostaSwaggerDto {
+  @ApiProperty({
+    description: 'Resposta textual (para questões discursivas).',
+    required: false,
+    type: String,
+    example: 'A resposta é...',
+  })
+  texto?: string;
+
+  @ApiProperty({
+    description: 'ID da alternativa selecionada (para questões objetivas).',
+    required: false,
+    type: Number,
+    nullable: true,
+    example: 3002,
+  })
+  alternativa_id?: number | null;
+
+  @ApiProperty({
+    description:
+      'Array de IDs das alternativas selecionadas (para múltipla escolha ou V/F).',
+    required: false,
+    type: [Number],
+    example: [3005, 3007],
+  })
+  alternativas_id?: number[];
+}
 
 class AlternativaResponse {
   @ApiProperty({
@@ -17,7 +46,7 @@ class AlternativaResponse {
   descricao: string;
 }
 
-class ArquivoSubmissaoResponse {
+export class ArquivoSubmissaoResponse {
   @ApiProperty({
     description: 'ID do arquivo',
     example: 1,
@@ -89,10 +118,34 @@ class QuestaoSubmissaoResponse {
   alternativas: AlternativaResponse[];
 
   @ApiProperty({
-    description: 'Resposta do estudante',
-    example: { alternativa_id: 1, texto: 'Resposta dissertativa' },
+    description:
+      'Resposta do estudante (formato varia com o tipo). Um dos campos opcionais estará presente.',
+    required: false,
+    nullable: true,
+    type: DadosRespostaSwaggerDto,
   })
-  dadosResposta: any;
+  dadosResposta: DadosRespostaSwaggerDto | null;
+  @ApiProperty({
+    description: 'Pontuação obtida pelo aluno nesta questão.',
+    example: 8.5,
+    nullable: true,
+  })
+  pontuacaoObtida: number | null;
+
+  @ApiProperty({
+    description: 'Estado da correção da questão.',
+    enum: EstadoQuestaoCorrigida,
+    example: EstadoQuestaoCorrigida.CORRETA,
+    nullable: true,
+  })
+  estadoCorrecao: EstadoQuestaoCorrigida | null;
+
+  @ApiProperty({
+    description: 'Feedback do professor para esta questão (se aplicável).',
+    example: 'Boa argumentação, mas faltou citar a fonte X.',
+    nullable: true,
+  })
+  textoRevisao: string | null;
 }
 
 class SubmissaoResponse {
@@ -171,4 +224,53 @@ export class FindSubmissaoByHashResponse {
     type: [ArquivoSubmissaoResponse],
   })
   arquivos: ArquivoSubmissaoResponse[];
+
+  @ApiProperty({
+    description: 'Data e hora de início da aplicação (ISO 8601).',
+    example: '2025-10-18T10:00:00.000Z',
+    nullable: true,
+  })
+  dataInicioAplicacao: string | null;
+
+  @ApiProperty({
+    description: 'Tempo máximo da avaliação em minutos.',
+    example: 90,
+    nullable: true,
+  })
+  tempoMaximoAvaliacao: number | null;
+
+  @ApiProperty({
+    description: 'Descrição/Instruções da avaliação original.',
+    example: 'Leia atentamente as questões...',
+    nullable: true,
+  })
+  descricaoAvaliacao: string | null;
+
+  @ApiProperty({
+    description: 'Indica se a pontuação final deve ser mostrada ao aluno.',
+    example: true,
+    nullable: true,
+  })
+  mostrarPontuacao: boolean | null;
+
+  @ApiProperty({
+    description: 'Indica se o aluno pode revisar a prova após a correção.',
+    example: false,
+    nullable: true,
+  })
+  permitirRevisao: boolean | null;
+
+  @ApiProperty({
+    description: 'Título original da avaliação.',
+    example: 'Avaliação de História do Brasil',
+    nullable: true,
+  })
+  tituloAvaliacao: string | null;
+
+  @ApiProperty({
+    description: 'Nome do professor (avaliador) responsável pela avaliação.',
+    example: 'Prof. João Silva',
+    nullable: true,
+  })
+  nomeAvaliador: string | null;
 }

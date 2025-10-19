@@ -1,6 +1,6 @@
 export function useTimer(config: {
-  dataAplicacao: Ref<string | undefined>;
-  tempoMaximoEmMinutos: Ref<number | undefined>;
+  dataAplicacao: Ref<string | null>;
+  tempoMaximoEmMinutos: Ref<number | null>;
   ajusteDeTempoEmSegundos: Ref<number | undefined>;
   isActive: Ref<boolean>;
 }) {
@@ -28,28 +28,49 @@ export function useTimer(config: {
 
     if (
       !config.dataAplicacao.value ||
-      typeof config.tempoMaximoEmMinutos.value !== "number"
+      config.tempoMaximoEmMinutos.value === null
     ) {
+      console.warn("Timer: Dados de início ou duração indisponíveis.");
       tempoRestanteEmSegundos.value = 0;
       return;
     }
 
-    const dataAplicacao = new Date(config.dataAplicacao.value);
-    const duracaoTotal =
-      config.tempoMaximoEmMinutos.value * 60 +
-      (config.ajusteDeTempoEmSegundos.value || 0);
-    const dataFinal = new Date(dataAplicacao.getTime() + duracaoTotal * 1000);
-
-    const diff = Math.round(
-      (dataFinal.getTime() - new Date().getTime()) / 1000
-    );
-    tempoRestanteEmSegundos.value = diff > 0 ? diff : 0;
-
-    interval = setInterval(() => {
-      if (config.isActive.value && tempoRestanteEmSegundos.value > 0) {
-        tempoRestanteEmSegundos.value--;
+    try {
+      const dataAplicacao = new Date(config.dataAplicacao.value);
+      if (isNaN(dataAplicacao.getTime())) {
+        console.warn("Timer: Data de início da aplicação inválida.");
+        tempoRestanteEmSegundos.value = 0;
+        return;
       }
-    }, 1000);
+
+      const duracaoTotalSegundos =
+        config.tempoMaximoEmMinutos.value * 60 +
+        (config.ajusteDeTempoEmSegundos.value || 0);
+
+      const dataFinal = new Date(
+        dataAplicacao.getTime() + duracaoTotalSegundos * 1000
+      );
+      const agora = new Date();
+      const diffSegundos = Math.round(
+        (dataFinal.getTime() - agora.getTime()) / 1000
+      );
+
+      tempoRestanteEmSegundos.value = diffSegundos > 0 ? diffSegundos : 0;
+
+      if (interval) clearInterval(interval);
+
+      interval = setInterval(() => {
+        if (config.isActive.value && tempoRestanteEmSegundos.value > 0) {
+          tempoRestanteEmSegundos.value--;
+        } else if (tempoRestanteEmSegundos.value <= 0) {
+          if (interval) clearInterval(interval);
+        }
+      }, 1000);
+    } catch (e) {
+      console.error("Erro ao calcular tempo restante:", e);
+      tempoRestanteEmSegundos.value = 0;
+      if (interval) clearInterval(interval);
+    }
   };
 
   watch(
@@ -57,6 +78,7 @@ export function useTimer(config: {
       config.dataAplicacao,
       config.tempoMaximoEmMinutos,
       config.ajusteDeTempoEmSegundos,
+      config.isActive,
     ],
     iniciarTimer,
     { immediate: true }

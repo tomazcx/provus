@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { IQuestao } from "~/types/IQuestao";
+import type { QuestaoSubmissaoResponse } from "~/types/api/response/Submissao.response";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type { StudentAnswerData } from "~/store/studentAssessmentStore";
 
 const props = defineProps<{
-  questao: IQuestao;
+  questao: QuestaoSubmissaoResponse;
   numero: number;
   isAnswered: boolean;
 }>();
@@ -12,45 +13,34 @@ const emit = defineEmits<{
   (
     e: "update:answer",
     questionId: number,
-    payload:
-      | { texto: string }
-      | { alternativaId: number | undefined }
-      | { alternativasId: number[] }
-      | null
+    payload: StudentAnswerData | null
   ): void;
 }>();
 
 const discursiveAnswer = ref("");
 const objectiveAnswer = ref<number | undefined>(undefined);
 const multipleChoiceAnswer = ref<number[]>([]);
-
 const trueFalseAnswers = ref<Record<number, boolean | undefined>>({});
-
-function handleTrueFalseSelection(id: number, choice: boolean) {
-  if (trueFalseAnswers.value[id] === choice) {
-    trueFalseAnswers.value[id] = undefined;
-  } else {
-    trueFalseAnswers.value[id] = choice;
-  }
-}
 
 watch(discursiveAnswer, (newValue) => {
   if (props.questao.tipo === TipoQuestaoEnum.DISCURSIVA) {
     if (!newValue || newValue.trim() === "") {
-      emit("update:answer", props.questao.id!, null);
+      emit("update:answer", props.questao.id, null);
       return;
     }
-    emit("update:answer", props.questao.id!, { texto: newValue });
+    emit("update:answer", props.questao.id, { texto: newValue });
   }
 });
 
 watch(objectiveAnswer, (newValue) => {
   if (props.questao.tipo === TipoQuestaoEnum.OBJETIVA) {
     if (newValue === undefined || newValue === null) {
-      emit("update:answer", props.questao.id!, null);
-      return;
+      emit("update:answer", props.questao.id, { alternativaId: null });
+    } else {
+      emit("update:answer", props.questao.id, {
+        alternativaId: Number(newValue),
+      });
     }
-    emit("update:answer", props.questao.id!, { alternativaId: newValue });
   }
 });
 
@@ -59,36 +49,45 @@ watch(
   () => {
     if (props.questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA) {
       if (multipleChoiceAnswer.value.length === 0) {
-        emit("update:answer", props.questao.id!, null);
-        return;
+        emit("update:answer", props.questao.id, null);
+      } else {
+        emit("update:answer", props.questao.id, {
+          alternativasId: multipleChoiceAnswer.value.map(Number),
+        });
       }
-      emit("update:answer", props.questao.id!, {
-        alternativasId: multipleChoiceAnswer.value,
-      });
     } else if (props.questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) {
-      const trueAnswers = Object.entries(trueFalseAnswers.value)
+      const answeredAlternativeIds = Object.entries(trueFalseAnswers.value)
         .filter(([, value]) => value !== undefined)
         .map(([key]) => Number(key));
 
-      if (trueAnswers.length === 0) {
-        emit("update:answer", props.questao.id!, null);
+      if (answeredAlternativeIds.length === 0) {
+        emit("update:answer", props.questao.id, null);
         return;
       }
 
       const trueAnswerIds = Object.entries(trueFalseAnswers.value)
         .filter(([, value]) => value === true)
         .map(([key]) => Number(key));
-      emit("update:answer", props.questao.id!, {
+
+      emit("update:answer", props.questao.id, {
         alternativasId: trueAnswerIds,
       });
     }
   },
   { deep: true }
 );
+
+function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
+  if (trueFalseAnswers.value[alternativeId] === choice) {
+    trueFalseAnswers.value[alternativeId] = undefined;
+  } else {
+    trueFalseAnswers.value[alternativeId] = choice;
+  }
+}
 </script>
 
 <template>
-  <UCard class="question-card shadow-sm">
+  <UCard v-id="questao" class="question-card shadow-sm">
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center space-x-3">
         <span

@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, In } from 'typeorm';
@@ -26,9 +28,18 @@ import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 import { ProcessPunicaoPorCorrenciaDto } from 'src/dto/request/submissao/process-punicao-por-correncia.dto';
 import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
-
+import { SubmitRespostaRequest } from 'src/http/models/request/submit-respostas.request';
+import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
+import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
+import { DadosRespostaType } from 'src/shared/types/dados-resposta.type';
+import {
+  isDadosRespostaObjetiva,
+  isDadosRespostaMultipla,
+} from 'src/shared/guards/dados-resposta.guard';
+import { SubmissaoRevisaoResultDto } from 'src/dto/result/revisao/submissao-revisao.result.dto';
 @Injectable()
 export class SubmissaoService {
+  private readonly logger = new Logger(SubmissaoService.name);
   constructor(
     private readonly dataSource: DataSource,
     private readonly emailTemplatesProvider: EmailTemplatesProvider,
@@ -45,6 +56,9 @@ export class SubmissaoService {
 
     @InjectRepository(EstudanteModel)
     private readonly estudanteRepository: Repository<EstudanteModel>,
+
+    @InjectRepository(QuestaoModel)
+    private readonly questaoRepository: Repository<QuestaoModel>,
   ) {}
 
   async createSubmissao(
@@ -146,6 +160,226 @@ export class SubmissaoService {
     }
   }
 
+  async submitAnswers(
+    hash: string,
+    respostasDto: SubmitRespostaRequest[],
+  ): Promise<SubmissaoResultDto> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { hash },
+      relations: [
+        'respostas',
+        'aplicacao',
+        'respostas.questao',
+        'respostas.questao.alternativas',
+      ],
+    });
+
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada.');
+    }
+
+    const estadosPermitidosParaEnvio = [
+      EstadoSubmissaoEnum.INICIADA,
+      EstadoSubmissaoEnum.REABERTA,
+    ];
+    if (!estadosPermitidosParaEnvio.includes(submissao.estado)) {
+      throw new BadRequestException(
+        `Submissão com estado "${submissao.estado}" não pode ser enviada.`,
+      );
+    }
+
+    if (
+      submissao.aplicacao.dataFim &&
+      new Date() > submissao.aplicacao.dataFim
+    ) {
+      throw new BadRequestException('O tempo para esta avaliação já expirou.');
+    }
+
+    let submissaoAtualizada: SubmissaoModel;
+
+    await this.dataSource.transaction(async (manager) => {
+      const submissaoRepo = manager.getRepository(SubmissaoModel);
+      const respostasRepo = manager.getRepository(SubmissaoRespostasModel);
+
+      const respostasExistentesMap = new Map<number, SubmissaoRespostasModel>();
+      submissao.respostas.forEach((r) =>
+        respostasExistentesMap.set(r.questaoId, r),
+      );
+
+      for (const respostaDto of respostasDto) {
+        const respostaExistente = respostasExistentesMap.get(
+          respostaDto.questaoId,
+        );
+        if (respostaExistente) {
+          let novosDadosResposta: DadosRespostaType | null = null;
+          if (
+            respostaDto.texto !== undefined &&
+            respostaDto.texto.trim() !== ''
+          ) {
+            novosDadosResposta = { texto: respostaDto.texto };
+          } else if (respostaDto.alternativa_id !== undefined) {
+            novosDadosResposta = { alternativa_id: respostaDto.alternativa_id };
+          } else if (
+            respostaDto.alternativas_id !== undefined &&
+            respostaDto.alternativas_id.length > 0
+          ) {
+            novosDadosResposta = {
+              alternativas_id: respostaDto.alternativas_id,
+            };
+          }
+          respostaExistente.dadosResposta = novosDadosResposta;
+        } else {
+          this.logger.warn(
+            `Recebida resposta para questão ID ${respostaDto.questaoId} que não pertence à submissão ${submissao.id}. Ignorando.`,
+          );
+        }
+      }
+
+      let pontuacaoTotalCalculada = 0;
+      let temCorrecaoManualPendente = false;
+      const respostasParaSalvar: SubmissaoRespostasModel[] = [];
+
+      for (const resposta of submissao.respostas) {
+        const questaoGabarito = resposta.questao;
+        const dadosRespostaAluno = resposta.dadosResposta;
+
+        const isAnswered =
+          dadosRespostaAluno &&
+          typeof dadosRespostaAluno === 'object' &&
+          Object.keys(dadosRespostaAluno).length > 0;
+
+        if (!isAnswered) {
+          resposta.pontuacao = 0;
+          resposta.estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
+          respostasParaSalvar.push(resposta);
+          continue;
+        }
+
+        const pontuacaoMaximaQuestao = resposta.questao.pontuacao;
+        let pontuacaoObtida = 0;
+        let estadoCorrecao: EstadoQuestaoCorrigida;
+
+        switch (questaoGabarito.tipoQuestao) {
+          case TipoQuestaoEnum.OBJETIVA: {
+            const alternativaCorretaObj = questaoGabarito.alternativas.find(
+              (a) => a.isCorreto,
+            );
+            let respostaAlunoObjId: number | null = null;
+            if (isDadosRespostaObjetiva(dadosRespostaAluno)) {
+              respostaAlunoObjId = dadosRespostaAluno.alternativa_id;
+            }
+
+            if (
+              alternativaCorretaObj &&
+              respostaAlunoObjId === alternativaCorretaObj.id
+            ) {
+              pontuacaoObtida = pontuacaoMaximaQuestao;
+              estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
+            } else {
+              pontuacaoObtida = 0;
+              estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+            }
+            break;
+          }
+
+          case TipoQuestaoEnum.MULTIPLA_ESCOLHA:
+          case TipoQuestaoEnum.VERDADEIRO_FALSO: {
+            const idsCorretas = new Set(
+              questaoGabarito.alternativas
+                .filter((a) => a.isCorreto)
+                .map((a) => a.id),
+            );
+            let idsAluno = new Set<number>();
+            if (isDadosRespostaMultipla(dadosRespostaAluno)) {
+              idsAluno = new Set(dadosRespostaAluno.alternativas_id);
+            }
+
+            const totalCorretas = idsCorretas.size;
+            const acertos = [...idsAluno].filter((id) =>
+              idsCorretas.has(id),
+            ).length;
+            const erros = [...idsAluno].filter(
+              (id) => !idsCorretas.has(id),
+            ).length;
+
+            let pontuacaoCalculada = 0;
+            if (totalCorretas > 0) {
+              const pontosPorAcerto = pontuacaoMaximaQuestao / totalCorretas;
+              const penalidadePorErro = pontosPorAcerto;
+              pontuacaoCalculada =
+                acertos * pontosPorAcerto - erros * penalidadePorErro;
+            }
+            pontuacaoObtida = Math.max(0, pontuacaoCalculada);
+
+            if (
+              pontuacaoObtida === pontuacaoMaximaQuestao &&
+              erros === 0 &&
+              acertos === totalCorretas &&
+              idsAluno.size === totalCorretas
+            ) {
+              estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
+            } else if (pontuacaoObtida > 0) {
+              estadoCorrecao = EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA;
+            } else {
+              estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+            }
+            break;
+          }
+
+          case TipoQuestaoEnum.DISCURSIVA: {
+            pontuacaoObtida = 0;
+            estadoCorrecao = EstadoQuestaoCorrigida.PENDENTE_CORRECAO_MANUAL;
+            temCorrecaoManualPendente = true;
+            break;
+          }
+
+          default: {
+            this.logger.warn(
+              `Tipo de questão desconhecido encontrado durante a correção: ${String(questaoGabarito.tipoQuestao)}`,
+            );
+            pontuacaoObtida = 0;
+            estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+            break;
+          }
+        }
+
+        resposta.pontuacao = parseFloat(pontuacaoObtida.toFixed(2));
+        resposta.estadoCorrecao = estadoCorrecao;
+        respostasParaSalvar.push(resposta);
+        pontuacaoTotalCalculada += resposta.pontuacao;
+      }
+
+      if (respostasParaSalvar.length > 0) {
+        await respostasRepo.save(respostasParaSalvar);
+      }
+
+      submissao.estado = temCorrecaoManualPendente
+        ? EstadoSubmissaoEnum.ENVIADA
+        : EstadoSubmissaoEnum.AVALIADA;
+      submissao.finalizadoEm = new Date();
+      submissao.pontuacaoTotal = parseFloat(pontuacaoTotalCalculada.toFixed(2));
+      submissaoAtualizada = await submissaoRepo.save(submissao);
+    });
+
+    if (!submissaoAtualizada) {
+      const submissaoFinal = await this.submissaoRepository.findOneOrFail({
+        where: { hash },
+        relations: ['estudante'],
+      });
+      return new SubmissaoResultDto(submissaoFinal);
+    }
+    if (!submissaoAtualizada.estudante) {
+      const submissaoComEstudante =
+        await this.submissaoRepository.findOneOrFail({
+          where: { id: submissaoAtualizada.id },
+          relations: ['estudante'],
+        });
+      return new SubmissaoResultDto(submissaoComEstudante);
+    }
+
+    return new SubmissaoResultDto(submissaoAtualizada);
+  }
+
   private async _generateUniqueSubmissionCode(
     manager: EntityManager,
   ): Promise<number> {
@@ -157,6 +391,7 @@ export class SubmissaoService {
       EstadoSubmissaoEnum.ENVIADA,
       EstadoSubmissaoEnum.REABERTA,
       EstadoSubmissaoEnum.PAUSADA,
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
     ];
 
     while (attempts < maxAttempts) {
@@ -177,20 +412,69 @@ export class SubmissaoService {
     );
   }
 
+  async findSubmissaoForReview(
+    hash: string,
+  ): Promise<SubmissaoRevisaoResultDto> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { hash: hash },
+      relations: [
+        'estudante',
+        'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.item',
+        'aplicacao.avaliacao.item.avaliador',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'aplicacao.avaliacao.arquivos',
+        'aplicacao.avaliacao.arquivos.arquivo',
+        'aplicacao.avaliacao.arquivos.arquivo.item',
+        'respostas',
+        'respostas.questao',
+        'respostas.questao.item',
+        'respostas.questao.alternativas',
+      ],
+    });
+
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada.');
+    }
+
+    const permitirRevisaoConfig =
+      submissao.aplicacao?.avaliacao?.configuracaoAvaliacao?.configuracoesGerais
+        ?.permitirRevisao;
+    const estadoSubmissao = submissao.estado;
+
+    const estadosPermitidosParaRevisao = [EstadoSubmissaoEnum.AVALIADA];
+
+    if (
+      permitirRevisaoConfig === false ||
+      !estadosPermitidosParaRevisao.includes(estadoSubmissao)
+    ) {
+      throw new ForbiddenException(
+        'A revisão não está disponível para esta submissão no momento.',
+      );
+    }
+    return new SubmissaoRevisaoResultDto(submissao);
+  }
+
   async findSubmissaoByHash(hash: string): Promise<SubmissaoQuestoesResultDto> {
     const submissao = await this.submissaoRepository.findOne({
       where: { hash: hash },
       relations: [
         'estudante',
         'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.item',
+        'aplicacao.avaliacao.item.avaliador',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'aplicacao.avaliacao.arquivos',
+        'aplicacao.avaliacao.arquivos.arquivo',
+        'aplicacao.avaliacao.arquivos.arquivo.item',
         'respostas',
         'respostas.questao',
         'respostas.questao.item',
         'respostas.questao.alternativas',
-        'aplicacao.avaliacao',
-        'aplicacao.avaliacao.arquivos',
-        'aplicacao.avaliacao.arquivos.arquivo',
-        'aplicacao.avaliacao.arquivos.arquivo.item',
       ],
     });
 

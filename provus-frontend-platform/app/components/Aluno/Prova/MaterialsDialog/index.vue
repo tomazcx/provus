@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { IConfiguracoes } from "~/types/IConfiguracoesAvaliacoes";
+import type { ArquivoSubmissaoResponse } from "~/types/api/response/Submissao.response";
 
 defineProps<{
   modelValue: boolean;
-  materiais?: IConfiguracoes["materiaisAnexados"];
+  arquivos: ArquivoSubmissaoResponse[] | null;
 }>();
 const emit = defineEmits(["update:modelValue"]);
 </script>
-
 <template>
   <UModal
     :open="modelValue"
@@ -20,14 +19,14 @@ const emit = defineEmits(["update:modelValue"]);
     <template #body>
       <div class="max-h-[60vh] overflow-y-auto">
         <div
-          v-if="!materiais || materiais.arquivos.length === 0"
+          v-if="!arquivos || arquivos.length === 0"
           class="text-center text-gray-500 py-8"
         >
           Nenhum material de consulta disponível para esta avaliação.
         </div>
         <div v-else class="space-y-4">
           <div
-            v-for="file in materiais.arquivos"
+            v-for="file in arquivos"
             :key="file.id"
             class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
           >
