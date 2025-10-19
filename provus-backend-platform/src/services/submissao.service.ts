@@ -171,6 +171,7 @@ export class SubmissaoService {
         'aplicacao',
         'respostas.questao',
         'respostas.questao.alternativas',
+        'estudante',
       ],
     });
 
@@ -195,7 +196,7 @@ export class SubmissaoService {
       throw new BadRequestException('O tempo para esta avaliação já expirou.');
     }
 
-    let submissaoAtualizada: SubmissaoModel;
+    let submissaoAtualizada: SubmissaoModel = submissao;
 
     await this.dataSource.transaction(async (manager) => {
       const submissaoRepo = manager.getRepository(SubmissaoModel);
@@ -236,7 +237,7 @@ export class SubmissaoService {
       }
 
       let pontuacaoTotalCalculada = 0;
-      let temCorrecaoManualPendente = false;
+      let existeDiscursiva = false;
       const respostasParaSalvar: SubmissaoRespostasModel[] = [];
 
       for (const resposta of submissao.respostas) {
@@ -247,113 +248,103 @@ export class SubmissaoService {
           dadosRespostaAluno &&
           typeof dadosRespostaAluno === 'object' &&
           Object.keys(dadosRespostaAluno).length > 0;
+        let pontuacaoObtida = 0;
+        let estadoCorrecao: EstadoQuestaoCorrigida | null = null;
 
         if (!isAnswered) {
-          resposta.pontuacao = 0;
-          resposta.estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
-          respostasParaSalvar.push(resposta);
-          continue;
-        }
-
-        const pontuacaoMaximaQuestao = resposta.questao.pontuacao;
-        let pontuacaoObtida = 0;
-        let estadoCorrecao: EstadoQuestaoCorrigida;
-
-        switch (questaoGabarito.tipoQuestao) {
-          case TipoQuestaoEnum.OBJETIVA: {
-            const alternativaCorretaObj = questaoGabarito.alternativas.find(
-              (a) => a.isCorreto,
-            );
-            let respostaAlunoObjId: number | null = null;
-            if (isDadosRespostaObjetiva(dadosRespostaAluno)) {
-              respostaAlunoObjId = dadosRespostaAluno.alternativa_id;
+          pontuacaoObtida = 0;
+          estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
+        } else {
+          switch (questaoGabarito.tipoQuestao) {
+            case TipoQuestaoEnum.OBJETIVA: {
+              const alternativaCorretaObj = questaoGabarito.alternativas.find(
+                (a) => a.isCorreto,
+              );
+              let respostaAlunoObjId: number | null = null;
+              if (isDadosRespostaObjetiva(dadosRespostaAluno)) {
+                respostaAlunoObjId = dadosRespostaAluno.alternativa_id;
+              }
+              if (
+                alternativaCorretaObj &&
+                respostaAlunoObjId === alternativaCorretaObj.id
+              ) {
+                pontuacaoObtida = questaoGabarito.pontuacao;
+                estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
+              } else {
+                pontuacaoObtida = 0;
+                estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+              }
+              break;
             }
-
-            if (
-              alternativaCorretaObj &&
-              respostaAlunoObjId === alternativaCorretaObj.id
-            ) {
-              pontuacaoObtida = pontuacaoMaximaQuestao;
-              estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
-            } else {
+            case TipoQuestaoEnum.MULTIPLA_ESCOLHA:
+            case TipoQuestaoEnum.VERDADEIRO_FALSO: {
+              const idsCorretas = new Set(
+                questaoGabarito.alternativas
+                  .filter((a) => a.isCorreto)
+                  .map((a) => a.id),
+              );
+              let idsAluno = new Set<number>();
+              if (isDadosRespostaMultipla(dadosRespostaAluno)) {
+                idsAluno = new Set(dadosRespostaAluno.alternativas_id);
+              }
+              const totalCorretas = idsCorretas.size;
+              const acertos = [...idsAluno].filter((id) =>
+                idsCorretas.has(id),
+              ).length;
+              const erros = [...idsAluno].filter(
+                (id) => !idsCorretas.has(id),
+              ).length;
+              let pontuacaoCalculada = 0;
+              if (totalCorretas > 0) {
+                const pontosPorAcerto =
+                  questaoGabarito.pontuacao / totalCorretas;
+                const penalidadePorErro = pontosPorAcerto;
+                pontuacaoCalculada =
+                  acertos * pontosPorAcerto - erros * penalidadePorErro;
+              }
+              pontuacaoObtida = Math.max(0, pontuacaoCalculada);
+              if (
+                pontuacaoObtida === questaoGabarito.pontuacao &&
+                erros === 0 &&
+                acertos === totalCorretas &&
+                idsAluno.size === totalCorretas
+              ) {
+                estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
+              } else if (pontuacaoObtida > 0) {
+                estadoCorrecao = EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA;
+              } else {
+                estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+              }
+              break;
+            }
+            case TipoQuestaoEnum.DISCURSIVA: {
+              pontuacaoObtida = 0;
+              estadoCorrecao = null;
+              existeDiscursiva = true;
+              break;
+            }
+            default: {
+              this.logger.warn(
+                `Tipo de questão desconhecido encontrado durante a correção: ${String(questaoGabarito.tipoQuestao)}`,
+              );
               pontuacaoObtida = 0;
               estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+              break;
             }
-            break;
-          }
-
-          case TipoQuestaoEnum.MULTIPLA_ESCOLHA:
-          case TipoQuestaoEnum.VERDADEIRO_FALSO: {
-            const idsCorretas = new Set(
-              questaoGabarito.alternativas
-                .filter((a) => a.isCorreto)
-                .map((a) => a.id),
-            );
-            let idsAluno = new Set<number>();
-            if (isDadosRespostaMultipla(dadosRespostaAluno)) {
-              idsAluno = new Set(dadosRespostaAluno.alternativas_id);
-            }
-
-            const totalCorretas = idsCorretas.size;
-            const acertos = [...idsAluno].filter((id) =>
-              idsCorretas.has(id),
-            ).length;
-            const erros = [...idsAluno].filter(
-              (id) => !idsCorretas.has(id),
-            ).length;
-
-            let pontuacaoCalculada = 0;
-            if (totalCorretas > 0) {
-              const pontosPorAcerto = pontuacaoMaximaQuestao / totalCorretas;
-              const penalidadePorErro = pontosPorAcerto;
-              pontuacaoCalculada =
-                acertos * pontosPorAcerto - erros * penalidadePorErro;
-            }
-            pontuacaoObtida = Math.max(0, pontuacaoCalculada);
-
-            if (
-              pontuacaoObtida === pontuacaoMaximaQuestao &&
-              erros === 0 &&
-              acertos === totalCorretas &&
-              idsAluno.size === totalCorretas
-            ) {
-              estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
-            } else if (pontuacaoObtida > 0) {
-              estadoCorrecao = EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA;
-            } else {
-              estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
-            }
-            break;
-          }
-
-          case TipoQuestaoEnum.DISCURSIVA: {
-            pontuacaoObtida = 0;
-            estadoCorrecao = EstadoQuestaoCorrigida.PENDENTE_CORRECAO_MANUAL;
-            temCorrecaoManualPendente = true;
-            break;
-          }
-
-          default: {
-            this.logger.warn(
-              `Tipo de questão desconhecido encontrado durante a correção: ${String(questaoGabarito.tipoQuestao)}`,
-            );
-            pontuacaoObtida = 0;
-            estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
-            break;
           }
         }
 
         resposta.pontuacao = parseFloat(pontuacaoObtida.toFixed(2));
         resposta.estadoCorrecao = estadoCorrecao;
         respostasParaSalvar.push(resposta);
-        pontuacaoTotalCalculada += resposta.pontuacao;
+        pontuacaoTotalCalculada += resposta.pontuacao ?? 0;
       }
 
       if (respostasParaSalvar.length > 0) {
         await respostasRepo.save(respostasParaSalvar);
       }
 
-      submissao.estado = temCorrecaoManualPendente
+      submissao.estado = existeDiscursiva
         ? EstadoSubmissaoEnum.ENVIADA
         : EstadoSubmissaoEnum.AVALIADA;
       submissao.finalizadoEm = new Date();
@@ -368,6 +359,7 @@ export class SubmissaoService {
       });
       return new SubmissaoResultDto(submissaoFinal);
     }
+
     if (!submissaoAtualizada.estudante) {
       const submissaoComEstudante =
         await this.submissaoRepository.findOneOrFail({
@@ -379,7 +371,6 @@ export class SubmissaoService {
 
     return new SubmissaoResultDto(submissaoAtualizada);
   }
-
   private async _generateUniqueSubmissionCode(
     manager: EntityManager,
   ): Promise<number> {
@@ -444,16 +435,17 @@ export class SubmissaoService {
         ?.permitirRevisao;
     const estadoSubmissao = submissao.estado;
 
-    const estadosPermitidosParaRevisao = [EstadoSubmissaoEnum.AVALIADA];
+    const estadoPermitidoParaRevisao = EstadoSubmissaoEnum.AVALIADA;
 
     if (
       permitirRevisaoConfig === false ||
-      !estadosPermitidosParaRevisao.includes(estadoSubmissao)
+      estadoSubmissao !== estadoPermitidoParaRevisao
     ) {
       throw new ForbiddenException(
         'A revisão não está disponível para esta submissão no momento.',
       );
     }
+
     return new SubmissaoRevisaoResultDto(submissao);
   }
 
