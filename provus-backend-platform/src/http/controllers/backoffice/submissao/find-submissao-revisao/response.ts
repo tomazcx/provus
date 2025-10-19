@@ -76,16 +76,29 @@ export class FindSubmissaoRevisaoResponse {
 
   @ApiProperty({ nullable: true })
   dataInicioAplicacao: string | null;
+
   @ApiProperty({ nullable: true })
   tempoMaximoAvaliacao: number | null;
+
   @ApiProperty({ nullable: true })
   descricaoAvaliacao: string | null;
+
   @ApiProperty({ nullable: true })
   mostrarPontuacao: boolean | null;
+
   @ApiProperty({ nullable: true })
   permitirRevisao: boolean | null;
+
   @ApiProperty({ nullable: true })
   tituloAvaliacao: string | null;
+
   @ApiProperty({ nullable: true })
   nomeAvaliador: string | null;
+
+  @ApiProperty({
+    description: 'Número de tentativas permitidas para esta avaliação.',
+    example: 1,
+    nullable: true,
+  })
+  quantidadeTentativas: number | null;
 }

@@ -14,6 +14,7 @@ export class SubmissaoRevisaoResultDto {
   permitirRevisao: boolean | null;
   tituloAvaliacao: string | null;
   nomeAvaliador: string | null;
+  quantidadeTentativas: number | null;
 
   constructor(model: SubmissaoModel) {
     this.submissao = new SubmissaoResultDto(model);
@@ -32,6 +33,8 @@ export class SubmissaoRevisaoResultDto {
 
     const configGerais =
       model.aplicacao?.avaliacao?.configuracaoAvaliacao?.configuracoesGerais;
+    const configSeguranca =
+      model.aplicacao?.avaliacao?.configuracaoAvaliacao?.configuracoesSeguranca;
     const avaliacaoItem = model.aplicacao?.avaliacao?.item;
     this.dataInicioAplicacao =
       model.aplicacao?.dataInicio?.toISOString() ?? null;
@@ -41,5 +44,6 @@ export class SubmissaoRevisaoResultDto {
     this.permitirRevisao = configGerais?.permitirRevisao ?? null;
     this.tituloAvaliacao = avaliacaoItem?.titulo ?? null;
     this.nomeAvaliador = avaliacaoItem?.avaliador?.nome ?? null;
+    this.quantidadeTentativas = configSeguranca?.quantidadeTentativas ?? null;
   }
 }

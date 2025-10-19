@@ -35,6 +35,7 @@ import { DadosRespostaType } from 'src/shared/types/dados-resposta.type';
 import {
   isDadosRespostaObjetiva,
   isDadosRespostaMultipla,
+  isDadosRespostaDiscursiva,
 } from 'src/shared/guards/dados-resposta.guard';
 import { SubmissaoRevisaoResultDto } from 'src/dto/result/revisao/submissao-revisao.result.dto';
 @Injectable()
@@ -244,14 +245,30 @@ export class SubmissaoService {
         const questaoGabarito = resposta.questao;
         const dadosRespostaAluno = resposta.dadosResposta;
 
-        const isAnswered =
-          dadosRespostaAluno &&
-          typeof dadosRespostaAluno === 'object' &&
-          Object.keys(dadosRespostaAluno).length > 0;
+        let isConsideredAnswered = false;
+        if (dadosRespostaAluno) {
+          if (
+            isDadosRespostaDiscursiva(dadosRespostaAluno) &&
+            dadosRespostaAluno.texto.trim() !== ''
+          ) {
+            isConsideredAnswered = true;
+          } else if (
+            isDadosRespostaObjetiva(dadosRespostaAluno) &&
+            dadosRespostaAluno.alternativa_id !== null
+          ) {
+            isConsideredAnswered = true;
+          } else if (
+            isDadosRespostaMultipla(dadosRespostaAluno) &&
+            dadosRespostaAluno.alternativas_id.length > 0
+          ) {
+            isConsideredAnswered = true;
+          }
+        }
+
         let pontuacaoObtida = 0;
         let estadoCorrecao: EstadoQuestaoCorrigida | null = null;
 
-        if (!isAnswered) {
+        if (!isConsideredAnswered) {
           pontuacaoObtida = 0;
           estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
         } else {
@@ -371,6 +388,7 @@ export class SubmissaoService {
 
     return new SubmissaoResultDto(submissaoAtualizada);
   }
+
   private async _generateUniqueSubmissionCode(
     manager: EntityManager,
   ): Promise<number> {
@@ -416,6 +434,7 @@ export class SubmissaoService {
         'aplicacao.avaliacao.item.avaliador',
         'aplicacao.avaliacao.configuracaoAvaliacao',
         'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         'aplicacao.avaliacao.arquivos',
         'aplicacao.avaliacao.arquivos.arquivo',
         'aplicacao.avaliacao.arquivos.arquivo.item',
