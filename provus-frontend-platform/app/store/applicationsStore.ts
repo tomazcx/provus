@@ -1,4 +1,3 @@
-import { defineStore } from "pinia";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
@@ -19,6 +18,10 @@ export function mapAplicacaoApiResponseToEntity(
     dataInicio: new Date(apiResponse.dataInicio),
     dataFim: new Date(apiResponse.dataFim),
     avaliacao: mapAvaliacaoApiResponseToEntity(apiResponse.avaliacao),
+    stats: apiResponse.stats ? { ...apiResponse.stats } : undefined,
+    violations: apiResponse.violations
+      ? [...apiResponse.violations]
+      : undefined,
   };
 }
 
