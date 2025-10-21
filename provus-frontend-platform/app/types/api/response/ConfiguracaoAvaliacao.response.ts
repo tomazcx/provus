@@ -18,7 +18,7 @@ interface ConfiguracaoRandomizacaoApiResponse {
   tipo: TipoRandomizacaoEnum;
   dificuldade: DificuldadeRandomizacaoEnum;
   quantidade: number;
-  poolDeQuestoes: QuestaoApiResponse[];
+  questoes: QuestaoApiResponse[];
 }
 
 interface ConfiguracoesGeraisApiResponse {

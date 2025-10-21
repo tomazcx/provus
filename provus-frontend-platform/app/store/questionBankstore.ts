@@ -200,7 +200,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     if (folderIds.length === 0) return [];
     try {
       const response = await $api<{ questionIds: number[] }>(
-        "/backoffice/item-sistema-arquivos/expandir-questoes",
+        "/backoffice/pastas/expandir-questoes",
         {
           method: "POST",
           body: { folderIds },

@@ -55,6 +55,14 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
       .leftJoinAndSelect('avaliacao.questoes', 'questoesAvaliacoes')
       .leftJoinAndSelect('questoesAvaliacoes.questao', 'questaoDaAvaliacao')
       .leftJoinAndSelect('questaoDaAvaliacao.item', 'itemDaQuestaoDaAvaliacao')
+      .leftJoinAndSelect(
+        'itemDaQuestaoDaAvaliacao.questao',
+        'questaoDaQuestaoDaAvaliacao',
+      )
+      .leftJoinAndSelect(
+        'questaoDaQuestaoDaAvaliacao.alternativas',
+        'alternativasDaQuestaoDaAvaliacao',
+      )
       .leftJoinAndSelect('avaliacao.arquivos', 'arquivosAvaliacoes')
       .leftJoinAndSelect('arquivosAvaliacoes.arquivo', 'arquivoDaAvaliacao')
       .leftJoinAndSelect('arquivoDaAvaliacao.item', 'itemDoArquivoDaAvaliacao')

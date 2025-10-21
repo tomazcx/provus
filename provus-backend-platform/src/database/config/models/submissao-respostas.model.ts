@@ -17,6 +17,9 @@ export class SubmissaoRespostasModel {
   @PrimaryColumn({ name: 'questao_id' })
   questaoId: number;
 
+  @Column({ name: 'ordem' })
+  ordem: number;
+
   @Column({ type: 'jsonb', name: 'dados_resposta' })
   dadosResposta: any;
 

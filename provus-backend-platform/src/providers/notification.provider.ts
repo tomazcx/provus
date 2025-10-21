@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
 import { Env } from 'src/shared/env';
 
 interface EmailSmtpConfig {
@@ -13,7 +14,10 @@ interface EmailSmtpConfig {
 
 @Injectable()
 export class NotificationProvider {
-  constructor(private readonly emailSmtpConfig: EmailSmtpConfig) {}
+  constructor(
+    private readonly emailSmtpConfig: EmailSmtpConfig,
+    private readonly avaliadorGateway: AvaliadorGateway,
+  ) {}
 
   async sendEmail(to: string, subject: string, body: string): Promise<void> {
     const transporter = nodemailer.createTransport(this.emailSmtpConfig);
@@ -24,5 +28,12 @@ export class NotificationProvider {
       subject,
       html: body,
     });
+  }
+
+  async sendNotificationViaSocket<T extends object>(
+    avaliadorId: number,
+    message: T,
+  ): Promise<void> {
+    await this.avaliadorGateway.sendMessageToAvaliador(avaliadorId, message);
   }
 }

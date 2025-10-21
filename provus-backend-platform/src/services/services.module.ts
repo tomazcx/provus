@@ -24,7 +24,6 @@ import { AplicacaoSchedulerService } from './aplicacao-scheduler.service';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import { EstudanteModel } from 'src/database/config/models/estudante.model';
 import { SubmissaoService } from './submissao.service';
-import { EstudanteService } from './estudante.service';
 
 @Module({
   imports: [
@@ -54,7 +53,6 @@ import { EstudanteService } from './estudante.service';
     AplicacaoService,
     AplicacaoSchedulerService,
     SubmissaoService,
-    EstudanteService,
   ],
   exports: [
     AuthService,
@@ -67,7 +65,6 @@ import { EstudanteService } from './estudante.service';
     AplicacaoService,
     AplicacaoSchedulerService,
     SubmissaoService,
-    EstudanteService,
   ],
 })
 export class ServiceModule {}

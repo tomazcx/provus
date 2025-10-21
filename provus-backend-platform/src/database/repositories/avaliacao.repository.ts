@@ -23,6 +23,7 @@ import { AlternativaModel } from '../config/models/alternativa.model';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BancoDeConteudoModel } from '../config/models/banco-de-conteudo.model';
 import { TipoBancoEnum } from 'src/enums/tipo-banco';
+import { AplicacaoModel } from '../config/models/aplicacao.model';
 
 @Injectable()
 export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
@@ -40,8 +41,18 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       let paiParaSalvar: { id: number } | null = null;
-
       if (dto.paiId) {
+        const pastaPai = await manager.findOne(ItemSistemaArquivosModel, {
+          where: {
+            id: dto.paiId,
+            tipo: TipoItemEnum.PASTA,
+            avaliador: { id: avaliador.id },
+          },
+        });
+        if (!pastaPai)
+          throw new BadRequestException(
+            `Pasta pai com ID ${dto.paiId} não encontrada ou inválida.`,
+          );
         paiParaSalvar = { id: dto.paiId };
       } else {
         const banco = await this.bancoDeConteudoRepository.findOne({
@@ -51,7 +62,7 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
           },
           relations: ['pastaRaiz'],
         });
-        if (banco && banco.pastaRaiz) {
+        if (banco?.pastaRaiz) {
           paiParaSalvar = { id: banco.pastaRaiz.id };
         }
       }
@@ -84,6 +95,17 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
 
           if (questaoDto.questaoId) {
             questaoIdParaLinkar = questaoDto.questaoId;
+            const questaoExistente = await manager.findOne(QuestaoModel, {
+              where: {
+                id: questaoIdParaLinkar,
+                item: { avaliador: { id: avaliador.id } },
+              },
+            });
+            if (!questaoExistente) {
+              throw new BadRequestException(
+                `Questão com ID ${questaoIdParaLinkar} não encontrada ou não pertence a você.`,
+              );
+            }
           } else {
             if (
               !questaoDto.titulo ||
@@ -91,17 +113,16 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
               !questaoDto.dificuldade
             ) {
               throw new BadRequestException(
-                'Para criar uma nova questão na avaliação, os campos titulo, tipoQuestao e dificuldade são obrigatórios.',
+                'Para criar uma nova questão, título, tipo e dificuldade são obrigatórios.',
               );
             }
-
             const novoItemQuestao = manager.create(ItemSistemaArquivosModel, {
               titulo: questaoDto.titulo,
               tipo: TipoItemEnum.QUESTAO,
               avaliador: avaliador,
+              // pai: { id: ID_PASTA_RAIZ_QUESTOES }, // Definir onde salvar
             });
             await manager.save(novoItemQuestao);
-
             const novaQuestao = manager.create(QuestaoModel, {
               id: novoItemQuestao.id,
               item: novoItemQuestao,
@@ -111,13 +132,18 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
               isModelo: false,
               exemploRespostaIa: questaoDto.exemploRespostaIa,
               textoRevisao: questaoDto.textoRevisao,
-              pontuacao: questaoDto.pontuacao,
-              alternativas: questaoDto.alternativas?.map((alt) =>
-                manager.create(AlternativaModel, alt),
-              ),
+              pontuacao: questaoDto.pontuacao ?? 0,
+              alternativas: [],
             });
             await manager.save(novaQuestao);
 
+            if (questaoDto.alternativas && questaoDto.alternativas.length > 0) {
+              const alternativaRepo = manager.getRepository(AlternativaModel);
+              const novasAlternativas = questaoDto.alternativas.map((altDto) =>
+                alternativaRepo.create({ ...altDto, questao: novaQuestao }),
+              );
+              await alternativaRepo.save(novasAlternativas);
+            }
             questaoIdParaLinkar = novaQuestao.id;
           }
 
@@ -162,7 +188,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
           'configuracaoAvaliacao.configuracoesSeguranca',
         ],
       });
-
       if (!avaliacao) {
         throw new NotFoundException(`Avaliação com ID ${id} não encontrada.`);
       }
@@ -180,12 +205,26 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
       await manager.save(avaliacao);
 
       await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId: id });
+      await manager.delete(AplicacaoModel, { avaliacao: { id } });
+      await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId: id });
+
       if (dto.questoes && dto.questoes.length > 0) {
         for (const questaoDto of dto.questoes) {
           let questaoIdParaLinkar: number;
 
-          if (questaoDto.questaoId) {
+          if (questaoDto.questaoId !== undefined) {
             questaoIdParaLinkar = questaoDto.questaoId;
+            const questaoOriginal = await manager.findOne(QuestaoModel, {
+              where: {
+                id: questaoIdParaLinkar,
+                item: { avaliador: { id: avaliador.id } },
+              },
+            });
+            if (!questaoOriginal) {
+              throw new BadRequestException(
+                `Questão original ${questaoIdParaLinkar} não encontrada.`,
+              );
+            }
           } else {
             if (
               !questaoDto.titulo ||
@@ -193,16 +232,16 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
               !questaoDto.dificuldade
             ) {
               throw new BadRequestException(
-                'Para criar uma nova questão na avaliação, os campos titulo, tipoQuestao e dificuldade são obrigatórios.',
+                'Para criar instância (nova/modificada), título, tipo e dificuldade são obrigatórios.',
               );
             }
             const novoItemQuestao = manager.create(ItemSistemaArquivosModel, {
               titulo: questaoDto.titulo,
               tipo: TipoItemEnum.QUESTAO,
               avaliador: avaliador,
+              // pai: { id: ID_PASTA_RAIZ_QUESTOES },
             });
             await manager.save(novoItemQuestao);
-
             const novaQuestao = manager.create(QuestaoModel, {
               id: novoItemQuestao.id,
               item: novoItemQuestao,
@@ -212,13 +251,18 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
               isModelo: false,
               exemploRespostaIa: questaoDto.exemploRespostaIa,
               textoRevisao: questaoDto.textoRevisao,
-              pontuacao: questaoDto.pontuacao,
-              alternativas: questaoDto.alternativas?.map((alt) =>
-                manager.create(AlternativaModel, alt),
-              ),
+              pontuacao: questaoDto.pontuacao ?? 0,
+              alternativas: [],
             });
             await manager.save(novaQuestao);
 
+            if (questaoDto.alternativas && questaoDto.alternativas.length > 0) {
+              const alternativaRepo = manager.getRepository(AlternativaModel);
+              const novasAlternativas = questaoDto.alternativas.map((altDto) =>
+                alternativaRepo.create({ ...altDto, questao: novaQuestao }),
+              );
+              await alternativaRepo.save(novasAlternativas);
+            }
             questaoIdParaLinkar = novaQuestao.id;
           }
 
@@ -232,12 +276,12 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
         }
       }
 
-      await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId: id });
       if (dto.arquivos && dto.arquivos.length > 0) {
         const arquivosAvaliacoes = dto.arquivos.map((arquivoDto) =>
           manager.create(ArquivosAvaliacoesModel, {
             arquivoId: arquivoDto.arquivoId,
             avaliacaoId: id,
+
             permitirConsultaPorEstudante:
               arquivoDto.permitirConsultaPorEstudante,
           }),
@@ -248,6 +292,7 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
       return avaliacao.id;
     });
   }
+
   private async _clearOldConfigurations(
     manager: EntityManager,
     avaliacao: AvaliacaoModel,

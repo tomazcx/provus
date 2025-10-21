@@ -1,4 +1,3 @@
-import { defineStore } from "pinia";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import type {
@@ -19,35 +18,31 @@ function mapEntityToRequest(entity: AvaliacaoEntity): CreateAvaliacaoRequest {
     isModelo: entity.isModelo,
     paiId: entity.paiId ?? undefined,
     questoes: entity.questoes.map((q, index) => {
-      const isNewQuestion = q.id > 1000000000;
+      const payload: CreateQuestaoAvaliacaoRequest = {
+        questaoId: undefined,
+        ordem: index + 1,
+        pontuacao: q.pontuacao,
+        titulo: q.titulo,
+        descricao: q.descricao,
+        tipoQuestao: q.tipoQuestao,
+        dificuldade: q.dificuldade,
+        exemploRespostaIa: q.exemploRespostaIa,
+        textoRevisao: q.textoRevisao,
+        alternativas: [],
+      };
 
-      if (isNewQuestion) {
-        const payload: CreateQuestaoAvaliacaoRequest = {
-          ordem: index + 1,
-          pontuacao: q.pontuacao,
-          titulo: q.titulo,
-          descricao: q.descricao,
-          tipoQuestao: q.tipoQuestao,
-          dificuldade: q.dificuldade,
-          exemploRespostaIa: q.exemploRespostaIa,
-          textoRevisao: q.textoRevisao,
-        };
-
-        if (q.tipoQuestao !== TipoQuestaoEnum.DISCURSIVA) {
-          payload.alternativas = q.alternativas.map((alt) => ({
-            descricao: alt.descricao,
-            isCorreto: alt.isCorreto,
-          }));
-        }
-
-        return payload;
-      } else {
-        return {
-          questaoId: q.id,
-          ordem: index + 1,
-          pontuacao: q.pontuacao,
-        };
+      if (q.tipoQuestao !== TipoQuestaoEnum.DISCURSIVA) {
+        payload.alternativas = q.alternativas.map((alt) => ({
+          descricao: alt.descricao,
+          isCorreto: alt.isCorreto,
+        }));
       }
+
+      if (!payload.alternativas) {
+        payload.alternativas = [];
+      }
+
+      return payload;
     }),
     arquivos: entity.arquivos.map((a) => ({
       arquivoId: a.arquivo.id,
@@ -56,6 +51,11 @@ function mapEntityToRequest(entity: AvaliacaoEntity): CreateAvaliacaoRequest {
     configuracoesAvaliacao: {
       configuracoesGerais: {
         ...entity.configuracao.configuracoesGerais,
+        permitirRevisao:
+          entity.configuracao.configuracoesGerais.permitirRevisao ?? false,
+        permitirMultiplosEnvios:
+          entity.configuracao.configuracoesGerais.permitirMultiplosEnvios ??
+          false,
         dataAgendamento: entity.configuracao.configuracoesGerais.dataAgendamento
           ? entity.configuracao.configuracoesGerais.dataAgendamento.toISOString()
           : null,
@@ -162,7 +162,8 @@ export const useAssessmentStore = defineStore("assessment", () => {
         `/backoffice/avaliacao/${id}`
       );
       assessmentState.value = mapAvaliacaoApiResponseToEntity(response);
-    } catch {
+    } catch (e) {
+      console.log(e);
       toast.add({
         title: "Erro ao carregar avaliação",
         color: "error",
