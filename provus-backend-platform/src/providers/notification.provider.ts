@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
-import { Env } from 'src/shared/env';
 
-interface EmailSmtpConfig {
+interface SmtpConfig {
   host: string;
   port: number;
   auth: {
@@ -14,26 +13,60 @@ interface EmailSmtpConfig {
 
 @Injectable()
 export class NotificationProvider {
-  constructor(
-    private readonly emailSmtpConfig: EmailSmtpConfig,
-    private readonly avaliadorGateway: AvaliadorGateway,
-  ) {}
+  private readonly logger = new Logger(NotificationProvider.name);
+  private transporter: nodemailer.Transporter;
+  private avaliadorGateway: AvaliadorGateway | null = null;
 
-  async sendEmail(to: string, subject: string, body: string): Promise<void> {
-    const transporter = nodemailer.createTransport(this.emailSmtpConfig);
-
-    await transporter.sendMail({
-      from: Env.SMTP_MAIL_FROM,
-      to,
-      subject,
-      html: body,
-    });
+  constructor(smtpConfig: SmtpConfig) {
+    this.transporter = nodemailer.createTransport(smtpConfig);
   }
 
-  async sendNotificationViaSocket<T extends object>(
+  setAvaliadorGateway(gateway: AvaliadorGateway) {
+    this.avaliadorGateway = gateway;
+    this.logger.log('AvaliadorGateway configurado no NotificationProvider');
+  }
+
+  async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: this.transporter.options['auth']['user'],
+        to,
+        subject,
+        html,
+      });
+      this.logger.log(`Email enviado para ${to}: ${subject}`);
+    } catch (error) {
+      this.logger.error(`Erro ao enviar email para ${to}:`, error);
+      throw error;
+    }
+  }
+
+  sendNotificationViaSocket<T extends object>(
     avaliadorId: number,
-    message: T,
-  ): Promise<void> {
-    await this.avaliadorGateway.sendMessageToAvaliador(avaliadorId, message);
+    eventName: string,
+    data: T,
+  ): void {
+    if (!this.avaliadorGateway) {
+      this.logger.warn(
+        `AvaliadorGateway não disponível. Não foi possível enviar notificação via socket para avaliador ${avaliadorId}, evento: ${eventName}`,
+      );
+      return;
+    }
+
+    try {
+      this.avaliadorGateway.sendMessageToAvaliador(
+        avaliadorId,
+        eventName,
+        data,
+      );
+      this.logger.log(
+        `Notificação via socket enviada para avaliador ${avaliadorId}, evento: ${eventName}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao enviar notificação via socket para avaliador ${avaliadorId}:`,
+        error,
+      );
+    }
   }
 }

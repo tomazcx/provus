@@ -9,7 +9,7 @@ import type {
 } from "~/types/api/request/Aplicacao.request";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 
-function mapAplicacaoApiResponseToEntity(
+export function mapAplicacaoApiResponseToEntity(
   apiResponse: AplicacaoApiResponse
 ): AplicacaoEntity {
   return {
@@ -91,6 +91,32 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  function updateApplicationData(
+    applicationId: number,
+    updatedFields: Partial<Pick<AplicacaoEntity, "estado" | "dataFim">>
+  ) {
+    const appIndex = applications.value.findIndex(
+      (a) => a.id === applicationId
+    );
+    if (appIndex !== -1) {
+      const appToUpdate = applications.value[appIndex]!;
+      if (updatedFields.estado !== undefined) {
+        appToUpdate.estado = updatedFields.estado;
+      }
+      if (updatedFields.dataFim !== undefined) {
+        appToUpdate.dataFim = new Date(updatedFields.dataFim);
+      }
+      console.log(
+        `ApplicationsStore: Dados da App ${applicationId} atualizados no estado:`,
+        updatedFields
+      );
+    } else {
+      console.warn(
+        `ApplicationsStore: Tentativa de atualizar App ${applicationId} não encontrada no estado local.`
+      );
+    }
+  }
+
   async function updateApplicationStatus(
     applicationId: number,
     newStatus: EstadoAplicacaoEnum
@@ -107,13 +133,10 @@ export const useApplicationsStore = defineStore("applications", () => {
 
       const updatedEntity = mapAplicacaoApiResponseToEntity(updatedResponse);
 
-      const appIndex = applications.value.findIndex(
-        (a) => a.id === applicationId
-      );
-
-      if (appIndex !== -1) {
-        applications.value[appIndex] = updatedEntity;
-      }
+      updateApplicationData(applicationId, {
+        estado: updatedEntity.estado,
+        dataFim: updatedEntity.dataFim,
+      });
 
       toast.add({
         title: "Status da aplicação atualizado!",
@@ -188,6 +211,7 @@ export const useApplicationsStore = defineStore("applications", () => {
     getApplicationById,
     createApplication,
     updateApplicationStatus,
+    updateApplicationData,
     deleteApplication,
   };
 });

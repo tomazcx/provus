@@ -33,4 +33,12 @@ export class AplicacaoModel {
 
   @OneToMany(() => SubmissaoModel, (submissao) => submissao.aplicacao)
   submissoes: SubmissaoModel[];
+
+  @Column({
+    name: 'paused_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+    default: null,
+  })
+  pausedAt: Date | null;
 }

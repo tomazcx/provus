@@ -7,6 +7,7 @@ import {
   UpdateAplicacaoController,
   DeleteAplicacaoController,
 } from './';
+import { GetMonitoramentoInicialController } from './get-monitoramento-inicial/controller';
 
 @Module({
   imports: [ServiceModule],
@@ -16,6 +17,7 @@ import {
     FindAllAplicacoesController,
     UpdateAplicacaoController,
     DeleteAplicacaoController,
+    GetMonitoramentoInicialController,
   ],
 })
 export class BackofficeAplicacaoControllersModule {}

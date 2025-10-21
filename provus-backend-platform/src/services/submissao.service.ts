@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Logger,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, In } from 'typeorm';
@@ -38,6 +39,14 @@ import {
   isDadosRespostaDiscursiva,
 } from 'src/shared/guards/dados-resposta.guard';
 import { SubmissaoRevisaoResultDto } from 'src/dto/result/revisao/submissao-revisao.result.dto';
+
+interface SubmissaoFinalizadaPayload {
+  submissaoId: number;
+  aplicacaoId: number;
+  estado: EstadoSubmissaoEnum;
+  alunoNome: string;
+  timestamp: string;
+}
 @Injectable()
 export class SubmissaoService {
   private readonly logger = new Logger(SubmissaoService.name);
@@ -57,9 +66,6 @@ export class SubmissaoService {
 
     @InjectRepository(EstudanteModel)
     private readonly estudanteRepository: Repository<EstudanteModel>,
-
-    @InjectRepository(QuestaoModel)
-    private readonly questaoRepository: Repository<QuestaoModel>,
   ) {}
 
   async createSubmissao(
@@ -74,6 +80,7 @@ export class SubmissaoService {
         relations: [
           'avaliacao',
           'avaliacao.item',
+          'avaliacao.item.avaliador',
           'avaliacao.questoes',
           'avaliacao.questoes.questao',
           'avaliacao.configuracaoAvaliacao',
@@ -86,6 +93,20 @@ export class SubmissaoService {
       if (!aplicacao) {
         throw new BadRequestException('Aplicação não encontrada');
       }
+
+      if (!aplicacao.avaliacao?.item?.avaliador?.id) {
+        this.logger.error(
+          `Falha ao carregar avaliador para aplicação ID: ${aplicacao.id}`,
+        );
+        throw new InternalServerErrorException(
+          'Não foi possível identificar o professor responsável pela aplicação.',
+        );
+      }
+      const avaliadorId = aplicacao.avaliacao.item.avaliador.id;
+      const questoesParaAluno = await this._randomizeQuestoes(
+        aplicacao.avaliacao,
+      );
+      const totalQuestoesReal = questoesParaAluno.length;
 
       const submissaoSalva = await this.dataSource.transaction(
         async (manager) => {
@@ -113,8 +134,6 @@ export class SubmissaoService {
             body.codigoAcesso + estudante.email,
           );
 
-          const questoes = await this._randomizeQuestoes(aplicacao.avaliacao);
-
           const novaSubmissao = this.submissaoRepository.create({
             aplicacao: aplicacao,
             codigoEntrega: codigoEntrega,
@@ -126,7 +145,7 @@ export class SubmissaoService {
 
           const submissaoSalva = await manager.save(novaSubmissao);
 
-          for (const [index, questao] of questoes.entries()) {
+          const respostasPromises = questoesParaAluno.map((questao, index) => {
             const submissaoResposta = this.submissaoRespostasRepository.create({
               submissaoId: submissaoSalva.id,
               questaoId: questao.id,
@@ -134,13 +153,40 @@ export class SubmissaoService {
               pontuacao: 0,
               ordem: index + 1,
             });
-
-            await manager.save(submissaoResposta);
-          }
+            return manager.save(submissaoResposta);
+          });
+          await Promise.all(respostasPromises);
 
           return submissaoSalva;
         },
       );
+
+      try {
+        const notificationPayload = {
+          submissaoId: submissaoSalva.id,
+          aplicacaoId: aplicacao.id,
+          aluno: {
+            nome: body.nome,
+            email: body.email,
+          },
+          estado: EstadoSubmissaoEnum.INICIADA,
+          horaInicio: submissaoSalva.criadoEm.toISOString(),
+          totalQuestoes: totalQuestoesReal,
+        };
+
+        this.notificationProvider.sendNotificationViaSocket(
+          avaliadorId,
+          'nova-submissao',
+          notificationPayload,
+        );
+        this.logger.log(
+          `Notificação 'nova-submissao' enviada para avaliador ${avaliadorId} referente à submissão ${submissaoSalva.id}`,
+        );
+      } catch (wsError) {
+        this.logger.error(
+          `Falha ao enviar notificação WebSocket 'nova-submissao' para avaliador ${avaliadorId}: ${wsError}`,
+        );
+      }
 
       const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
       const html = this.emailTemplatesProvider.submissaoCriada(
@@ -149,12 +195,17 @@ export class SubmissaoService {
       );
 
       await this.notificationProvider.sendEmail(
-        submissaoSalva.estudante.email,
+        body.email,
         'Provus - Avaliação iniciada',
         html,
       );
 
-      return new SubmissaoResultDto(submissaoSalva);
+      const submissaoFinal = await this.submissaoRepository.findOneOrFail({
+        where: { id: submissaoSalva.id },
+        relations: ['estudante'],
+      });
+
+      return new SubmissaoResultDto(submissaoFinal);
     } catch (error) {
       console.log('Falha ao criar a submissão', error);
       throw error;
@@ -170,6 +221,9 @@ export class SubmissaoService {
       relations: [
         'respostas',
         'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.item',
+        'aplicacao.avaliacao.item.avaliador',
         'respostas.questao',
         'respostas.questao.alternativas',
         'estudante',
@@ -197,7 +251,7 @@ export class SubmissaoService {
       throw new BadRequestException('O tempo para esta avaliação já expirou.');
     }
 
-    let submissaoAtualizada: SubmissaoModel = submissao;
+    let submissaoAtualizada: SubmissaoModel | null = null;
 
     await this.dataSource.transaction(async (manager) => {
       const submissaoRepo = manager.getRepository(SubmissaoModel);
@@ -368,6 +422,47 @@ export class SubmissaoService {
       submissao.pontuacaoTotal = parseFloat(pontuacaoTotalCalculada.toFixed(2));
       submissaoAtualizada = await submissaoRepo.save(submissao);
     });
+
+    if (
+      submissaoAtualizada &&
+      submissaoAtualizada.aplicacao?.avaliacao?.item?.avaliador?.id
+    ) {
+      const avaliadorId =
+        submissaoAtualizada.aplicacao.avaliacao.item.avaliador.id;
+      const aplicacaoId = submissaoAtualizada.aplicacao.id;
+      const alunoNome =
+        submissaoAtualizada.estudante?.nome ?? 'Aluno Desconhecido';
+      const timestamp =
+        submissaoAtualizada.finalizadoEm?.toISOString() ??
+        new Date().toISOString();
+
+      const payloadFinalizacao: SubmissaoFinalizadaPayload = {
+        submissaoId: submissaoAtualizada.id,
+        aplicacaoId: aplicacaoId,
+        estado: submissaoAtualizada.estado,
+        alunoNome: alunoNome,
+        timestamp: timestamp,
+      };
+
+      try {
+        this.notificationProvider.sendNotificationViaSocket(
+          avaliadorId,
+          'submissao-finalizada',
+          payloadFinalizacao,
+        );
+        this.logger.log(
+          `Evento 'submissao-finalizada' (SubId: ${submissaoAtualizada.id}, AppId: ${aplicacaoId}, Estado: ${submissaoAtualizada.estado}) enviado para avaliador ${avaliadorId}`,
+        );
+      } catch (wsError) {
+        this.logger.error(
+          `Falha ao enviar notificação WebSocket 'submissao-finalizada' para avaliador ${avaliadorId}: ${wsError}`,
+        );
+      }
+    } else {
+      this.logger.error(
+        `Não foi possível enviar notificação 'submissao-finalizada' para submissão hash ${hash}. Dados ausentes.`,
+      );
+    }
 
     if (!submissaoAtualizada) {
       const submissaoFinal = await this.submissaoRepository.findOneOrFail({
@@ -631,8 +726,9 @@ export class SubmissaoService {
           notificacao.tipoNotificacao === TipoNotificacaoEnum.PUSH_NOTIFICATION,
       )
     ) {
-      await this.notificationProvider.sendNotificationViaSocket(
+      this.notificationProvider.sendNotificationViaSocket(
         submissao.aplicacao.avaliacao.item.avaliador.id,
+        'punicao-por-ocorrencia',
         {
           estudanteId: submissao.estudante.id,
           nomeEstudante: submissao.estudante.nome,
