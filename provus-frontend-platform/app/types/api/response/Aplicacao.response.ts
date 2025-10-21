@@ -14,4 +14,6 @@ export interface AplicacaoApiResponse {
   avaliacao: AvaliacaoApiResponse;
   stats?: AplicacaoStatsEntity;
   violations?: AplicacaoViolationEntity[];
+  totalSubmissoes: number;
+  mediaGeralPercentual: number | null;
 }

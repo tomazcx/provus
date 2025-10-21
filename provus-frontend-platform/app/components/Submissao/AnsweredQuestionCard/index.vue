@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { IQuestao, IAlternativa } from "~/types/IQuestao";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
+import type { AvaliadorQuestaoDetalheApiResponse } from "~/types/api/response/AvaliadorQuestaoDetalhe.response";
 
 const props = defineProps<{
-  questao: IQuestao;
+  questao: AvaliadorQuestaoDetalheApiResponse;
   numero: number;
 }>();
 
 const headerVisuals = computed(() => {
-  const estado = props.questao.resposta?.estadoCorrecao;
-  const pontuacaoObtida = props.questao.resposta?.pontuacao ?? 0;
+  const estado = props.questao.estadoCorrecao;
+  const pontuacaoObtida = props.questao.pontuacaoObtida ?? 0;
 
   switch (estado) {
     case EstadoQuestaoCorrigida.CORRETA:
@@ -41,28 +41,39 @@ const headerVisuals = computed(() => {
   }
 });
 
-function isAlternativeSelected(alternative: IAlternativa): boolean {
-  const { questao } = props;
-  if (!questao.resposta) return false;
-
-  if (questao.tipo === TipoQuestaoEnum.OBJETIVA) {
-    return questao.resposta.dados.alternativaId === alternative.id;
-  }
+function isAlternativeSelected(alternativeId: number): boolean {
+  const dados = props.questao.dadosResposta;
+  if (!dados || typeof dados !== "object" || Object.keys(dados).length === 0)
+    return false;
 
   if (
-    questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA ||
-    questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO
+    "alternativa_id" in dados &&
+    (typeof dados.alternativa_id === "number" || dados.alternativa_id === null)
   ) {
-    return questao.resposta.dados.alternativasId.includes(alternative.id!);
+    return dados.alternativa_id === alternativeId;
   }
-
+  if ("alternativas_id" in dados && Array.isArray(dados.alternativas_id)) {
+    return dados.alternativas_id.includes(alternativeId);
+  }
   return false;
 }
-</script>
 
+const getStudentDiscursiveAnswer = computed(() => {
+  const dados = props.questao.dadosResposta;
+  if (
+    dados &&
+    typeof dados === "object" &&
+    "texto" in dados &&
+    typeof dados.texto === "string"
+  ) {
+    return dados.texto;
+  }
+  return null;
+});
+</script>
 <template>
-  <UCard v-if="questao">
-    <div class="flex items-start justify-between mb-4">
+  <UCard v-if="questao" :id="`question-${questao.id}`">
+    <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
       <div class="flex items-center space-x-3">
         <div
           :class="headerVisuals.colorClasses"
@@ -70,54 +81,65 @@ function isAlternativeSelected(alternative: IAlternativa): boolean {
         >
           <Icon :name="headerVisuals.icon" class="text-sm" />
         </div>
+
         <span class="text-sm font-medium" :class="headerVisuals.colorClasses">
           {{ headerVisuals.text }}
         </span>
       </div>
-      <span class="text-sm text-gray-500">Questão {{ numero }}</span>
+
+      <span class="text-sm text-gray-500"
+        >Questão {{ numero }} • {{ questao.pontuacaoMaxima }} Ponto(s)</span
+      >
     </div>
 
     <h3 class="text-lg font-semibold text-gray-900 mb-3">
       {{ questao.titulo }}
     </h3>
+
     <p v-if="questao.descricao" class="text-sm text-gray-500 mb-4">
       {{ questao.descricao }}
     </p>
 
     <div class="space-y-3">
-      <template
-        v-if="questao.tipo === TipoQuestaoEnum.DISCURSIVA && questao.resposta"
-      >
+      <template v-if="questao.tipo === TipoQuestaoEnum.DISCURSIVA">
         <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <div class="flex items-center space-x-2 mb-2">
             <Icon name="i-lucide-message-square" class="text-gray-500" />
+
             <span class="text-sm font-medium text-gray-600"
               >Resposta do Aluno</span
             >
           </div>
-          <p class="text-gray-900">{{ questao.resposta.dados.texto }}</p>
+
+          <p
+            v-if="getStudentDiscursiveAnswer"
+            class="text-gray-900 whitespace-pre-wrap"
+          >
+            {{ getStudentDiscursiveAnswer }}
+          </p>
+
+          <p v-else class="text-gray-500 italic">Aluno não respondeu.</p>
         </div>
+
         <div
-          v-if="questao.exemploDeResposta"
+          v-if="questao.exemploRespostaIa"
           class="p-4 bg-blue-50 border border-blue-200 rounded-lg"
         >
           <div class="flex items-center space-x-2 mb-2">
             <Icon name="i-lucide-lightbulb" class="text-blue-600" />
             <span class="text-sm font-medium text-blue-600"
-              >Resposta Esperada</span
+              >Resposta Esperada / Gabarito</span
             >
           </div>
-          <p class="text-gray-700">{{ questao.exemploDeResposta }}</p>
+
+          <p class="text-gray-700 whitespace-pre-wrap">
+            {{ questao.exemploRespostaIa }}
+          </p>
         </div>
       </template>
 
       <template
-        v-if="
-          (questao.tipo === TipoQuestaoEnum.OBJETIVA ||
-            questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA ||
-            questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) &&
-          questao.alternativas
-        "
+        v-else-if="questao.alternativas && questao.alternativas.length > 0"
       >
         <div
           v-for="alt in questao.alternativas"
@@ -126,46 +148,77 @@ function isAlternativeSelected(alternative: IAlternativa): boolean {
           :class="{
             'bg-green-50 border-green-200': alt.isCorreto,
             'bg-red-50 border-red-200':
-              !alt.isCorreto && isAlternativeSelected(alt),
+              !alt.isCorreto && isAlternativeSelected(alt.id),
             'bg-gray-50 border-gray-200':
-              !alt.isCorreto && !isAlternativeSelected(alt),
+              !alt.isCorreto && !isAlternativeSelected(alt.id),
           }"
         >
           <Icon
             v-if="alt.isCorreto"
             name="i-lucide-check-circle-2"
-            class="text-green-600"
+            class="text-green-600 shrink-0"
           />
+
           <Icon
-            v-else-if="!alt.isCorreto && isAlternativeSelected(alt)"
+            v-else-if="!alt.isCorreto && isAlternativeSelected(alt.id)"
             name="i-lucide-x-circle"
-            class="text-red-600"
+            class="text-red-600 shrink-0"
           />
-          <div v-else class="w-5 h-5" />
+
+          <Icon v-else name="i-lucide-circle" class="text-gray-400 shrink-0" />
+
           <span class="text-gray-900 flex-1">{{ alt.descricao }}</span>
 
-          <UBadge v-if="alt.isCorreto" color="secondary" variant="subtle"
-            >Resposta Correta</UBadge
-          >
           <UBadge
-            v-if="isAlternativeSelected(alt)"
-            color="error"
+            v-if="isAlternativeSelected(alt.id)"
+            color="info"
             variant="subtle"
+            size="xs"
+            class="ml-auto shrink-0"
             >Sua Resposta</UBadge
           >
+
+          <UBadge
+            v-if="alt.isCorreto"
+            color="secondary"
+            variant="subtle"
+            size="xs"
+            class="ml-2 shrink-0"
+            >Gabarito</UBadge
+          >
+        </div>
+
+        <div
+          v-if="questao.exemploRespostaIa"
+          class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+        >
+          <h4
+            class="font-semibold text-sm text-blue-800 mb-1 flex items-center gap-1.5"
+          >
+            <Icon name="i-lucide-info" class="h-4 w-4" /> Explicação do
+            Gabarito:
+          </h4>
+
+          <p class="text-sm text-blue-700 whitespace-pre-wrap">
+            {{ questao.exemploRespostaIa }}
+          </p>
         </div>
       </template>
     </div>
 
     <div
-      v-if="questao.resposta?.textoRevisao"
+      v-if="questao.textoRevisao"
       class="mt-4 p-4 bg-amber-50 border-l-4 border-amber-400"
     >
-      <h4 class="font-semibold text-sm text-amber-800">
-        Feedback do Professor:
+      <h4
+        class="font-semibold text-sm text-amber-800 flex items-center gap-1.5"
+      >
+        <Icon name="i-lucide-message-square-quote" class="h-4 w-4" /> Feedback
+        do Professor:
       </h4>
-      <p class="text-sm text-amber-700 mt-1">
-        {{ questao.resposta.textoRevisao }}
+
+      <p class="text-sm text-amber-700 mt-1 whitespace-pre-wrap">
+        {{ questao.textoRevisao }}
       </p>
     </div>
   </UCard>

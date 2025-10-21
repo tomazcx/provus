@@ -29,4 +29,6 @@ export interface AplicacaoEntity {
   avaliacao: AvaliacaoEntity;
   stats?: AplicacaoStatsEntity;
   violations?: AplicacaoViolationEntity[];
+  totalSubmissoes: number;
+  mediaGeralPercentual: number | null;
 }

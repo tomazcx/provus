@@ -83,7 +83,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const isLoading = ref(false);
   const currentApplicationId = ref<number | null>(null);
   const toast = useToast();
-  let listenersInitialized = false;
+  const listenersInitialized = ref(false);
 
   const nuxtApp = useNuxtApp();
   const $websocket = nuxtApp.$websocket as
@@ -115,7 +115,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   }
 
   function initializeWebSocketListeners() {
-    if (listenersInitialized) {
+    if (listenersInitialized.value) {
       console.log("MonitoringStore: Listeners já inicializados.");
       return;
     }
@@ -408,12 +408,12 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       "%%% MonitoringStore: Listener para 'estado-aplicacao-atualizado' REGISTRADO."
     );
 
-    listenersInitialized = true;
+    listenersInitialized.value = true;
     console.log("MonitoringStore: Listeners configurados com sucesso.");
   }
 
   function clearWebSocketListeners() {
-    if ($websocket?.socket?.value && listenersInitialized) {
+    if ($websocket?.socket?.value && listenersInitialized.value) {
       console.log(
         "MonitoringStore: Removendo listeners WebSocket explicitamente..."
       );
@@ -468,7 +468,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
         );
       }
 
-      listenersInitialized = false;
+      listenersInitialized.value = false;
     } else {
       console.log(
         "MonitoringStore: Tentativa de limpar listeners não inicializados ou sem socket."
@@ -552,6 +552,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     activityFeed,
     isLoading,
     currentApplicationId,
+    listenersInitialized,
     fetchMonitoringData,
     initializeWebSocketListeners,
     clearWebSocketListeners,

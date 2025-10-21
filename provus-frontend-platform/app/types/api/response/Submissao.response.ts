@@ -19,7 +19,8 @@ export type DadosResposta =
   | TextoResposta
   | AlternativaUnicaResposta
   | AlternativasMultiplasResposta
-  | null;
+  | null
+  | Record<string, never>;
 
 export interface SubmissaoResponse {
   id: number;
@@ -27,12 +28,11 @@ export interface SubmissaoResponse {
   codigoEntrega: number;
   hash: string;
   estado: EstadoSubmissaoEnum;
-  pontuacaoTotal: string | null;
+  pontuacaoTotal: number | null;
   criadoEm: string;
   atualizadoEm: string;
   finalizadoEm: string | null;
 }
-
 export interface AlternativaSubmissaoResponse {
   id: number;
   descricao: string;

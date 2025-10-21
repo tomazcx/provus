@@ -27,6 +27,20 @@ const isPausada = computed(
   () => props.item.estado === EstadoAplicacaoEnum.PAUSADA
 );
 
+const participantesInfo = computed(() => {
+  return props.item.totalSubmissoes > 0
+    ? props.item.totalSubmissoes === 1
+      ? "1 participante"
+      : `${props.item.totalSubmissoes} participantes`
+    : "-- participantes";
+});
+
+const mediaInfo = computed(() => {
+  return props.item.mediaGeralPercentual !== null
+    ? `${props.item.mediaGeralPercentual?.toFixed(0)}%`
+    : "-- %";
+});
+
 const isFinishedOrCancelled = computed(() =>
   [
     EstadoAplicacaoEnum.CONCLUIDA,
@@ -137,13 +151,13 @@ const formattedDate = computed(() => {
         <UTooltip text="Disponível após a finalização da aplicação">
           <span class="text-gray-600">Alunos:</span>
         </UTooltip>
-        <span class="font-medium text-gray-900">-- participantes</span>
+        <span class="font-medium text-gray-900">{{ participantesInfo }}</span>
       </div>
       <div class="flex items-center justify-between text-sm">
         <UTooltip text="Disponível após a finalização da aplicação">
           <span class="text-gray-600">Média:</span>
         </UTooltip>
-        <span class="font-medium text-secondary">-- %</span>
+        <span class="font-medium text-secondary">{{ mediaInfo }}</span>
       </div>
       <div class="flex items-center justify-between text-sm">
         <span class="text-gray-600">Status:</span>

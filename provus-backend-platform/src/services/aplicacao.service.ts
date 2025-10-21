@@ -9,7 +9,10 @@ import {
   AplicacaoStatsDto,
   AplicacaoViolationDto,
 } from 'src/dto/result/aplicacao/aplicacao.dto';
-import { FindAllAplicacaoDto } from 'src/dto/result/aplicacao/find-all-aplicacao.dto';
+import {
+  FindAllAplicacaoDto,
+  FindAllAplicacaoDtoFactory,
+} from 'src/dto/result/aplicacao/find-all-aplicacao.dto';
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
@@ -176,7 +179,7 @@ export class AplicacaoService {
       >();
     const violations: AplicacaoViolationDto[] = violationsRaw.map((v) => ({
       ...v,
-      timestamp: v.timestamp.toISOString(), 
+      timestamp: v.timestamp.toISOString(),
     }));
 
     const avaliacaoPath = await this.itemSistemaArquivosRepository.findPathById(
@@ -200,11 +203,102 @@ export class AplicacaoService {
   }
 
   async findAll(avaliadorId: number): Promise<FindAllAplicacaoDto[]> {
-    const aplicacoes = await this.aplicacaoRepository.findAll(avaliadorId);
+    const aplicacoes = await this.aplicacaoRepository.find({
+      where: {
+        avaliacao: {
+          item: {
+            avaliador: { id: avaliadorId },
+          },
+        },
+      },
+      relations: [
+        'avaliacao',
+        'avaliacao.item',
+        'avaliacao.questoes',
+        'avaliacao.arquivos',
+        'avaliacao.arquivos.arquivo',
+        'avaliacao.arquivos.arquivo.item',
+        'avaliacao.questoes.questao',
+        'avaliacao.questoes.questao.item',
+        'avaliacao.questoes.questao.alternativas',
+        'avaliacao.configuracaoAvaliacao',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+      ],
+      order: {
+        dataInicio: 'DESC',
+      },
+    });
 
-    return aplicacoes.map((aplicacao) => new FindAllAplicacaoDto(aplicacao));
+    if (aplicacoes.length === 0) {
+      return [];
+    }
+
+    const aplicacaoIds = aplicacoes.map((app) => app.id);
+
+    const statsRaw = await this.submissaoRepository
+      .createQueryBuilder('submissao')
+      .select('submissao.aplicacao_id', 'aplicacaoId')
+      .addSelect('COUNT(submissao.id)::int', 'totalSubmissoes')
+      .addSelect('AVG(submissao.pontuacao_total)::float', 'mediaPontuacaoBruta')
+      .where('submissao.aplicacao_id IN (:...aplicacaoIds)', { aplicacaoIds })
+      .groupBy('submissao.aplicacao_id')
+      .getRawMany<{
+        aplicacaoId: number;
+        totalSubmissoes: number;
+        mediaPontuacaoBruta: number | null;
+      }>();
+
+    const statsMap = new Map<
+      number,
+      { totalSubmissoes: number; mediaPontuacaoBruta: number | null }
+    >();
+    statsRaw.forEach((stat) => {
+      statsMap.set(stat.aplicacaoId, {
+        totalSubmissoes: stat.totalSubmissoes,
+        mediaPontuacaoBruta: stat.mediaPontuacaoBruta,
+      });
+    });
+
+    const dtosPromises = aplicacoes.map(async (aplicacao) => {
+      const appStats = statsMap.get(aplicacao.id) ?? {
+        totalSubmissoes: 0,
+        mediaPontuacaoBruta: null,
+      };
+
+      const pontuacaoTotalAvaliacao =
+        aplicacao.avaliacao.questoes?.reduce(
+          (sum, qa) => sum + Number(qa.pontuacao || 0),
+          0,
+        ) ?? 0;
+
+      let mediaPercentual: number | null = null;
+      if (
+        appStats.mediaPontuacaoBruta !== null &&
+        pontuacaoTotalAvaliacao > 0
+      ) {
+        mediaPercentual = Math.round(
+          (appStats.mediaPontuacaoBruta / pontuacaoTotalAvaliacao) * 100,
+        );
+      }
+
+      return FindAllAplicacaoDtoFactory.create(
+        aplicacao,
+        {
+          totalSubmissoes: appStats.totalSubmissoes,
+          mediaGeralPercentual: mediaPercentual,
+        },
+        this.itemSistemaArquivosRepository,
+      );
+    });
+
+    return Promise.all(dtosPromises);
   }
-
   async createAplicacao(
     dto: CreateAplicacaoDto,
     avaliador: AvaliadorModel,

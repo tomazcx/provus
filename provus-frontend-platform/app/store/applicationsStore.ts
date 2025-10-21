@@ -22,6 +22,8 @@ export function mapAplicacaoApiResponseToEntity(
     violations: apiResponse.violations
       ? [...apiResponse.violations]
       : undefined,
+    totalSubmissoes: apiResponse.totalSubmissoes,
+    mediaGeralPercentual: apiResponse.mediaGeralPercentual,
   };
 }
 

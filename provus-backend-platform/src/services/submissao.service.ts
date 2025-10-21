@@ -39,6 +39,11 @@ import {
   isDadosRespostaDiscursiva,
 } from 'src/shared/guards/dados-resposta.guard';
 import { SubmissaoRevisaoResultDto } from 'src/dto/result/revisao/submissao-revisao.result.dto';
+import {
+  FindSubmissoesResponseDto,
+  SubmissaoComEstudanteDto,
+} from 'src/dto/result/submissao/find-submissoes.response.dto';
+import { AvaliadorSubmissaoDetalheDto } from 'src/dto/result/submissao/avaliador-submissao-detalhe.dto';
 
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
@@ -514,6 +519,95 @@ export class SubmissaoService {
     throw new BadRequestException(
       'Não foi possível gerar um código de entrega após várias tentativas',
     );
+  }
+
+  async findSubmissionDetailsForEvaluator(
+    aplicacaoId: number,
+    submissaoId: number,
+    avaliadorId: number,
+  ): Promise<AvaliadorSubmissaoDetalheDto> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: {
+        id: submissaoId,
+        aplicacao: {
+          id: aplicacaoId,
+          avaliacao: { item: { avaliador: { id: avaliadorId } } },
+        },
+      },
+      relations: [
+        'estudante',
+        'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.item',
+        'aplicacao.avaliacao.questoes',
+        'respostas',
+        'respostas.questao',
+        'respostas.questao.item',
+        'respostas.questao.alternativas',
+      ],
+    });
+
+    if (!submissao) {
+      throw new NotFoundException(
+        `Submissão com ID ${submissaoId} não encontrada para a aplicação ${aplicacaoId} ou não pertence a este avaliador.`,
+      );
+    }
+
+    const pontuacaoTotalAvaliacao =
+      submissao.aplicacao?.avaliacao?.questoes?.reduce(
+        (sum, qa) => sum + Number(qa.pontuacao || 0),
+        0,
+      ) ?? 0;
+
+    return new AvaliadorSubmissaoDetalheDto(submissao, pontuacaoTotalAvaliacao);
+  }
+
+  async findSubmissionsByApplication(
+    aplicacaoId: number,
+    avaliadorId: number,
+  ): Promise<FindSubmissoesResponseDto> {
+    const aplicacao = await this.aplicacaoRepository.findOne({
+      where: {
+        id: aplicacaoId,
+        avaliacao: { item: { avaliador: { id: avaliadorId } } },
+      },
+      relations: ['avaliacao', 'avaliacao.item', 'avaliacao.questoes'],
+    });
+
+    if (!aplicacao) {
+      throw new NotFoundException(
+        'Aplicação não encontrada ou não pertence a este avaliador.',
+      );
+    }
+
+    const pontuacaoTotal =
+      aplicacao.avaliacao.questoes?.reduce(
+        (sum, qa) => sum + Number(qa.pontuacao || 0),
+        0,
+      ) ?? 0;
+
+    const submissoes = await this.submissaoRepository.find({
+      where: { aplicacao: { id: aplicacaoId } },
+      relations: ['estudante'],
+      order: {
+        pontuacaoTotal: 'DESC',
+        finalizadoEm: 'ASC',
+      },
+    });
+
+    const submissoesDto = submissoes.map(
+      (sub) => new SubmissaoComEstudanteDto(sub),
+    );
+
+    return {
+      applicationId: aplicacao.id,
+      avaliacaoId: aplicacao.avaliacao.id,
+      titulo: aplicacao.avaliacao.item.titulo,
+      descricao: aplicacao.avaliacao.descricao,
+      pontuacaoTotal: pontuacaoTotal,
+      dataAplicacao: aplicacao.dataInicio.toISOString(),
+      submissoes: submissoesDto,
+    };
   }
 
   async findSubmissaoForReview(
