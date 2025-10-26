@@ -20,36 +20,23 @@ import { In, Repository } from 'typeorm';
 import { PunicaoPorOcorrenciaMessage } from '../messages/punicao-por-ocorrencia.message';
 import { SubmissaoService } from 'src/services/submissao.service';
 import { NotificationProvider } from 'src/providers/notification.provider';
+import { ProgressoUpdatePayload } from '../messages/progresso-update.message';
+import { TempoAjustadoPayload } from '../messages/tempo-ajustado.message';
+import { EstadoAplicacaoAtualizadoPayload } from '../messages/estado-aplicacao-atualizado.message';
 
-interface TempoAjustadoPayload {
-  aplicacaoId: number;
-  novaDataFimISO: string;
-}
-
-interface EstadoAplicacaoAtualizadoPayload {
-  aplicacaoId: number;
-  novoEstado: EstadoSubmissaoEnum;
-  novaDataFimISO: string;
-}
 interface AlunoSaiuPayload {
   submissaoId: number;
   aplicacaoId: number;
   alunoNome: string;
   timestamp: string;
 }
+
 interface SubmissaoConnectionData {
   submissaoId: number;
   estudanteEmail: string;
   clientId: string;
 }
 
-interface ProgressoUpdatePayload {
-  totalQuestoes: number;
-  questoesRespondidas: number;
-  questaoId: number;
-  respondida: boolean;
-  timestamp: string;
-}
 @Injectable()
 @WebSocketGateway({
   namespace: '/submissao',
@@ -106,6 +93,7 @@ export class SubmissaoGateway
           'aplicacao.avaliacao.item',
           'aplicacao.avaliacao.configuracaoAvaliacao',
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         ],
       });
 

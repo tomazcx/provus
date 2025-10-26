@@ -23,7 +23,6 @@ import { NotificationProvider } from 'src/providers/notification.provider';
 import { EmailTemplatesProvider } from 'src/providers/email-templates.provider';
 import { Env } from 'src/shared/env';
 import { EstudanteModel } from 'src/database/config/models/estudante.model';
-import { SubmissaoQuestoesResultDto } from 'src/dto/result/submissao/submissao-questoes.result';
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
@@ -271,29 +270,31 @@ export class SubmissaoService {
         const respostaExistente = respostasExistentesMap.get(
           respostaDto.questaoId,
         );
-        if (respostaExistente) {
-          let novosDadosResposta: DadosRespostaType | null = null;
-          if (
-            respostaDto.texto !== undefined &&
-            respostaDto.texto.trim() !== ''
-          ) {
-            novosDadosResposta = { texto: respostaDto.texto };
-          } else if (respostaDto.alternativa_id !== undefined) {
-            novosDadosResposta = { alternativa_id: respostaDto.alternativa_id };
-          } else if (
-            respostaDto.alternativas_id !== undefined &&
-            respostaDto.alternativas_id.length > 0
-          ) {
-            novosDadosResposta = {
-              alternativas_id: respostaDto.alternativas_id,
-            };
-          }
-          respostaExistente.dadosResposta = novosDadosResposta;
-        } else {
+
+        if (!respostaExistente) {
           this.logger.warn(
             `Recebida resposta para questão ID ${respostaDto.questaoId} que não pertence à submissão ${submissao.id}. Ignorando.`,
           );
+          continue;
         }
+
+        let novosDadosResposta: DadosRespostaType | null = null;
+        if (
+          respostaDto.texto !== undefined &&
+          respostaDto.texto.trim() !== ''
+        ) {
+          novosDadosResposta = { texto: respostaDto.texto };
+        } else if (respostaDto.alternativa_id !== undefined) {
+          novosDadosResposta = { alternativa_id: respostaDto.alternativa_id };
+        } else if (
+          respostaDto.alternativas_id !== undefined &&
+          respostaDto.alternativas_id.length > 0
+        ) {
+          novosDadosResposta = {
+            alternativas_id: respostaDto.alternativas_id,
+          };
+        }
+        respostaExistente.dadosResposta = novosDadosResposta;
       }
 
       let pontuacaoTotalCalculada = 0;
@@ -657,7 +658,7 @@ export class SubmissaoService {
     return new SubmissaoRevisaoResultDto(submissao);
   }
 
-  async findSubmissaoByHash(hash: string): Promise<SubmissaoQuestoesResultDto> {
+  async findSubmissaoByHash(hash: string): Promise<SubmissaoModel> {
     const submissao = await this.submissaoRepository.findOne({
       where: { hash: hash },
       relations: [
@@ -668,6 +669,8 @@ export class SubmissaoService {
         'aplicacao.avaliacao.item.avaliador',
         'aplicacao.avaliacao.configuracaoAvaliacao',
         'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         'aplicacao.avaliacao.arquivos',
         'aplicacao.avaliacao.arquivos.arquivo',
         'aplicacao.avaliacao.arquivos.arquivo.item',
@@ -682,7 +685,7 @@ export class SubmissaoService {
       throw new NotFoundException('Submissão não encontrada');
     }
 
-    return new SubmissaoQuestoesResultDto(submissao);
+    return submissao;
   }
 
   private _createShortHash(data: string): string {

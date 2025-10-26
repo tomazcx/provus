@@ -193,6 +193,19 @@ export class AplicacaoService {
   async findByCode(codigoAcesso: string): Promise<AplicacaoModel> {
     const aplicacao = await this.aplicacaoRepository.findOne({
       where: { codigoAcesso },
+      relations: [
+        'avaliacao',
+        'avaliacao.item',
+        'avaliacao.questoes',
+        'avaliacao.arquivos',
+        'avaliacao.arquivos.arquivo',
+        'avaliacao.arquivos.arquivo.item',
+        'avaliacao.questoes.questao',
+        'avaliacao.configuracaoAvaliacao',
+        'avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
+      ],
     });
 
     if (!aplicacao) {
