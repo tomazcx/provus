@@ -10,16 +10,45 @@ import {
 import { useTimer } from "~/composables/useTimer";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
+interface ProgressoUpdatePayload {
+  questoesRespondidas: number;
+  totalQuestoes: number;
+  questaoId: number;
+  respondida: boolean;
+  timestamp: string;
+}
+
+interface TempoAjustadoPayload {
+  aplicacaoId: number;
+  novaDataFimISO: string;
+}
+
+interface EstadoAplicacaoAtualizadoPayloadSubmissao {
+  aplicacaoId: number;
+  novoEstado: EstadoSubmissaoEnum;
+  novaDataFimISO: string;
+}
+
 const route = useRoute();
 const router = useRouter();
 const studentAssessmentStore = useStudentAssessmentStore();
 const toast = useToast();
+const currentSubmissionStatus = ref<EstadoSubmissaoEnum | null>(null);
 
 const isMaterialsOpen = ref(false);
 const viewMode = ref<"single" | "paginated">("single");
+const dataFimRef = ref<string | null>(null);
+
+const isTimerActive = computed(
+  () =>
+    currentSubmissionStatus.value === EstadoSubmissaoEnum.INICIADA ||
+    currentSubmissionStatus.value === EstadoSubmissaoEnum.REABERTA
+);
+
 const respostas = reactive<
   Record<number, StudentAnswerData | undefined | null>
 >({});
+const studentWebSocket = useWebSocket();
 
 const submissionDetails = computed(
   () => studentAssessmentStore.submissionDetails
@@ -44,20 +73,47 @@ const descricaoAvaliacao = computed(
 );
 
 const tituloAvaliacao = computed(
-  () => submissionQuestions.value?.[0]?.titulo ?? "Carregando..."
-);
-
-const mockAjusteSegundos = ref(0);
-const isTimerActive = computed(
-  () => submissionDetails.value?.estado === EstadoSubmissaoEnum.INICIADA
+  () => studentAssessmentStore.tituloAvaliacao ?? "Carregando..."
 );
 
 const { tempoRestanteFormatado } = useTimer({
-  dataAplicacao: dataInicioAplicacao,
-  tempoMaximoEmMinutos: tempoMaximoAvaliacao,
-  ajusteDeTempoEmSegundos: mockAjusteSegundos,
+  dataFimISO: dataFimRef,
   isActive: isTimerActive,
 });
+
+watch(
+  submissionDetails,
+  (details) => {
+    if (details) {
+      currentSubmissionStatus.value = details.estado;
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  [dataInicioAplicacao, tempoMaximoAvaliacao],
+  ([inicio, duracao]) => {
+    if (inicio && duracao !== null && duracao !== undefined) {
+      try {
+        const dataInicioDate = new Date(inicio);
+        const dataFimCalculada = new Date(
+          dataInicioDate.getTime() + duracao * 60000
+        );
+        dataFimRef.value = dataFimCalculada.toISOString();
+        console.log(
+          `%%% Aluno: Data Fim inicial calculada: ${dataFimRef.value}`
+        );
+      } catch (e) {
+        console.error("%%% Aluno: Erro ao calcular data fim inicial:", e);
+        dataFimRef.value = null;
+      }
+    } else {
+      dataFimRef.value = null;
+    }
+  },
+  { immediate: true }
+);
 
 const answeredQuestions = computed(
   () =>
@@ -107,10 +163,40 @@ function goToQuestion(index: number) {
 }
 
 function updateAnswer(questionId: number, answer: StudentAnswerData | null) {
-  if (answer === null) {
+  let isAnsweredNow = false;
+
+  if (
+    answer === null ||
+    (typeof answer === "object" && Object.keys(answer).length === 0)
+  ) {
     respostas[questionId] = undefined;
+    isAnsweredNow = false;
   } else {
     respostas[questionId] = answer;
+    isAnsweredNow = true;
+  }
+
+  const novaContagemRespondidas = Object.values(respostas).filter(
+    (val) => val !== undefined && val !== null
+  ).length;
+
+  if (studentWebSocket.isConnected.value) {
+    const payload: ProgressoUpdatePayload = {
+      questaoId: questionId,
+      respondida: isAnsweredNow,
+      questoesRespondidas: novaContagemRespondidas,
+      totalQuestoes: totalQuestoes.value,
+      timestamp: new Date().toISOString(),
+    };
+    studentWebSocket.emit<ProgressoUpdatePayload>(
+      "atualizar-progresso",
+      payload
+    );
+    console.log("Emitindo atualizar-progresso:", payload);
+  } else {
+    console.warn(
+      "WebSocket não conectado, não foi possível enviar atualização de progresso."
+    );
   }
 }
 
@@ -127,10 +213,138 @@ async function submitTest() {
   }
 }
 
-onMounted(() => {
+function connectWebSocket(hash: string) {
+  console.log(`Tentando conectar WebSocket do aluno para o hash: ${hash}`);
+
+  const authPayload = { hash: hash };
+  studentWebSocket.connect(`/submissao`, authPayload);
+
+  studentWebSocket.on(
+    "erro-validacao",
+    (data: { message: string; estado?: string }) => {
+      toast.add({
+        title: "Erro de Conexão",
+        description: data.message,
+        color: "error",
+      });
+      if (
+        data.estado &&
+        data.estado !== EstadoSubmissaoEnum.INICIADA &&
+        data.estado !== EstadoSubmissaoEnum.REABERTA
+      ) {
+        router.push(`/aluno/avaliacao/${hash}/finalizado`);
+      } else {
+        router.push("/aluno/entrar");
+      }
+    }
+  );
+
+  studentWebSocket.on("submissao-validada", (data: { message: string }) => {
+    console.log("Conexão WebSocket do aluno validada:", data.message);
+    toast.add({
+      title: "Conectado",
+      description: "Monitoramento em tempo real ativo.",
+      color: "info",
+    });
+  });
+
+  studentWebSocket.on<TempoAjustadoPayload>("tempo-ajustado", (data) => {
+    console.log("%%% Aluno: Evento 'tempo-ajustado' recebido:", data);
+
+    dataFimRef.value = data.novaDataFimISO;
+
+    toast.add({
+      title: "Tempo Ajustado",
+      description: "O tempo final da avaliação foi modificado pelo professor.",
+      icon: "i-lucide-clock",
+      color: "info",
+    });
+  });
+  console.log("%%% Aluno: Listener para 'tempo-ajustado' REGISTRADO.");
+
+  studentWebSocket.on<EstadoAplicacaoAtualizadoPayloadSubmissao>(
+    "estado-aplicacao-atualizado",
+    (data) => {
+      console.log(
+        "%%% Aluno: Evento 'estado-aplicacao-atualizado' recebido:",
+        data
+      );
+      currentSubmissionStatus.value = data.novoEstado;
+      dataFimRef.value = data.novaDataFimISO;
+
+      if (data.novoEstado === EstadoSubmissaoEnum.PAUSADA) {
+        toast.add({
+          title: "Avaliação Pausada",
+          description: "O professor pausou a avaliação.",
+          icon: "i-lucide-pause-circle",
+          color: "warning",
+        });
+      } else if (
+        data.novoEstado === EstadoSubmissaoEnum.INICIADA ||
+        data.novoEstado === EstadoSubmissaoEnum.REABERTA
+      ) {
+        toast.remove("avaliacao-pausada-toast");
+        toast.add({
+          title: "Avaliação Retomada",
+          description: "Você pode continuar respondendo.",
+          icon: "i-lucide-play-circle",
+          color: "info",
+        });
+      } else if (
+        data.novoEstado === EstadoSubmissaoEnum.ENCERRADA ||
+        data.novoEstado === EstadoSubmissaoEnum.CANCELADA
+      ) {
+        toast.add({
+          title: "Avaliação Finalizada",
+          description:
+            "A avaliação foi finalizada pelo professor. Redirecionando...",
+          icon: "i-lucide-stop-circle",
+          color: "info",
+        });
+        setTimeout(() => {
+          if (submissionDetails.value?.hash) {
+            router.push(
+              `/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`
+            );
+          } else {
+            router.push("/aluno/entrar");
+          }
+        }, 1500);
+      }
+    }
+  );
+  console.log(
+    "%%% Aluno: Listener para 'estado-aplicacao-atualizado' REGISTRADO."
+  );
+
+  studentWebSocket.on<TempoAjustadoPayload>("tempo-ajustado", (data) => {
+    console.log("%%% Aluno: Evento 'tempo-ajustado' recebido:", data);
+    dataFimRef.value = data.novaDataFimISO;
+    toast.add({
+      title: "Tempo Ajustado",
+      description: "O tempo final da avaliação foi modificado pelo professor.",
+      icon: "i-lucide-clock",
+      color: "info",
+    });
+  });
+}
+
+watch(
+  submissionDetails,
+  (newDetails) => {
+    if (newDetails?.hash && !studentWebSocket.isConnected.value) {
+      connectWebSocket(newDetails.hash);
+    } else if (!newDetails && studentWebSocket.isConnected.value) {
+      studentWebSocket.disconnect();
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(async () => {
   const hash = route.params.hash as string;
   if (hash) {
-    studentAssessmentStore.fetchSubmissionDataByHash(hash);
+    await studentAssessmentStore.fetchSubmissionDataByHash(hash);
   } else {
     console.error("Hash não encontrado na rota!");
     toast.add({
@@ -140,6 +354,10 @@ onMounted(() => {
     });
     router.push("/aluno/entrar");
   }
+});
+
+onUnmounted(() => {
+  studentWebSocket.disconnect();
 });
 </script>
 

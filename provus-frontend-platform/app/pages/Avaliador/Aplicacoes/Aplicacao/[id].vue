@@ -1,67 +1,363 @@
 <script setup lang="ts">
 import Header from "@/components/Aplicacoes/AplicacoesHeader/index.vue";
-// import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
-// import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
-// import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
-// import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
-
-import { useApplicationsStore } from "~/store/applicationsStore";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
+import ViewConfigurationDialog from "~/components/Aplicacoes/Detalhes/ViewConfigurationDialog.vue";
+import OverviewStats from "@/components/Aplicacoes/Detalhes/OverviewStats.vue";
+import AnalysisGrid from "@/components/Aplicacoes/Detalhes/AnalysisGrid.vue";
+import ViolationsTable from "@/components/Aplicacoes/Detalhes/ViolationsTable.vue";
+import {
+  mapAplicacaoApiResponseToEntity,
+  useApplicationsStore,
+} from "~/store/applicationsStore";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
 
 const applicationsStore = useApplicationsStore();
 const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const nuxtApp = useNuxtApp();
 
+const $websocket = nuxtApp.$websocket as
+  | ReturnType<typeof useWebSocket>
+  | undefined;
 const aplicacao = ref<AplicacaoEntity | null>(null);
-const modeloDaAplicacao = ref<AvaliacaoEntity | null>(null);
+const modeloDaAplicacao = computed<AvaliacaoEntity | null>(
+  () => aplicacao.value?.avaliacao ?? null
+);
+const isLoadingData = ref(true);
+const isConfigDialogOpen = ref(false);
 
-watchEffect(() => {
-  if (applicationsStore.applications.length > 0) {
-    const applicationId = parseInt(route.params.id as string, 10);
-    const foundApplication =
-      applicationsStore.getApplicationById(applicationId);
+async function fetchApplicationDetails() {
+  isLoadingData.value = true;
+  aplicacao.value = null;
+  const applicationId = parseInt(route.params.id as string, 10);
+  if (isNaN(applicationId)) {
+    toast.add({ title: "ID da Aplicação inválido.", color: "error" });
+    router.push("/aplicacoes");
+    isLoadingData.value = false;
+    return;
+  }
 
-    if (foundApplication) {
-      aplicacao.value = foundApplication;
-      modeloDaAplicacao.value = foundApplication.avaliacao;
-    } else {
-      console.error("Aplicação não encontrada!");
+  console.log(
+    `Buscando detalhes completos da API para App ${applicationId}...`
+  );
+  try {
+    const response = await nuxtApp.$api<AplicacaoApiResponse>(
+      `/backoffice/aplicacao/${applicationId}`
+    );
+    const entity = mapAplicacaoApiResponseToEntity(response);
+    aplicacao.value = entity;
+    applicationsStore.updateApplicationData(applicationId, entity);
+    console.log("Aplicação carregada da API com stats/violations:", entity);
+  } catch (error) {
+    console.error("Erro ao buscar detalhes da aplicação:", error);
+    const errorMessage = "Não foi possível carregar os detalhes da aplicação.";
+    toast.add({
+      title: "Erro ao Carregar",
+      description: errorMessage,
+      color: "error",
+    });
+    router.push("/aplicacoes");
+  } finally {
+    isLoadingData.value = false;
+  }
+}
+
+onMounted(fetchApplicationDetails);
+
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId && !isNaN(parseInt(newId as string, 10))) {
+      fetchApplicationDetails();
     }
   }
-});
+);
 
-onMounted(() => {
-  if (applicationsStore.applications.length === 0) {
-    applicationsStore.fetchApplications();
+watch(
+  () => aplicacao.value?.estado,
+  (newState, oldState) => {
+    if (newState !== oldState && aplicacao.value) {
+      console.log(
+        `Página [id].vue: Estado da aplicação ${aplicacao.value.id} mudou de ${oldState} para ${newState}`
+      );
+    }
+  },
+  { deep: true }
+);
+
+watch(
+  () => aplicacao.value?.dataFim,
+  (newDate, oldDate) => {
+    if (newDate?.toISOString() !== oldDate?.toISOString() && aplicacao.value) {
+      console.log(
+        `Página [id].vue: Data Fim da aplicação ${
+          aplicacao.value.id
+        } mudou para ${newDate?.toISOString()}`
+      );
+    }
+  },
+  { deep: true }
+);
+
+const podeIniciar = computed(
+  () =>
+    aplicacao.value?.estado === EstadoAplicacaoEnum.CRIADA ||
+    aplicacao.value?.estado === EstadoAplicacaoEnum.AGENDADA
+);
+const podeMonitorar = computed(
+  () =>
+    aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
+    aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
+);
+const podePausar = computed(
+  () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
+);
+const podeRetomar = computed(
+  () => aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
+);
+const podeFinalizar = computed(
+  () =>
+    aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
+    aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
+);
+const podeVerResultados = computed(
+  () =>
+    aplicacao.value?.estado === EstadoAplicacaoEnum.FINALIZADA ||
+    aplicacao.value?.estado === EstadoAplicacaoEnum.CONCLUIDA
+);
+const podeDeletar = computed(
+  () =>
+    aplicacao.value?.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO &&
+    aplicacao.value?.estado !== EstadoAplicacaoEnum.PAUSADA
+);
+
+async function handleStartNow() {
+  if (!aplicacao.value) return;
+  await applicationsStore.updateApplicationStatus(
+    aplicacao.value.id,
+    EstadoAplicacaoEnum.EM_ANDAMENTO
+  );
+  router.push(`/aplicacoes/aplicacao/${aplicacao.value.id}/monitoramento`);
+}
+
+function handlePause() {
+  if (!$websocket || !$websocket.isConnected.value || !aplicacao.value) {
+    toast.add({ title: "Erro de Conexão WS", color: "error" });
+    return;
   }
+  $websocket.emit("pausar-aplicacao", { aplicacaoId: aplicacao.value.id });
+}
+
+function handleResume() {
+  if (!$websocket || !$websocket.isConnected.value || !aplicacao.value) {
+    toast.add({ title: "Erro de Conexão WS", color: "error" });
+    return;
+  }
+  $websocket.emit("retomar-aplicacao", { aplicacaoId: aplicacao.value.id });
+}
+
+function handleFinish() {
+  if (!$websocket || !$websocket.isConnected.value || !aplicacao.value) {
+    toast.add({ title: "Erro de Conexão WS", color: "error" });
+    return;
+  }
+  if (
+    confirm(
+      "Tem certeza que deseja finalizar esta aplicação para todos os alunos?"
+    )
+  ) {
+    $websocket.emit("finalizar-aplicacao", { aplicacaoId: aplicacao.value.id });
+  }
+}
+
+async function handleDelete() {
+  if (!aplicacao.value) return;
+  if (
+    confirm(
+      `Tem certeza que deseja deletar a aplicação "${aplicacao.value.avaliacao.titulo}"? Esta ação não pode ser desfeita.`
+    )
+  ) {
+    isLoadingData.value = true;
+    await applicationsStore.deleteApplication(aplicacao.value.id);
+    isLoadingData.value = false;
+    router.push("/aplicacoes");
+  }
+}
+
+function copyCode(code?: string) {
+  if (code) {
+    navigator.clipboard.writeText(code);
+    toast.add({
+      title: "Código copiado!",
+      icon: "i-lucide-copy-check",
+      color: "info",
+    });
+  }
+}
+
+const statusVisuals = computed(() => {
+  const estado = aplicacao.value?.estado;
+  if (estado === EstadoAplicacaoEnum.EM_ANDAMENTO)
+    return { color: "secondary" as const };
+  if (estado === EstadoAplicacaoEnum.PAUSADA)
+    return { color: "warning" as const };
+  if (
+    estado === EstadoAplicacaoEnum.FINALIZADA ||
+    estado === EstadoAplicacaoEnum.CONCLUIDA
+  )
+    return { color: "success" as const };
+  if (estado === EstadoAplicacaoEnum.AGENDADA)
+    return { color: "info" as const };
+  if (estado === EstadoAplicacaoEnum.CRIADA)
+    return { color: "primary" as const };
+  if (estado === EstadoAplicacaoEnum.CANCELADA)
+    return { color: "error" as const };
+  return { color: "gray" as const };
 });
 </script>
-
 <template>
-  <div v-if="aplicacao && modeloDaAplicacao">
-    <!-- <Breadcrumbs :aplicacao="aplicacao" level="details" /> -->
-
+  <div v-if="isLoadingData" class="text-center p-8">
+    <Icon name="i-lucide-loader-2" class="animate-spin h-8 w-8 text-primary" />
+    <p class="text-gray-500 mt-2">Carregando dados da aplicação...</p>
+  </div>
+  <div v-else-if="aplicacao && modeloDaAplicacao">
+    <Breadcrumbs :aplicacao="aplicacao" level="details" />
     <Header
       :titulo="modeloDaAplicacao.titulo"
       :descricao="modeloDaAplicacao.descricao"
       :data-aplicacao="aplicacao.dataInicio.toISOString()"
     />
 
-    <div class="bg-green-100 border border-green-200 rounded-lg px-4 py-3 mb-8">
-      <div class="flex items-center space-x-2">
-        <Icon name="i-lucide-check-circle" class="text-green-600" />
-        <span class="font-medium text-green-800">{{ aplicacao.estado }}</span>
-        <UTooltip text="Disponível após a finalização da aplicação">
-          <span class="text-green-600">• -- participantes</span>
-        </UTooltip>
+    <UCard class="mb-8">
+      <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+        <div class="flex items-center space-x-2">
+          <span class="font-medium text-gray-700">Status:</span>
+          <UBadge :color="statusVisuals.color" variant="subtle" size="lg">{{
+            aplicacao.estado
+          }}</UBadge>
+        </div>
+        <div v-if="aplicacao.codigoAcesso" class="flex items-center space-x-2">
+          <span class="font-medium text-gray-700">Código de Acesso:</span>
+          <UBadge
+            color="primary"
+            variant="solid"
+            size="lg"
+            class="tracking-widest"
+            >{{ aplicacao.codigoAcesso }}</UBadge
+          >
+          <UButton
+            icon="i-lucide-copy"
+            size="sm"
+            variant="ghost"
+            @click="copyCode(aplicacao.codigoAcesso)"
+          />
+        </div>
+        <UButton
+          label="Ver Configuração"
+          icon="i-lucide-settings-2"
+          variant="outline"
+          color="primary"
+          @click="isConfigDialogOpen = true"
+        />
       </div>
-    </div>
+    </UCard>
 
-    <!-- <OverviewStats :aplicacao="aplicacao" /> -->
-    <!-- <AnalysisGrid :aplicacao="aplicacao" :modelo="modeloDaAplicacao" /> -->
-    <!-- <ViolationsTable :aplicacao="aplicacao" /> -->
+    <UCard class="mb-8">
+      <template #header
+        ><h3 class="text-lg font-medium">Ações Rápidas</h3></template
+      >
+      <div class="flex flex-wrap gap-3">
+        <UButton
+          v-if="podeIniciar"
+          label="Iniciar Agora"
+          icon="i-lucide-play"
+          color="secondary"
+          size="md"
+          @click="handleStartNow"
+        />
+        <UButton
+          v-if="podeMonitorar"
+          label="Monitorar"
+          icon="i-lucide-activity"
+          size="md"
+          :to="`/aplicacoes/aplicacao/${aplicacao.id}/monitoramento`"
+        />
+        <UButton
+          v-if="podePausar"
+          label="Pausar Aplicação"
+          icon="i-lucide-pause"
+          color="warning"
+          size="md"
+          @click="handlePause"
+        />
+        <UButton
+          v-if="podeRetomar"
+          label="Retomar Aplicação"
+          icon="i-lucide-play"
+          color="secondary"
+          size="md"
+          @click="handleResume"
+        />
+        <UButton
+          v-if="podeFinalizar"
+          label="Finalizar Aplicação"
+          icon="i-lucide-stop-circle"
+          color="primary"
+          size="md"
+          @click="handleFinish"
+        />
+        <UButton
+          v-if="podeVerResultados"
+          label="Ver Resultados"
+          icon="i-lucide-bar-chart-3"
+          color="secondary"
+          size="md"
+          :to="`/aplicacoes/aplicacao/${aplicacao.id}/resultados`"
+        />
+        <UButton
+          v-if="podeDeletar"
+          label="Deletar Aplicação"
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="soft"
+          size="md"
+          @click="handleDelete"
+        />
+      </div>
+    </UCard>
+
+    <OverviewStats v-if="aplicacao.stats" :stats="aplicacao.stats" />
+    <AnalysisGrid v-if="aplicacao.stats" :stats="aplicacao.stats" />
+    <ViolationsTable
+      v-if="aplicacao.violations && aplicacao.violations.length > 0"
+      :violations="aplicacao.violations"
+    />
+    <UAlert
+      v-else-if="
+        !isLoadingData &&
+        (!aplicacao.violations || aplicacao.violations.length === 0)
+      "
+      icon="i-lucide-shield-check"
+      title="Nenhuma Violação Registrada"
+      variant="subtle"
+      class="mb-8"
+    />
+
+    <ViewConfigurationDialog
+      v-model="isConfigDialogOpen"
+      :configuracao="modeloDaAplicacao"
+    />
   </div>
-  <div v-else>
-    <p class="text-gray-500">Carregando dados da aplicação...</p>
+  <div v-else class="text-center p-8">
+    <p class="text-red-500 font-medium">
+      Não foi possível carregar os dados da aplicação.
+    </p>
+    <UButton variant="link" to="/aplicacoes" class="mt-4"
+      >Voltar para Aplicações</UButton
+    >
   </div>
 </template>

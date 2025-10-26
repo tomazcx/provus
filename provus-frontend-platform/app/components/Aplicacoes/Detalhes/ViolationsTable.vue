@@ -1,29 +1,27 @@
 <script setup lang="ts">
-import { h, resolveComponent } from "vue";
 import type { TableColumn } from "@nuxt/ui";
-import type { IAplicacao, Penalidade } from "~/types/IAplicacao";
+import type { AplicacaoViolationEntity } from "~/types/entities/Aplicacao.entity";
+import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
 const UBadge = resolveComponent("UBadge");
 const UButton = resolveComponent("UButton");
 
-const props = defineProps<{
-  aplicacao: IAplicacao;
+defineProps<{
+  violations: AplicacaoViolationEntity[];
 }>();
 
-console.log(props.aplicacao.penalidades);
-
-const columns: TableColumn<Penalidade>[] = [
+const columns: TableColumn<AplicacaoViolationEntity>[] = [
   {
-    accessorKey: "estudante",
+    accessorKey: "estudanteNome",
     header: "Estudante",
   },
   {
-    accessorKey: "email",
+    accessorKey: "estudanteEmail",
     header: ({ column }) => {
       const isSorted = column.getIsSorted();
       return h(UButton, {
-        color: "neutral",
-        variant: "primary",
+        color: "primary",
+        variant: "ghost",
         label: "Email",
         icon: isSorted
           ? isSorted === "asc"
@@ -36,34 +34,37 @@ const columns: TableColumn<Penalidade>[] = [
     },
   },
   {
-    accessorKey: "infracao",
+    accessorKey: "tipoInfracao",
     header: "Infração",
     cell: ({ row }) => {
-      const infracao = row.getValue("infracao") as string;
-      const color = "error";
+      const infracao = row.getValue("tipoInfracao") as TipoInfracaoEnum;
+      const colorMap: Partial<Record<TipoInfracaoEnum, string>> = {
+        [TipoInfracaoEnum.TROCA_ABAS]: "warning",
+        [TipoInfracaoEnum.PRINT_SCREEN]: "error",
+        [TipoInfracaoEnum.COPIAR_COLAR]: "error",
+        [TipoInfracaoEnum.DEV_TOOLS]: "purple",
+      };
       return h(
         UBadge,
-        { class: "capitalize", variant: "subtle", color },
+        {
+          class: "capitalize",
+          variant: "subtle",
+          color: colorMap[infracao] || "gray",
+        },
         () => infracao
       );
     },
   },
   {
-    accessorKey: "penalidade",
-    header: "Penalidade",
-    cell: ({ row }) => {
-      const penalidade = row.getValue("penalidade") as string;
-      return h("span", { class: "text-red-500 font-medium" }, penalidade);
-    },
-  },
-  {
-    accessorKey: "hora",
+    accessorKey: "timestamp",
     header: "Hora",
     cell: ({ row }) => {
-      return new Date(row.getValue("hora")).toLocaleTimeString("pt-BR", {
+      return new Date(row.getValue("timestamp")).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
       });
     },
   },
@@ -71,24 +72,42 @@ const columns: TableColumn<Penalidade>[] = [
 
 const sorting = ref([
   {
-    id: "email",
-    desc: false,
+    id: "timestamp",
+    desc: true,
   },
 ]);
-</script>
 
+const pagination = ref({ pageIndex: 0, pageSize: 10 });
+const table = useTemplateRef("table");
+</script>
 <template>
   <UCard class="mb-8">
     <template #header>
-      <h3 class="text-lg font-semibold text-gray-900">
-        Penalidades e Violações
-      </h3>
+      <h3 class="text-lg font-semibold text-gray-900">Violações Registradas</h3>
     </template>
-    <UTable
-      v-model:sorting="sorting"
-      :data="aplicacao.penalidades"
-      :columns="columns"
-      class="p-3"
-    />
+    <div class="space-y-4">
+      <UTable
+        ref="table"
+        v-model:sorting="sorting"
+        v-model:pagination="pagination"
+        :data="violations"
+        :columns="columns"
+        :empty-state="{
+          icon: 'i-lucide-shield-off',
+          label: 'Nenhuma violação registrada.',
+        }"
+      />
+      <div
+        v-if="table && violations.length > pagination.pageSize"
+        class="flex justify-center border-t border-gray-200 dark:border-gray-700 pt-4"
+      >
+        <UPagination
+          :model-value="pagination.pageIndex + 1"
+          :page-count="pagination.pageSize"
+          :total="violations.length"
+          @update:model-value="(p: number) => pagination.pageIndex = p - 1"
+        />
+      </div>
+    </div>
   </UCard>
 </template>

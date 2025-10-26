@@ -6,9 +6,11 @@ import { DatabaseModule } from 'src/database/database.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
+import { ProvidersModule } from 'src/providers/providers.module';
 
 @Module({
   imports: [
+    forwardRef(() => ProvidersModule),
     forwardRef(() => ServiceModule),
     DatabaseModule,
     ScheduleModule.forRoot(),

@@ -1,11 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { AvaliadorModel } from '../config/models/avaliador.model';
 import { AplicacaoModel } from '../config/models/aplicacao.model';
 import { CreateAplicacaoDto } from 'src/dto/request/aplicacao/create-aplicacao.dto';
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import { AvaliacaoModel } from '../config/models/avaliacao.model';
+import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.model';
+import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
+import { SubmissaoModel } from '../config/models/submissao.model';
 
 @Injectable()
 export class AplicacaoRepository extends Repository<AplicacaoModel> {
@@ -86,45 +89,103 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       });
 
       const estadoAnterior = aplicacao.estado;
+      const now = new Date();
       aplicacao.estado = estado;
 
       if (
-        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
-        estadoAnterior !== EstadoAplicacaoEnum.EM_ANDAMENTO
+        estado === EstadoAplicacaoEnum.PAUSADA &&
+        estadoAnterior !== EstadoAplicacaoEnum.PAUSADA
       ) {
-        const now = new Date();
-        const tempoMaximoMs =
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-            .tempoMaximo *
-          60 *
-          1000;
-
-        aplicacao.dataInicio = now;
-        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-      }
-
-      if (
+        aplicacao.pausedAt = now;
+        console.log(
+          `Repositório: Aplicação ${id} pausada em ${aplicacao.pausedAt.toISOString()}`,
+        );
+      } else if (
+        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+        estadoAnterior === EstadoAplicacaoEnum.PAUSADA
+      ) {
+        if (aplicacao.pausedAt) {
+          const pauseDurationMs = now.getTime() - aplicacao.pausedAt.getTime();
+          const newEndTime = new Date(
+            aplicacao.dataFim.getTime() + pauseDurationMs,
+          );
+          console.log(
+            `Repositório: Aplicação ${id} retomada. Pausa durou ${pauseDurationMs / 1000}s. Data Fim original: ${aplicacao.dataFim.toISOString()}, Nova Data Fim: ${newEndTime.toISOString()}`,
+          );
+          aplicacao.dataFim = newEndTime;
+          aplicacao.pausedAt = null;
+        } else {
+          console.warn(
+            `Repositório: Aplicação ${id} estava marcada como PAUSADA, mas não tinha pausedAt registrado. Retomando sem ajustar tempo.`,
+          );
+          aplicacao.pausedAt = null;
+        }
+      } else if (
         estado === EstadoAplicacaoEnum.AGENDADA &&
         estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
       ) {
-        const tempoMaximoMs =
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-            .tempoMaximo *
-          60 *
-          1000;
-        const dataAgendamento =
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-            .dataAgendamento;
-        if (!dataAgendamento) {
+        const configGerais = await manager.findOne(ConfiguracoesGeraisModel, {
+          where: {
+            id: aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
+              .id,
+          },
+        });
+        if (!configGerais || !configGerais.dataAgendamento) {
           throw new BadRequestException(
             'Data de agendamento não configurada para avaliação agendada',
           );
         }
-        aplicacao.dataInicio = dataAgendamento;
-        aplicacao.dataFim = new Date(dataAgendamento.getTime() + tempoMaximoMs);
+        const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+        aplicacao.dataInicio = configGerais.dataAgendamento;
+        aplicacao.dataFim = new Date(
+          configGerais.dataAgendamento.getTime() + tempoMaximoMs,
+        );
+        aplicacao.pausedAt = null;
+        console.log(
+          `Repositório: Aplicação ${id} agendada. Início: ${aplicacao.dataInicio.toISOString()}, Fim: ${aplicacao.dataFim.toISOString()}`,
+        );
       }
-      const updatedAplicacao = await manager.save(aplicacao);
+      aplicacao.estado = estado;
 
+      const updatedAplicacao = await manager.save(aplicacao);
+      console.log(
+        `Repositório: Aplicação ${id} salva com estado ${updatedAplicacao.estado}, dataFim ${updatedAplicacao.dataFim.toISOString()}, pausedAt ${String(updatedAplicacao.pausedAt)}`,
+      );
+
+      const estadosFinaisAplicacao: EstadoAplicacaoEnum[] = [
+        EstadoAplicacaoEnum.FINALIZADA,
+        EstadoAplicacaoEnum.CANCELADA,
+        EstadoAplicacaoEnum.CONCLUIDA,
+      ];
+      const estadosAtivosSubmissao: EstadoSubmissaoEnum[] = [
+        EstadoSubmissaoEnum.INICIADA,
+        EstadoSubmissaoEnum.REABERTA,
+        EstadoSubmissaoEnum.PAUSADA,
+        EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
+      ];
+
+      if (
+        estadosFinaisAplicacao.includes(estado) &&
+        !estadosFinaisAplicacao.includes(estadoAnterior)
+      ) {
+        console.log(
+          `Repositório: Aplicação ${id} movida para estado final (${estado}). Atualizando submissões ativas para ENCERRADA.`,
+        );
+        const submissaoRepo = manager.getRepository(SubmissaoModel);
+        const updateResult = await submissaoRepo.update(
+          {
+            aplicacao: { id: aplicacao.id },
+            estado: In(estadosAtivosSubmissao),
+          },
+          {
+            estado: EstadoSubmissaoEnum.ENCERRADA,
+            finalizadoEm: now,
+          },
+        );
+        console.log(
+          `Repositório: ${updateResult.affected ?? 0} submissões atualizadas para ENCERRADA.`,
+        );
+      }
       return updatedAplicacao.id;
     });
   }

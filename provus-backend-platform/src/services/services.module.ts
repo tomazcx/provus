@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ProvidersModule } from 'src/providers/providers.module';
@@ -24,10 +24,15 @@ import { AplicacaoSchedulerService } from './aplicacao-scheduler.service';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import { EstudanteModel } from 'src/database/config/models/estudante.model';
 import { SubmissaoService } from './submissao.service';
+import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
+import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
+import { SubmissaoRespostasModel } from 'src/database/config/models/submissao-respostas.model';
+import { GatewayModule } from 'src/gateway/gateway.module';
 
 @Module({
   imports: [
-    ProvidersModule,
+    forwardRef(() => GatewayModule),
+    forwardRef(() => ProvidersModule),
     DatabaseModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([
@@ -39,6 +44,9 @@ import { SubmissaoService } from './submissao.service';
       QuestaoModel,
       SubmissaoModel,
       EstudanteModel,
+      AplicacaoModel,
+      RegistroPunicaoPorOcorrenciaModel,
+      SubmissaoRespostasModel,
     ]),
   ],
   providers: [

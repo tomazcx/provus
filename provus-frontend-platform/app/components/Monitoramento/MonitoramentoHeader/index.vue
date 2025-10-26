@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
-import type { IAplicacao } from "~/types/IAplicacao";
+import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 
 const props = defineProps<{
-  aplicacao: IAplicacao;
+  aplicacao: AplicacaoEntity;
   timer: string | null;
 }>();
 
@@ -50,7 +50,7 @@ const handleResetTimer = () => emit("reiniciar");
           Monitoramento da Avaliação
         </h1>
         <p class="text-gray-600">
-          Acompanhamento em tempo real de: {{ aplicacao.titulo }}
+          Acompanhamento em tempo real de: {{ aplicacao.avaliacao.titulo }}
         </p>
       </div>
 
