@@ -3,10 +3,6 @@ import { useNotificationsStore } from "~/store/notificationsStore";
 
 const notificationsStore = useNotificationsStore();
 
-onMounted(() => {
-  notificationsStore.loadInitialNotifications();
-});
-
 const unreadNotifications = computed(
   () => notificationsStore.unreadNotifications
 );

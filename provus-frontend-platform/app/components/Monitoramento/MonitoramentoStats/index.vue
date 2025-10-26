@@ -18,7 +18,8 @@ const alunosFinalizaram = computed(
     props.progressoAlunos.filter(
       (p) =>
         p.estado === EstadoSubmissaoEnum.AVALIADA ||
-        p.estado === EstadoSubmissaoEnum.ENVIADA
+        p.estado === EstadoSubmissaoEnum.ENVIADA ||
+        p.estado === EstadoSubmissaoEnum.ENCERRADA
     ).length
 );
 const totalAlertas = computed(() =>

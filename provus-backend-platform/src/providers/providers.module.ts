@@ -1,4 +1,4 @@
-import { Module, forwardRef, Inject } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtProvider } from './jwt.provider';
 import { EmailTemplatesProvider } from './email-templates.provider';
 import { NotificationProvider } from './notification.provider';
@@ -7,33 +7,27 @@ import { Env } from 'src/shared/env';
 
 import GeminiProvider from './ai/gemini.provider';
 import { GatewayModule } from 'src/gateway/gateway.module';
-import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
-import { ServiceModule } from 'src/services/services.module';
 
 export const AI_PROVIDER = 'AI_PROVIDER';
 
 @Module({
-  imports: [forwardRef(() => GatewayModule), forwardRef(() => ServiceModule)],
+  imports: [forwardRef(() => GatewayModule)],
   providers: [
     JwtProvider,
     EmailTemplatesProvider,
     StorageProvider,
     {
       provide: NotificationProvider,
-      useFactory: (avaliadorGateway: AvaliadorGateway) => {
-        return new NotificationProvider(
-          {
-            host: Env.SMTP_HOST,
-            port: Env.SMTP_PORT,
-            auth: {
-              user: Env.SMTP_USER,
-              pass: Env.SMTP_PASS,
-            },
+      useFactory: () => {
+        return new NotificationProvider({
+          host: Env.SMTP_HOST,
+          port: Env.SMTP_PORT,
+          auth: {
+            user: Env.SMTP_USER,
+            pass: Env.SMTP_PASS,
           },
-          avaliadorGateway,
-        );
+        });
       },
-      inject: [AvaliadorGateway],
     },
     GeminiProvider,
     {

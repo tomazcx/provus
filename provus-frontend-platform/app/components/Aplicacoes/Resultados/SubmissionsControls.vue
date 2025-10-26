@@ -1,34 +1,25 @@
 <script setup lang="ts">
-const filters = reactive({
-  search: "",
-  type: "Todos os tipos",
-});
+import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+
+const searchModel = defineModel<string>("search");
+const statusModel = defineModel<EstadoSubmissaoEnum | "Todos">("status");
+
+const statusOptions = ["Todos", ...Object.values(EstadoSubmissaoEnum)];
 </script>
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
     <div class="flex gap-4 w-full">
       <UFormField label="Buscar" class="w-full">
         <UInput
-          v-model="filters.search"
+          v-model="searchModel"
           placeholder="Buscar por nome ou email"
           icon="i-lucide-search"
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Tipo de status" class="w-full">
-        <USelect
-          v-model="filters.type"
-          :items="[
-            'Todos os tipos',
-            'Iniciada',
-            'Enviada',
-            'Avaliada',
-            'Encerrada',
-            'Abandonada',
-            'Reaberta',
-          ]"
-          class="w-full"
-        />
+
+      <UFormField label="Filtrar por Status" class="w-full">
+        <USelect v-model="statusModel" :items="statusOptions" class="w-full" />
       </UFormField>
     </div>
   </div>

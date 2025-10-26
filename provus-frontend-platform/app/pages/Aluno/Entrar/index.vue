@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { reactive } from "vue";
 import { z } from "zod";
 import { useStudentAssessmentStore } from "~/store/studentAssessmentStore";
 
@@ -8,15 +7,15 @@ definePageMeta({
 });
 
 const schema = z.object({
-  fullName: z.string().min(3, "Nome completo é obrigatório"),
+  nome: z.string().min(3, "Nome completo é obrigatório"),
   email: z.string().email("Digite um e-mail válido"),
-  examCode: z.string().length(6, "O código deve ter 6 dígitos"),
+  codigoAcesso: z.string().length(6, "O código deve ter 6 dígitos"),
 });
 
 const formState = reactive({
-  fullName: undefined,
-  email: undefined,
-  examCode: undefined,
+  nome: "",
+  email: "",
+  codigoAcesso: "",
 });
 
 const studentAssessmentStore = useStudentAssessmentStore();
@@ -25,34 +24,35 @@ const toast = useToast();
 const router = useRouter();
 
 async function handleSubmit() {
-  if (!formState.examCode) return;
-
-  const application = await studentAssessmentStore.findApplicationByCode(
-    formState.examCode
-  );
-
-  if (!application) {
+  if (!formState.codigoAcesso || !formState.nome || !formState.email) {
     toast.add({
-      title: "Erro de Verificação",
-      description:
-        studentAssessmentStore.error || "Ocorreu um erro inesperado.",
+      title: "Erro de Validação",
+      description: "Por favor, preencha todos os campos.",
       icon: "i-lucide-alert-triangle",
-      color: "error",
+      color: "warning",
     });
     return;
   }
 
-  toast.add({
-    title: "Identidade Verificada!",
-    description: "Você será redirecionado para a avaliação.",
-    icon: "i-lucide-check-circle",
-    color: "secondary",
-  });
+  const submissionHash = await studentAssessmentStore.createStudentSubmission(
+    formState.nome,
+    formState.email,
+    formState.codigoAcesso
+  );
 
-  localStorage.setItem("student_name", formState.fullName || "");
-  localStorage.setItem("student_email", formState.email || "");
+  if (submissionHash) {
+    toast.add({
+      title: "Identidade Verificada!",
+      description: "Você será redirecionado para a avaliação.",
+      icon: "i-lucide-check-circle",
+      color: "secondary",
+    });
 
-  router.push(`/aluno/avaliacao/${formState.examCode}`);
+    localStorage.removeItem("student_name");
+    localStorage.removeItem("student_email");
+
+    await router.push(`/aluno/submissao/${submissionHash}`);
+  } 
 }
 </script>
 <template>
@@ -89,9 +89,9 @@ async function handleSubmit() {
           class="space-y-5"
           @submit="handleSubmit"
         >
-          <UFormField label="Nome Completo" name="fullName" required>
+          <UFormField label="Nome Completo" name="nome" required>
             <UInput
-              v-model="formState.fullName"
+              v-model="formState.nome"
               placeholder="Digite seu nome completo"
               size="xl"
               icon="i-lucide-user"
@@ -109,9 +109,9 @@ async function handleSubmit() {
             />
           </UFormField>
 
-          <UFormField label="Código da Avaliação" name="examCode" required>
+          <UFormField label="Código da Avaliação" name="codigoAcesso" required>
             <UInput
-              v-model="formState.examCode"
+              v-model="formState.codigoAcesso"
               placeholder="000000"
               size="xl"
               icon="i-lucide-key-round"

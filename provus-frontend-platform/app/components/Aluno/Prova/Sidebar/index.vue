@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
+import type {
+  QuestaoSubmissaoResponse,
+  ArquivoSubmissaoResponse,
+} from "~/types/api/response/Submissao.response";
 
-defineProps<{
-  avaliacao: IAvaliacaoImpl;
+const props = defineProps<{
+  questoes: QuestaoSubmissaoResponse[] | null;
+  arquivos: ArquivoSubmissaoResponse[] | null;
+  pontuacaoTotal: number;
   answeredQuestions: Set<number>;
+  tempoMaximo?: number | null;
+  descricaoAvaliacao?: string | null;
 }>();
 
 const emit = defineEmits(["goToQuestion", "openMaterials", "toggleView"]);
+
+const totalQuestoes = computed(() => props.questoes?.length ?? 0);
+const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
 </script>
 
 <template>
@@ -19,24 +29,22 @@ const emit = defineEmits(["goToQuestion", "openMaterials", "toggleView"]);
         <div class="space-y-3 text-sm">
           <div class="flex justify-between">
             <span class="text-gray-600">Duração:</span>
-            <span class="font-medium"
-              >{{ avaliacao.configuracoes.tempoMaximo }} minutos</span
-            >
+            <span class="font-medium">{{
+              tempoMaximo != null ? `${tempoMaximo} minutos` : "-- min"
+            }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-600">Total de Pontos:</span>
-            <span class="font-medium">{{ avaliacao.pontuacao }} pontos</span>
+            <span class="font-medium">{{ pontuacaoTotal }} pontos</span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-600">Questões:</span>
-            <span class="font-medium"
-              >{{ avaliacao.questoes.length }} questões</span
-            >
+            <span class="font-medium">{{ totalQuestoes }} questões</span>
           </div>
         </div>
         <UAlert
-          v-if="avaliacao.descricao"
-          :description="avaliacao.descricao"
+          v-if="descricaoAvaliacao"
+          :description="descricaoAvaliacao"
           class="mt-4"
           variant="subtle"
           dense
@@ -47,7 +55,7 @@ const emit = defineEmits(["goToQuestion", "openMaterials", "toggleView"]);
         <h3 class="text-md font-semibold text-gray-900 mb-3">Questões</h3>
         <div class="grid grid-cols-5 gap-2">
           <UButton
-            v-for="(questao, index) in avaliacao.questoes"
+            v-for="(questao, index) in questoes"
             :key="questao.id"
             :label="String(index + 1)"
             :variant="answeredQuestions.has(questao.id!) ? 'solid' : 'outline'"
@@ -81,7 +89,7 @@ const emit = defineEmits(["goToQuestion", "openMaterials", "toggleView"]);
           @click="emit('toggleView')"
         />
         <UButton
-          v-if="avaliacao.configuracoes.permitirConsulta"
+          v-if="permitirConsulta"
           block
           color="primary"
           icon="i-lucide-book-open"

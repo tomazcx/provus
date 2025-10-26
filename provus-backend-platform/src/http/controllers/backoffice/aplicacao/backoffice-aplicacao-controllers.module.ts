@@ -7,6 +7,9 @@ import {
   UpdateAplicacaoController,
   DeleteAplicacaoController,
 } from './';
+import { GetMonitoramentoInicialController } from './get-monitoramento-inicial/controller';
+import { FindSubmissoesByAplicacaoController } from './find-submissoes-by-aplicacao/controller';
+import { FindSubmissionDetailsForEvaluatorController } from './find-submissao-detalhe-avaliador/controller';
 
 @Module({
   imports: [ServiceModule],
@@ -16,6 +19,9 @@ import {
     FindAllAplicacoesController,
     UpdateAplicacaoController,
     DeleteAplicacaoController,
+    GetMonitoramentoInicialController,
+    FindSubmissoesByAplicacaoController,
+    FindSubmissionDetailsForEvaluatorController,
   ],
 })
 export class BackofficeAplicacaoControllersModule {}

@@ -1,32 +1,33 @@
 <script setup lang="ts">
-import { h, resolveComponent } from "vue";
 import type { TableColumn, TableRow } from "@nuxt/ui";
-import type { ISubmissao, ISubmissaoResponse } from "~/types/ISubmissao";
+import type {
+  FindSubmissoesResponse,
+  SubmissaoNaListaResponse,
+} from "~/types/api/response/FindSubmissoes.response";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
 const UBadge = resolveComponent("UBadge");
 const UAvatar = resolveComponent("UAvatar");
 const UButton = resolveComponent("UButton");
-
 const props = defineProps<{
-  submissions: ISubmissaoResponse;
+  submissions: FindSubmissoesResponse;
   isLoading: boolean;
+  searchFilter: string;
+  statusFilter: EstadoSubmissaoEnum | "Todos";
 }>();
-
 const router = useRouter();
 
-type SubmissionRow = ISubmissao & {
+type SubmissionRow = SubmissaoNaListaResponse & {
   tempoGasto: string;
   tempoGastoEmMinutos: number;
 };
 
-const data = computed<SubmissionRow[]>(() => {
-  return props.submissions.submissoes.map((sub) => {
+const filteredData = computed<SubmissionRow[]>(() => {
+  let filtered = props.submissions.submissoes.map((sub) => {
     const inicio = sub.iniciadoEm ? new Date(sub.iniciadoEm) : null;
     const fim = sub.finalizadoEm ? new Date(sub.finalizadoEm) : null;
     let tempoGasto = "-";
     let tempoGastoEmMinutos = 0;
-
     if (inicio && fim) {
       const diffMinutos = Math.round(
         (fim.getTime() - inicio.getTime()) / 60000
@@ -34,13 +35,27 @@ const data = computed<SubmissionRow[]>(() => {
       tempoGasto = `${diffMinutos} minutos`;
       tempoGastoEmMinutos = diffMinutos;
     }
-
     return {
       ...sub,
       tempoGasto: tempoGasto,
       tempoGastoEmMinutos: tempoGastoEmMinutos,
     };
   });
+
+  if (props.searchFilter) {
+    const searchTerm = props.searchFilter.toLowerCase();
+    filtered = filtered.filter(
+      (sub) =>
+        sub.estudante.nome.toLowerCase().includes(searchTerm) ||
+        sub.estudante.email.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  if (props.statusFilter !== "Todos") {
+    filtered = filtered.filter((sub) => sub.estado === props.statusFilter);
+  }
+
+  return filtered;
 });
 
 const table = useTemplateRef("table");
@@ -48,10 +63,9 @@ const pagination = ref({
   pageIndex: 0,
   pageSize: 10,
 });
-
 const columns: TableColumn<SubmissionRow>[] = [
   {
-    accessorKey: "aluno.nome",
+    accessorKey: "estudante.nome",
     header: ({ column }) => {
       const isSorted = column.getIsSorted();
       return h(UButton, {
@@ -68,12 +82,12 @@ const columns: TableColumn<SubmissionRow>[] = [
       });
     },
     cell: ({ row }) => {
-      const aluno = row.original.aluno;
+      const estudante = row.original.estudante;
       return h("div", { class: "flex items-center space-x-3" }, [
-        h(UAvatar, { alt: aluno.nome, size: "md" }),
+        h(UAvatar, { alt: estudante.nome, size: "md" }),
         h("div", null, [
-          h("div", { class: "font-medium text-gray-900" }, aluno.nome),
-          h("div", { class: "text-sm text-gray-500" }, aluno.email),
+          h("div", { class: "font-medium text-gray-900" }, estudante.nome),
+          h("div", { class: "text-sm text-gray-500" }, estudante.email),
         ]),
       ]);
     },
@@ -96,17 +110,21 @@ const columns: TableColumn<SubmissionRow>[] = [
       });
     },
     cell: ({ row }) => {
-      const pontuacaoAluno = row.original.pontuacaoTotal || 0;
+      const pontuacaoAluno = Number(row.original.pontuacaoTotal ?? 0);
       const pontuacaoTotalProva = props.submissions.pontuacaoTotal || 1;
-      const percentual = ((pontuacaoAluno / pontuacaoTotalProva) * 100).toFixed(
-        1
-      );
+
+      const percentual =
+        pontuacaoTotalProva > 0
+          ? ((pontuacaoAluno / pontuacaoTotalProva) * 100).toFixed(1)
+          : "0.0";
+
       const corNota =
         pontuacaoAluno / pontuacaoTotalProva >= 0.8
           ? "text-secondary"
           : pontuacaoAluno / pontuacaoTotalProva >= 0.6
           ? "text-orange-500"
           : "text-red-500";
+
       return h("div", { class: "flex items-center space-x-2" }, [
         h("span", { class: `text-xl font-bold ${corNota}` }, `${percentual}%`),
         h(
@@ -198,22 +216,20 @@ function onSelect(row: TableRow<SubmissionRow>) {
   );
 }
 </script>
-
 <template>
   <div class="w-full space-y-4 pb-4">
     <UTable
       ref="table"
       v-model:pagination="pagination"
       v-model:sorting="sorting"
-      :data="data"
+      :data="filteredData"
       :columns="columns"
       :loading="isLoading"
       class="flex-1"
       @select="onSelect"
     />
-
     <div
-      v-if="table && data.length > 0"
+      v-if="table && filteredData.length > 0"
       class="flex justify-center border-t border-gray-200 dark:border-gray-700 pt-4"
     >
       <UPagination

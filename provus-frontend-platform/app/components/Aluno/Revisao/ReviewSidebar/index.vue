@@ -1,28 +1,44 @@
 <script setup lang="ts">
-import type { ISubmissao } from "~/types/ISubmissao";
+import type { SubmissaoResponse } from "~/types/api/response/Submissao.response";
+import type { QuestaoRevisaoResponse } from "~/types/api/response/Revisao.response";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 
 const props = defineProps<{
-  submission: ISubmissao;
-  totalScore: number;
+  submission: SubmissaoResponse | null;
+  questions: QuestaoRevisaoResponse[] | null;
+  totalPossibleScore: number;
 }>();
 
 const scorePercent = computed(() => {
-  if (!props.totalScore) return 0;
-  return Math.round((props.submission.pontuacaoTotal / props.totalScore) * 100);
+  if (!props.submission?.pontuacaoTotal || !props.totalPossibleScore) return 0;
+  return Math.round(
+    (props.submission.pontuacaoTotal / props.totalPossibleScore) * 100
+  );
 });
 
 const correctAnswersCount = computed(() => {
-  return props.submission.questoesRespondidas.filter(
-    (q) => q.resposta?.estadoCorrecao === EstadoQuestaoCorrigida.CORRETA
+  if (!props.questions) return 0;
+  return props.questions.filter(
+    (q) => q.estadoCorrecao === EstadoQuestaoCorrigida.CORRETA
   ).length;
 });
 
-function getQuestionStatus(questaoId: number | undefined) {
-  const questao = props.submission.questoesRespondidas.find(
-    (q) => q.id === questaoId
-  );
-  return questao?.resposta?.estadoCorrecao;
+const totalQuestions = computed(() => props.questions?.length ?? 0);
+
+function getQuestionButtonColor(
+  status: EstadoQuestaoCorrigida | null
+): "secondary" | "warning" | "error" | "primary" {
+  switch (status) {
+    case EstadoQuestaoCorrigida.CORRETA:
+      return "secondary";
+    case EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA:
+      return "warning";
+    case EstadoQuestaoCorrigida.INCORRETA:
+      return "error";
+    case EstadoQuestaoCorrigida.NAO_RESPONDIDA:
+    default:
+      return "primary";
+  }
 }
 </script>
 
@@ -30,26 +46,27 @@ function getQuestionStatus(questaoId: number | undefined) {
   <div
     class="fixed left-0 top-20 bottom-0 w-80 bg-white border-r border-gray-200 overflow-y-auto"
   >
-    <div class="p-6">
+    <div v-if="submission && questions" class="p-6">
       <div class="mb-6 text-center">
-        <div class="text-2xl font-bold">{{ scorePercent }}%</div>
-        <UProgress v-model="scorePercent" type="circle" />
+        <div class="text-2xl font-bold text-primary">{{ scorePercent }}%</div>
+        <UProgress :model-value="scorePercent" color="primary" indicator />
       </div>
 
-      <UCard>
+      <UCard size="sm" class="mb-6">
         <div class="space-y-3 text-sm">
           <div class="flex justify-between">
             <span class="text-gray-600">Pontuação Total:</span>
             <span class="font-bold text-primary"
-              >{{ submission.pontuacaoTotal }}/{{ totalScore }} pontos</span
+              >{{ submission.pontuacaoTotal ?? 0 }}/{{
+                totalPossibleScore
+              }}
+              pontos</span
             >
           </div>
           <div class="flex justify-between">
             <span class="text-gray-600">Questões Corretas:</span>
             <span class="font-medium"
-              >{{ correctAnswersCount }}/{{
-                submission.questoesRespondidas.length
-              }}</span
+              >{{ correctAnswersCount }}/{{ totalQuestions }}</span
             >
           </div>
         </div>
@@ -61,25 +78,28 @@ function getQuestionStatus(questaoId: number | undefined) {
         </h3>
         <div class="space-y-2">
           <UButton
-            v-for="(questao, index) in submission.questoesRespondidas"
+            v-for="(questao, index) in questions"
             :key="questao.id"
             block
             variant="soft"
-            :color="
-              getQuestionStatus(questao.id) === EstadoQuestaoCorrigida.CORRETA
-                ? 'secondary'
-                : 'error'
-            "
+            :color="getQuestionButtonColor(questao.estadoCorrecao)"
+            size="sm"
+            class="justify-between"
           >
-            <span class="font-medium">Questão {{ index + 1 }}</span>
-            <template #trailing>
-              <span class="font-semibold"
-                >{{ questao.resposta?.pontuacao }}/{{ questao.pontuacao }}</span
-              >
-            </template>
+            <span class="font-medium truncate pr-2"
+              >Questão {{ index + 1 }}</span
+            >
+            <span class="font-semibold text-xs shrink-0"
+              >{{ questao.pontuacaoObtida ?? "?" }}/{{
+                questao.pontuacaoMaxima
+              }}</span
+            >
           </UButton>
         </div>
       </div>
+    </div>
+    <div v-else class="p-6 text-center text-gray-500">
+      Carregando dados da revisão...
     </div>
   </div>
 </template>

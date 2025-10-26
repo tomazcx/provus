@@ -4,11 +4,9 @@ const props = defineProps<{
   descricao?: string;
   dataAplicacao: string;
 }>();
-
 const dataAplicacaoFormatada = computed(() => {
   return new Date(props.dataAplicacao).toLocaleDateString("pt-BR");
 });
-
 const horaAplicacaoFormatada = computed(() => {
   return new Date(props.dataAplicacao).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -16,7 +14,6 @@ const horaAplicacaoFormatada = computed(() => {
   });
 });
 </script>
-
 <template>
   <div class="mb-8">
     <div class="flex items-center justify-between mb-4">
@@ -26,18 +23,22 @@ const horaAplicacaoFormatada = computed(() => {
         >
           <Icon name="i-lucide-file-text" class="text-blue-600 text-2xl" />
         </div>
+
         <div>
           <h1 class="text-2xl font-bold text-gray-900">
             {{ titulo }}
           </h1>
-          <p>{{ descricao }}</p>
+
+          <p class="text-gray-600">{{ descricao }}</p>
         </div>
       </div>
+
       <div class="text-gray-600 flex gap-4">
         <p class="text-gray-600 flex items-center gap-1">
           <Icon name="i-lucide-calendar-days" />
           {{ dataAplicacaoFormatada }}
         </p>
+
         <p class="text-gray-600 flex items-center gap-1">
           <Icon name="i-lucide-clock" />
           {{ horaAplicacaoFormatada }}

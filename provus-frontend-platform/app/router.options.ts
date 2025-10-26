@@ -10,24 +10,24 @@ export default {
     },
 
     {
-      name: "aluno-avaliacao",
-      path: "/aluno/avaliacao/:codigo",
-      component: () => import("~/pages/Aluno/Avaliacao/[codigo].vue"),
+      name: "aluno-submissao", 
+      path: "/aluno/submissao/:hash", 
+      component: () => import("~/pages/Aluno/Avaliacao/[hash].vue"),
       meta: { layout: "assessment-student" },
     },
 
     {
       name: "aluno-avaliacao-finalizado",
-      path: "/aluno/avaliacao/:codigo/finalizado",
+      path: "/aluno/avaliacao/:hash/finalizado",
       component: () =>
-        import("~/pages/Aluno/Avaliacao/[codigo]/finalizado.vue"),
+        import("~/pages/Aluno/Avaliacao/[hash]/finalizado.vue"),
       meta: { layout: false },
     },
 
     {
       name: "aluno-avaliacao-revisao",
-      path: "/aluno/avaliacao/:codigo/revisao",
-      component: () => import("~/pages/Aluno/Avaliacao/[codigo]/revisao.vue"),
+      path: "/aluno/avaliacao/:hash/revisao",
+      component: () => import("~/pages/Aluno/Avaliacao/[hash]/revisao.vue"),
       meta: { layout: "assessment-student" },
     },
 

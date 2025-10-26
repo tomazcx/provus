@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { IAvaliacaoImpl } from "~/types/IAvaliacao";
-
-defineProps<{ avaliacao: IAvaliacaoImpl }>();
+defineProps<{
+  tituloAvaliacao: string | null;
+  allowRetake: boolean;
+}>();
 const router = useRouter();
 
 function retakeTest() {
@@ -25,14 +26,21 @@ function retakeTest() {
         </UButton>
         <div class="border-l border-white border-opacity-30 pl-4">
           <h1 class="text-xl font-bold">Revisão da Avaliação</h1>
-          <p class="text-sm opacity-90">{{ avaliacao.titulo }}</p>
+          <p class="text-sm opacity-90">
+            {{ tituloAvaliacao ?? "Carregando..." }}
+          </p>
         </div>
       </div>
 
       <div class="flex items-center space-x-3">
-        <UButton color="white" variant="outline" @click="retakeTest">
-          <Icon name="i-lucide-refresh-cw" class="mr-2" />
-          Refazer Avaliação
+        <UButton
+          v-if="allowRetake"
+          color="white"
+          variant="outline"
+          @click="retakeTest"
+        >
+          <Icon name="i-lucide-refresh-cw" class="mr-2 h-4 w-4" /> Refazer
+          Avaliação
         </UButton>
       </div>
     </div>
