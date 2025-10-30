@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { Aplicacao, Penalidade } from '../../types/Application';
-import mockDataService from '../../services/mockDataService';
+import applicationsApiService from '../../services/applicationsApiService';
 import TipoInfracaoEnum from '../../enums/TipoInfracaoEnum';
 import { COLORS } from '../../constants/colors';
 
@@ -53,7 +53,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
   useEffect(() => {
     const loadApplication = async () => {
       try {
-        const data = await mockDataService.getApplicationById(applicationId);
+        const data = await applicationsApiService.getApplicationById(applicationId);
         setApplication(data);
       } catch (error) {
         console.error('Error loading application:', error);
@@ -123,7 +123,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
     );
   }
 
-  const statusColor = mockDataService.getStatusColor(application.estado);
+  const statusColor = applicationsApiService.getStatusColor(application.estado);
   const statusIcon = getStatusIcon(application.estado);
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -167,11 +167,11 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
             </View>
           </View>
           <Text style={styles.dateText}>
-            {mockDataService.formatDateTime(application.dataAplicacao)}
+            {applicationsApiService.formatDateTime(application.dataAplicacao)}
           </Text>
         </View>
 
-        <View style={[styles.statusBanner, { backgroundColor: mockDataService.getStatusBackgroundColor(application.estado) }]}>
+        <View style={[styles.statusBanner, { backgroundColor: applicationsApiService.getStatusBackgroundColor(application.estado) }]}>
           <Icon name={statusIcon} size={16} color={statusColor} />
           <Text style={[styles.statusText, { color: statusColor }]}>
             {application.estado} • {application.participantes} participantes
@@ -179,26 +179,35 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard 
-            title="Total de Participantes" 
-            value={application.participantes.toString()} 
+          <StatCard
+            title="Total de Participantes"
+            value={application.participantes.toString()}
           />
-          <StatCard 
-            title="Média Geral" 
-            value={`${application.mediaGeral.toFixed(1)}%`} 
+          <StatCard
+            title="Média Geral"
+            value={`${application.mediaGeral.toFixed(1)}%`}
             valueColor={application.mediaGeral >= 70 ? '#27AE60' : '#D35400'}
           />
+          {/* TODO: nao temos esse dado na request
           <StatCard
             title="Taxa de conclusão"
             value={`${application.taxaDeConclusao.toFixed(1)}%`}
             valueColor={application.taxaDeConclusao >= 70 ? '#27AE60' : '#D35400'}
           />
-          <StatCard 
-            title="Tempo médio de submissão" 
-            value={`${application.tempoMedio}m`} 
+          */}
+          <StatCard
+            title="Tempo Máximo"
+            value={`${application.tempoMedio}m`}
           />
+          {/* TODO: nao temos esse dado na request
+          <StatCard
+            title="Tempo médio de submissão"
+            value={`${application.tempoMedio}m`}
+          />
+          */}
         </View>
 
+        {/* TODO: nao temos esse dado na request
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Estatísticas de Notas</Text>
           <View style={styles.noteStatRow}>
@@ -228,6 +237,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
             <Text style={styles.noteStatValue}>{application.desvioPadrao.toFixed(1)}</Text>
           </View>
         </View>
+        */}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Penalidades e Violações</Text>
@@ -262,7 +272,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
                     </View>
                   </View>
                   <Text style={[styles.tableCell, { flex: 1.5 }]}>
-                    {mockDataService.formatTime(penalidade.hora)}
+                    {applicationsApiService.formatTime(penalidade.hora)}
                   </Text>
                 </View>
               ))}
@@ -407,7 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   backButton: {
-    backgroundColor: COLORS.secundary,
+    backgroundColor: COLORS.secondary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,

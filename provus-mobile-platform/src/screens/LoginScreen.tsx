@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -16,6 +17,7 @@ import Icon from 'react-native-vector-icons/Feather';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import authService from '../services/authService';
 
 const COLORS = {
   backgroundGradient: ['#E0F7FA', '#FFFFFF'],
@@ -33,15 +35,40 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const passwordInputRef = useRef<TextInput>(null);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Login inválido', 'Por favor, preencha todos os campos.');
       return;
     }
-    navigation.navigate('Applications');
+
+    setIsLoading(true);
+    try {
+      const response = await authService.login(email, password);
+
+      await authService.storeUserInfo(response.user);
+
+      navigation.navigate('Applications');
+    } catch (error: any) {
+      console.error('Login error:', error);
+
+      let errorMessage = 'Erro ao fazer login. Tente novamente.';
+
+      if (error.response?.status === 401) {
+        errorMessage = 'Email ou senha incorretos.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response.data?.message || 'Dados inválidos.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Erro no login', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -116,9 +143,22 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Entrar</Text>
-              <Icon name="arrow-right" size={20} color={COLORS.white} />
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                  <Text style={[styles.buttonText, { marginLeft: 8 }]}>Entrando...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.buttonText}>Entrar</Text>
+                  <Icon name="arrow-right" size={20} color={COLORS.white} />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -205,6 +245,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });
 

@@ -14,7 +14,8 @@ import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { Aplicacao } from '../../types/Application';
-import mockDataService from '../../services/mockDataService';
+import applicationsApiService from '../../services/applicationsApiService';
+import authService from '../../services/authService';
 import { COLORS } from '../../constants/colors';
 
 const ApplicationCard = ({ 
@@ -37,8 +38,8 @@ const ApplicationCard = ({
     }
   };
 
-  const statusColor = mockDataService.getStatusColor(application.estado);
-  const statusBackgroundColor = mockDataService.getStatusBackgroundColor(application.estado);
+  const statusColor = applicationsApiService.getStatusColor(application.estado);
+  const statusBackgroundColor = applicationsApiService.getStatusBackgroundColor(application.estado);
 
   return (
     <View style={styles.card}>
@@ -56,7 +57,7 @@ const ApplicationCard = ({
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Aplicado em:</Text>
           <Text style={styles.infoValue}>
-            {mockDataService.formatDate(application.dataAplicacao)}
+            {applicationsApiService.formatDate(application.dataAplicacao)}
           </Text>
         </View>
         <View style={styles.infoRow}>
@@ -105,21 +106,47 @@ type ApplicationsScreenProps = NativeStackScreenProps<
 const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
   const [applications, setApplications] = useState<Aplicacao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadApplications = async () => {
+    try {
+      setError(null);
+
+      const isAuthenticated = await authService.isAuthenticated();
+      if (!isAuthenticated) {
+        navigation.navigate('Login');
+        return;
+      }
+
+      const data = await applicationsApiService.getApplications();
+      setApplications(data);
+    } catch (error: any) {
+      console.error('Error loading applications:', error);
+
+      if (error.response?.status === 401) {
+        navigation.navigate('Login');
+        return;
+      }
+
+      setError(
+        error.response?.data?.message ||
+        error.message ||
+        'Erro ao carregar aplicações. Tente novamente.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadApplications = async () => {
-      try {
-        const data = await mockDataService.getApplications();
-        setApplications(data);
-      } catch (error) {
-        console.error('Error loading applications:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadApplications();
-  }, []);
+  }, [navigation]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    loadApplications();
+  };
 
   if (loading) {
     return (
@@ -132,6 +159,26 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.secondary} />
           <Text style={styles.loadingText}>Carregando aplicações...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={COLORS.background}
+          translucent
+        />
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle" size={48} color="#E74C3C" />
+          <Text style={styles.errorTitle}>Erro ao carregar dados</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -316,6 +363,37 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
