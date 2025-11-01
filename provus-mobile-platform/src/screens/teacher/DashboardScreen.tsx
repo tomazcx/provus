@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -14,7 +15,8 @@ import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { Aplicacao, Penalidade } from '../../types/Application';
-import mockDataService from '../../services/mockDataService';
+import applicationsApiService from '../../services/applicationsApiService';
+import submissionsApiService from '../../services/submissionsApiService';
 import TipoInfracaoEnum from '../../enums/TipoInfracaoEnum';
 import { COLORS } from '../../constants/colors';
 
@@ -48,22 +50,37 @@ type DashboardScreenProps = NativeStackScreenProps<
 const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
   const [application, setApplication] = useState<Aplicacao | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [totalParticipants, setTotalParticipants] = useState(0);
   const applicationId = route.params?.applicationId || 1;
 
-  useEffect(() => {
-    const loadApplication = async () => {
-      try {
-        const data = await mockDataService.getApplicationById(applicationId);
-        setApplication(data);
-      } catch (error) {
-        console.error('Error loading application:', error);
-      } finally {
-        setLoading(false);
+  const loadApplication = async (isRefresh: boolean = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
-    };
+      const data = await applicationsApiService.getApplicationById(applicationId);
+      setApplication(data);
 
+      const submissionsData = await submissionsApiService.getSubmissionsByApplication(applicationId);
+      setTotalParticipants(submissionsData.submissoes.length);
+    } catch (error) {
+      console.error('Error loading application:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     loadApplication();
   }, [applicationId]);
+
+  const onRefresh = () => {
+    loadApplication(true);
+  };
 
   const getInfracaoLabel = (infracao: TipoInfracaoEnum): string => {
     return infracao || 'Infração';
@@ -123,7 +140,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
     );
   }
 
-  const statusColor = mockDataService.getStatusColor(application.estado);
+  const statusColor = applicationsApiService.getStatusColor(application.estado);
   const statusIcon = getStatusIcon(application.estado);
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -135,6 +152,14 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.secondary]}
+            tintColor={COLORS.secondary}
+          />
+        }
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -167,67 +192,77 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
             </View>
           </View>
           <Text style={styles.dateText}>
-            {mockDataService.formatDateTime(application.dataAplicacao)}
+            {applicationsApiService.formatDateTime(application.dataAplicacao)}
           </Text>
         </View>
 
-        <View style={[styles.statusBanner, { backgroundColor: mockDataService.getStatusBackgroundColor(application.estado) }]}>
+        <View style={[styles.statusBanner, { backgroundColor: applicationsApiService.getStatusBackgroundColor(application.estado) }]}>
           <Icon name={statusIcon} size={16} color={statusColor} />
           <Text style={[styles.statusText, { color: statusColor }]}>
-            {application.estado} • {application.participantes} participantes
+            {application.estado} • {totalParticipants} participantes
           </Text>
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard 
-            title="Total de Participantes" 
-            value={application.participantes.toString()} 
+          <StatCard
+            title="Total de Participantes"
+            value={totalParticipants.toString()}
           />
-          <StatCard 
-            title="Média Geral" 
-            value={`${application.mediaGeral.toFixed(1)}%`} 
-            valueColor={application.mediaGeral >= 70 ? '#27AE60' : '#D35400'}
+          <StatCard
+            title="Média Geral"
+            value={application.mediaGeral > 0 ? `${application.mediaGeral.toFixed(1)}%` : '-'}
+            valueColor={application.mediaGeral > 0
+              ? (application.mediaGeral >= 70 ? '#27AE60' : '#D35400')
+              : COLORS.textSecondary
+            }
           />
           <StatCard
             title="Taxa de conclusão"
-            value={`${application.taxaDeConclusao.toFixed(1)}%`}
-            valueColor={application.taxaDeConclusao >= 70 ? '#27AE60' : '#D35400'}
+            value={application.taxaDeConclusao > 0 ? `${application.taxaDeConclusao.toFixed(1)}%` : '-'}
+            valueColor={application.taxaDeConclusao > 0
+              ? (application.taxaDeConclusao >= 70 ? '#27AE60' : '#D35400')
+              : COLORS.textSecondary
+            }
           />
-          <StatCard 
-            title="Tempo médio de submissão" 
-            value={`${application.tempoMedio}m`} 
+          <StatCard
+            title="Tempo Médio"
+            value={application.tempoMedio > 0 ? `${application.tempoMedio}m` : '-'}
           />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Estatísticas de Notas</Text>
-          <View style={styles.noteStatRow}>
-            <Text style={styles.noteStatLabel}>Maior Nota</Text>
-            <Text style={styles.noteStatValue}>
-              <Text style={{ color: COLORS.greenText, fontWeight: 'bold' }}>
-                {application.maiorNota}
-              </Text>{' '}
-              / {Math.round(application.maiorNota * 1.05) || 20}
-            </Text>
+        {application.maiorNota > 0 || application.menorNota > 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Estatísticas de Notas</Text>
+            <View style={styles.noteStatRow}>
+              <Text style={styles.noteStatLabel}>Maior Nota</Text>
+              <Text style={styles.noteStatValue}>
+                <Text style={{ color: COLORS.greenText, fontWeight: 'bold' }}>
+                  {application.maiorNota > 0 ? `${application.maiorNota.toFixed(1)}%` : '-'}
+                </Text>
+              </Text>
+            </View>
+            <View style={styles.noteStatRow}>
+              <Text style={styles.noteStatLabel}>Menor Nota</Text>
+              <Text style={styles.noteStatValue}>
+                <Text style={{ color: COLORS.redText, fontWeight: 'bold' }}>
+                  {application.menorNota > 0 ? `${application.menorNota.toFixed(1)}%` : '-'}
+                </Text>
+              </Text>
+            </View>
+            <View style={styles.noteStatRow}>
+              <Text style={styles.noteStatLabel}>Nota Média</Text>
+              <Text style={styles.noteStatValue}>
+                {application.notaMedia > 0 ? `${application.notaMedia.toFixed(1)}%` : '-'}
+              </Text>
+            </View>
+            <View style={styles.noteStatRow}>
+              <Text style={styles.noteStatLabel}>Desvio padrão</Text>
+              <Text style={styles.noteStatValue}>
+                {application.desvioPadrao > 0 ? application.desvioPadrao.toFixed(1) : '-'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.noteStatRow}>
-            <Text style={styles.noteStatLabel}>Menor Nota</Text>
-            <Text style={styles.noteStatValue}>
-              <Text style={{ color: COLORS.redText, fontWeight: 'bold' }}>
-                {application.menorNota}
-              </Text>{' '}
-              / {Math.round(application.maiorNota * 1.05) || 20}
-            </Text>
-          </View>
-          <View style={styles.noteStatRow}>
-            <Text style={styles.noteStatLabel}>Nota Média</Text>
-            <Text style={styles.noteStatValue}>{application.notaMedia.toFixed(1)}</Text>
-          </View>
-          <View style={styles.noteStatRow}>
-            <Text style={styles.noteStatLabel}>Desvio padrão</Text>
-            <Text style={styles.noteStatValue}>{application.desvioPadrao.toFixed(1)}</Text>
-          </View>
-        </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Penalidades e Violações</Text>
@@ -262,7 +297,7 @@ const DashboardScreen = ({ navigation, route }: DashboardScreenProps) => {
                     </View>
                   </View>
                   <Text style={[styles.tableCell, { flex: 1.5 }]}>
-                    {mockDataService.formatTime(penalidade.hora)}
+                    {applicationsApiService.formatTime(penalidade.hora)}
                   </Text>
                 </View>
               ))}
@@ -407,7 +442,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   backButton: {
-    backgroundColor: COLORS.secundary,
+    backgroundColor: COLORS.secondary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
