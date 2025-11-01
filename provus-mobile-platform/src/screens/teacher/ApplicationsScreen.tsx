@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -63,15 +64,17 @@ const ApplicationCard = ({
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Alunos:</Text>
           <Text style={styles.infoValue}>
-            {application.participantes} participantes
+            {application.participantes === 1 ? '1 participante' : `${application.participantes} participantes`}
           </Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Média:</Text>
-          <Text style={[styles.infoValue, { 
-            color: application.mediaGeral >= 70 ? '#27AE60' : '#D35400' 
+          <Text style={[styles.infoValue, {
+            color: application.mediaGeral > 0
+              ? (application.mediaGeral >= 70 ? '#27AE60' : '#D35400')
+              : COLORS.textSecondary
           }]}>
-            {application.mediaGeral.toFixed(1)}%
+            {application.mediaGeral > 0 ? `${application.mediaGeral.toFixed(1)}%` : '-'}
           </Text>
         </View>
         <View style={styles.infoRow}>
@@ -90,7 +93,10 @@ const ApplicationCard = ({
         >
           <Text style={styles.buttonTextPrimary}>Ver Detalhes</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.buttonSecondary}>
+        <TouchableOpacity
+          style={styles.buttonSecondary}
+          onPress={() => navigation.navigate('Submissions', { applicationId: application.id })}
+        >
           <Text style={styles.buttonTextSecondary}>Resultados</Text>
         </TouchableOpacity>
       </View>
@@ -106,10 +112,16 @@ type ApplicationsScreenProps = NativeStackScreenProps<
 const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
   const [applications, setApplications] = useState<Aplicacao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadApplications = async () => {
+  const loadApplications = async (isRefresh: boolean = false) => {
     try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const isAuthenticated = await authService.isAuthenticated();
@@ -135,6 +147,7 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -142,9 +155,11 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
     loadApplications();
   }, [navigation]);
 
+  const onRefresh = () => {
+    loadApplications(true);
+  };
+
   const handleRetry = () => {
-    setLoading(true);
-    setError(null);
     loadApplications();
   };
 
@@ -191,7 +206,17 @@ const ApplicationsScreen = ({ navigation }: ApplicationsScreenProps) => {
         backgroundColor={COLORS.background}
         translucent
       />
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.secondary]}
+            tintColor={COLORS.secondary}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Provus</Text>
           <View style={styles.headerIcons}>

@@ -53,8 +53,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
       navigation.navigate('Applications');
     } catch (error: any) {
-      console.error('Login error:', error);
-
       let errorMessage = 'Erro ao fazer login. Tente novamente.';
 
       if (error.response?.status === 401) {

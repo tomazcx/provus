@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
 import ApplicationsScreen from '../screens/teacher/ApplicationsScreen';
 import DashboardScreen from '../screens/teacher/DashboardScreen';
+import SubmissionsScreen from '../screens/teacher/SubmissionsScreen';
 import IdentificationScreen from '../screens/student/IdentificationScreen';
 import TestSubmissionResultScreen from '../screens/student/TestSubmissionResultScreen';
 import TestReviewScreen from '../screens/student/TestReviewScreen';
@@ -13,6 +14,7 @@ export type RootStackParamList = {
   Login: undefined;
   Applications: undefined;
   Dashboard: { applicationId?: number };
+  Submissions: { applicationId: number };
   StudentBase: undefined;
   TestSubmissionResult: {
     submissionId: number;
@@ -36,6 +38,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Applications" component={ApplicationsScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Submissions" component={SubmissionsScreen} />
         <Stack.Screen name="StudentBase" component={IdentificationScreen} />
         <Stack.Screen
           name="TestSubmissionResult"
