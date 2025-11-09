@@ -12,6 +12,8 @@ import {
   Logger,
   Injectable,
   InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
@@ -23,6 +25,9 @@ import { NotificationProvider } from 'src/providers/notification.provider';
 import { ProgressoUpdatePayload } from '../messages/progresso-update.message';
 import { TempoAjustadoPayload } from '../messages/tempo-ajustado.message';
 import { EstadoAplicacaoAtualizadoPayload } from '../messages/estado-aplicacao-atualizado.message';
+import { ReduzirTempoAlunoPayload } from '../messages/reduzir-tempo-aluno.message';
+import { AlertaEstudanteInfracaoMessage } from '../messages/alerta-estudante-infracao.message';
+import { SubmissaoCanceladaMessage } from '../messages/submissao-cancelada.message';
 
 interface AlunoSaiuPayload {
   submissaoId: number;
@@ -59,6 +64,7 @@ export class SubmissaoGateway
   private readonly clientsHash = new Map<string, string>();
 
   constructor(
+    @Inject(forwardRef(() => SubmissaoService))
     private readonly submissaoService: SubmissaoService,
 
     @InjectRepository(SubmissaoModel)
@@ -438,6 +444,105 @@ export class SubmissaoGateway
     } catch (error) {
       this.logger.error(
         `Erro ao tentar emitir 'tempo-ajustado' para sala ${roomAplicacao}:`,
+        error,
+      );
+    }
+  }
+
+  emitReduzirTempoAluno(hash: string, payload: ReduzirTempoAlunoPayload): void {
+    const clientId = this.clientsHash.get(hash);
+    if (!clientId) {
+      this.logger.warn(`Hash não encontrado para o aluno: ${hash}`);
+      return;
+    }
+    const client = this.server.sockets.sockets.get(clientId);
+    if (!client) {
+      this.logger.warn(`Cliente não encontrado: ${clientId}`);
+      return;
+    }
+
+    try {
+      const result = client.emit('tempo-ajustado', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'tempo-ajustado' emitido para aluno ${clientId} no namespace /submissao`,
+        );
+      } else {
+        this.logger.warn(
+          `Tentativa de emitir 'tempo-ajustado' para aluno ${clientId} falhou (sala vazia?).`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar emitir 'tempo-ajustado' para aluno ${clientId}:`,
+        error,
+      );
+    }
+  }
+
+  emitAlertaEstudante(
+    hash: string,
+    payload: AlertaEstudanteInfracaoMessage,
+  ): void {
+    const clientId = this.clientsHash.get(hash);
+    if (!clientId) {
+      this.logger.warn(`Hash não encontrado para o aluno: ${hash}`);
+      return;
+    }
+    const client = this.server.sockets.sockets.get(clientId);
+    if (!client) {
+      this.logger.warn(`Cliente não encontrado: ${clientId}`);
+      return;
+    }
+
+    try {
+      const result = client.emit('alerta-estudante', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'alerta-estudante' emitido para aluno ${clientId} no namespace /submissao`,
+        );
+      } else {
+        this.logger.warn(
+          `Tentativa de emitir 'alerta-estudante' para aluno ${clientId} falhou.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar emitir 'alerta-estudante' para aluno ${clientId}:`,
+        error,
+      );
+    }
+  }
+
+  emitSubmissaoCancelada(
+    hash: string,
+    payload: SubmissaoCanceladaMessage,
+  ): void {
+    const clientId = this.clientsHash.get(hash);
+    if (!clientId) {
+      this.logger.warn(`Hash não encontrado para o aluno: ${hash}`);
+      return;
+    }
+    const client = this.server.sockets.sockets.get(clientId);
+    if (!client) {
+      this.logger.warn(`Cliente não encontrado: ${clientId}`);
+      return;
+    }
+
+    try {
+      const result = client.emit('submissao-cancelada', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'submissao-cancelada' emitido para aluno ${clientId} no namespace /submissao`,
+        );
+      } else {
+        this.logger.warn(
+          `Tentativa de emitir 'submissao-cancelada' para aluno ${clientId} falhou.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar emitir 'submissao-cancelada' para aluno ${clientId}:`,
         error,
       );
     }
