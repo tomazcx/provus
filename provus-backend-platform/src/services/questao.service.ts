@@ -286,13 +286,15 @@ export class QuestaoService {
     const { questaoId, resposta } = dto;
     const questao = await this.questaoRepository.findOne({
       where: { id: questaoId },
+      relations: ['item'],
     });
     if (!questao) {
       throw new NotFoundException('Questão não encontrada');
     }
     const prompt = this._getEvaluationPrompt(questao, resposta);
-    const result =
+    const resultArray =
       await this._callAiAndParseResponse<EvaluateByAiResultDto>(prompt)[0];
+    const result = resultArray[0];
 
     const mapPontuacao = {
       [EstadoQuestaoCorrigida.INCORRETA]: 0,
