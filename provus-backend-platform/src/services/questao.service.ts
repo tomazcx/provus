@@ -24,7 +24,9 @@ import { TextExtractorService } from 'src/providers/text-extractor.provider';
 import { ArquivoService } from './arquivo.service';
 import { GenerateQuestaoFromFileRequestDto } from 'src/http/models/request/generate-questao-from-file.request';
 import { AbstractAiProvider } from 'src/providers/ai/interface/ai-provider.abstract';
-import { AI_PROVIDER } from 'src/providers/providers.module';
+import { EvaluateByAiResultDto } from 'src/dto/result/questao/evaluate-by-ai.result';
+import { EvaluateByAiRequestDto } from 'src/dto/request/questao/evaluate-by-ai.dto';
+import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
 
 @Injectable()
 export class QuestaoService {
@@ -34,7 +36,7 @@ export class QuestaoService {
     private readonly dataSource: DataSource,
     private readonly arquivoService: ArquivoService,
     private readonly textExtractorService: TextExtractorService,
-    @Inject(AI_PROVIDER) private readonly aiProvider: AbstractAiProvider,
+    private readonly aiProvider: AbstractAiProvider,
   ) {}
 
   async findById(
@@ -278,6 +280,33 @@ export class QuestaoService {
     return this._callAiAndParseResponse(promptTemplate);
   }
 
+  async evaluateByAi(
+    dto: EvaluateByAiRequestDto,
+  ): Promise<EvaluateByAiResultDto> {
+    const { questaoId, resposta } = dto;
+    const questao = await this.questaoRepository.findOne({
+      where: { id: questaoId },
+    });
+    if (!questao) {
+      throw new NotFoundException('Questão não encontrada');
+    }
+    const prompt = this._getEvaluationPrompt(questao, resposta);
+    const result =
+      await this._callAiAndParseResponse<EvaluateByAiResultDto>(prompt)[0];
+
+    const mapPontuacao = {
+      [EstadoQuestaoCorrigida.INCORRETA]: 0,
+      [EstadoQuestaoCorrigida.CORRETA]: questao.pontuacao,
+      [EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA]: result.pontuacao,
+    };
+
+    return {
+      pontuacao: mapPontuacao[result.estadoCorrecao],
+      estadoCorrecao: result.estadoCorrecao,
+      textoRevisao: result.textoRevisao,
+    };
+  }
+
   private _getDiscursivePrompt(
     assunto: string,
     dificuldade: DificuldadeQuestaoEnum,
@@ -433,9 +462,28 @@ export class QuestaoService {
     }
   }
 
-  private async _callAiAndParseResponse(
-    prompt: string,
-  ): Promise<GeneratedQuestaoDto[]> {
+  private _getEvaluationPrompt(
+    questao: QuestaoModel,
+    resposta: string,
+  ): string {
+    return `Aja como um especialista em avaliar questões para avaliações educacionais.
+    Sua tarefa é avaliar a questão discursiva '${questao.item.titulo}' com a resposta '${resposta}' e pontuação '${questao.pontuacao}'.
+    A sua resposta deve ser APENAS um objeto JSON, seguindo a estrutura:
+    {
+      "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" ou "${EstadoQuestaoCorrigida.INCORRETA}" ou "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
+      "pontuacao": ${questao.pontuacao},
+      "textoRevisao": "Um texto de revisão da resposta do aluno, de forma clara e objetiva."
+    }
+   
+    O valor do campo "estadoCorrecao" deve ser "${EstadoQuestaoCorrigida.CORRETA}" se a resposta estiver correta, "${EstadoQuestaoCorrigida.INCORRETA}" se a resposta estiver incorreta e "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}" se a resposta estiver parcialmente correta.
+    Caso o "estadoCorrecao" seja "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", o valor do campo "pontuacao" deve ser a pontuação parcial da questão de acordo com a resposta do aluno.
+   
+    Considere o seguinte gabarito da questão para avaliar a resposta:
+    ${questao.exemploRespostaIa}
+    `;
+  }
+
+  private async _callAiAndParseResponse<T>(prompt: string): Promise<T[]> {
     try {
       const rawResponse = await this.aiProvider.generateText(prompt);
       const jsonMatch = rawResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
@@ -443,9 +491,7 @@ export class QuestaoService {
         throw new Error('Resposta da IA não continha um JSON válido.');
       }
       const jsonString = jsonMatch[0];
-      const generatedData = JSON.parse(jsonString) as
-        | GeneratedQuestaoDto[]
-        | GeneratedQuestaoDto;
+      const generatedData = JSON.parse(jsonString) as T[] | T;
       return Array.isArray(generatedData) ? generatedData : [generatedData];
     } catch (error) {
       console.error('Falha ao gerar ou parsear a questão da IA:', error);

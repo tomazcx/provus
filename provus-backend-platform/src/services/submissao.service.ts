@@ -5,6 +5,8 @@ import {
   Logger,
   ForbiddenException,
   InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, In } from 'typeorm';
@@ -46,6 +48,9 @@ import { AvaliadorSubmissaoDetalheDto } from 'src/dto/result/submissao/avaliador
 import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
+import { QuestaoService } from './questao.service';
+import { EvaluateSubmissaoRespostaDto } from 'src/dto/result/submissao/evaluate-submissao-resposta.dto';
+import { AbstractAiProvider } from 'src/providers/ai/interface/ai-provider.abstract';
 
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
@@ -61,7 +66,9 @@ export class SubmissaoService {
     private readonly dataSource: DataSource,
     private readonly emailTemplatesProvider: EmailTemplatesProvider,
     private readonly notificationProvider: NotificationProvider,
+    @Inject(forwardRef(() => SubmissaoGateway))
     private readonly submissaoGateway: SubmissaoGateway,
+    private readonly questaoService: QuestaoService,
 
     @InjectRepository(AplicacaoModel)
     private readonly aplicacaoRepository: Repository<AplicacaoModel>,
@@ -77,6 +84,9 @@ export class SubmissaoService {
 
     @InjectRepository(RegistroPunicaoPorOcorrenciaModel)
     private readonly registroPunicaoPorOcorrenciaRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
+
+    @InjectRepository(QuestaoModel)
+    private readonly questaoRepository: Repository<QuestaoModel>,
   ) {}
 
   async createSubmissao(
@@ -403,8 +413,28 @@ export class SubmissaoService {
             }
             case TipoQuestaoEnum.DISCURSIVA: {
               pontuacaoObtida = 0;
-              estadoCorrecao = null;
+              estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
               existeDiscursiva = true;
+
+              let respostaExistente = '';
+              if (isDadosRespostaDiscursiva(dadosRespostaAluno)) {
+                respostaExistente = dadosRespostaAluno?.texto;
+              }
+
+              if (
+                submissao.aplicacao.avaliacao.configuracaoAvaliacao
+                  .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa &&
+                respostaExistente.trim() !== ''
+              ) {
+                const result = await this.questaoService.evaluateByAi({
+                  questaoId: questaoGabarito.id,
+                  resposta: respostaExistente,
+                });
+                pontuacaoObtida = parseFloat(result.pontuacao.toFixed(2));
+                estadoCorrecao = result.estadoCorrecao;
+                resposta.textoRevisao = result.textoRevisao;
+              }
+
               break;
             }
             default: {
@@ -428,14 +458,8 @@ export class SubmissaoService {
         await respostasRepo.save(respostasParaSalvar);
       }
 
-      const punicoes = await this.registroPunicaoPorOcorrenciaRepository.find({
-        where: { submissao: { id: submissao.id } },
-        order: { criadoEm: 'DESC' },
-        take: 50,
-      });
-      const reducaoDePontuacao = punicoes.reduce(
-        (acc, punicao) => acc + punicao.pontuacaoPerdida,
-        0,
+      const reducaoDePontuacao = await this._calculateReductionOfPoints(
+        submissao.id,
       );
 
       submissao.estado = existeDiscursiva
@@ -507,6 +531,78 @@ export class SubmissaoService {
     }
 
     return new SubmissaoResultDto(submissaoAtualizada);
+  }
+
+  async evaluateDiscursiva(
+    submissaoId: number,
+    aplicacaoId: number,
+    questaoId: number,
+    dto: EvaluateSubmissaoRespostaDto,
+  ): Promise<void> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
+    });
+
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada');
+    }
+
+    const questao = await this.questaoRepository.findOne({
+      where: { id: questaoId },
+    });
+
+    if (!questao) {
+      throw new NotFoundException('Questão não encontrada');
+    }
+
+    if (questao.tipoQuestao !== TipoQuestaoEnum.DISCURSIVA) {
+      throw new BadRequestException('Questão não é discursiva');
+    }
+
+    const resposta = await this.submissaoRespostasRepository.findOne({
+      where: { submissaoId: submissaoId, questaoId: questaoId },
+    });
+
+    if (!resposta) {
+      throw new NotFoundException('Resposta não encontrada');
+    }
+
+    resposta.pontuacao = dto.pontuacao;
+    resposta.estadoCorrecao = dto.estadoCorrecao;
+    resposta.textoRevisao = dto.textoRevisao;
+
+    await this.submissaoRespostasRepository.save(resposta);
+
+    const respostas = await this.submissaoRespostasRepository.find({
+      where: { submissaoId: submissaoId },
+    });
+    const pontuacaoTotal = respostas.reduce(
+      (acc, resposta) => acc + (resposta.pontuacao ?? 0),
+      0,
+    );
+
+    const reducaoDePontuacao =
+      await this._calculateReductionOfPoints(submissaoId);
+
+    submissao.pontuacaoTotal = parseFloat(
+      (pontuacaoTotal - reducaoDePontuacao).toFixed(2),
+    );
+    await this.submissaoRepository.save(submissao);
+  }
+
+  async updateSubmissaoEstado(
+    submissaoId: number,
+    aplicacaoId: number,
+    estado: EstadoSubmissaoEnum,
+  ): Promise<void> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
+    });
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada');
+    }
+    submissao.estado = estado;
+    await this.submissaoRepository.save(submissao);
   }
 
   private async _generateUniqueSubmissionCode(
@@ -725,6 +821,20 @@ export class SubmissaoService {
     };
 
     return mapeamento[dificuldadeQuestao];
+  }
+
+  private async _calculateReductionOfPoints(
+    submissaoId: number,
+  ): Promise<number> {
+    const punicoes = await this.registroPunicaoPorOcorrenciaRepository.find({
+      where: { submissao: { id: submissaoId } },
+      order: { criadoEm: 'DESC' },
+      take: 50,
+    });
+    return punicoes.reduce(
+      (acc, punicao) => acc + (punicao.pontuacaoPerdida ?? 0),
+      0,
+    );
   }
 
   private async _randomizeQuestoes(
