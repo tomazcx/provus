@@ -12,6 +12,8 @@ import {
   Logger,
   Injectable,
   InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
@@ -62,6 +64,7 @@ export class SubmissaoGateway
   private readonly clientsHash = new Map<string, string>();
 
   constructor(
+    @Inject(forwardRef(() => SubmissaoService))
     private readonly submissaoService: SubmissaoService,
 
     @InjectRepository(SubmissaoModel)
