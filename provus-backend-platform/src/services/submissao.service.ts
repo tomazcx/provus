@@ -43,6 +43,9 @@ import {
   SubmissaoComEstudanteDto,
 } from 'src/dto/result/submissao/find-submissoes.response.dto';
 import { AvaliadorSubmissaoDetalheDto } from 'src/dto/result/submissao/avaliador-submissao-detalhe.dto';
+import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
+import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
+import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
 
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
@@ -58,6 +61,7 @@ export class SubmissaoService {
     private readonly dataSource: DataSource,
     private readonly emailTemplatesProvider: EmailTemplatesProvider,
     private readonly notificationProvider: NotificationProvider,
+    private readonly submissaoGateway: SubmissaoGateway,
 
     @InjectRepository(AplicacaoModel)
     private readonly aplicacaoRepository: Repository<AplicacaoModel>,
@@ -70,6 +74,9 @@ export class SubmissaoService {
 
     @InjectRepository(EstudanteModel)
     private readonly estudanteRepository: Repository<EstudanteModel>,
+
+    @InjectRepository(RegistroPunicaoPorOcorrenciaModel)
+    private readonly registroPunicaoPorOcorrenciaRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
   ) {}
 
   async createSubmissao(
@@ -421,11 +428,23 @@ export class SubmissaoService {
         await respostasRepo.save(respostasParaSalvar);
       }
 
+      const punicoes = await this.registroPunicaoPorOcorrenciaRepository.find({
+        where: { submissao: { id: submissao.id } },
+        order: { criadoEm: 'DESC' },
+        take: 50,
+      });
+      const reducaoDePontuacao = punicoes.reduce(
+        (acc, punicao) => acc + punicao.pontuacaoPerdida,
+        0,
+      );
+
       submissao.estado = existeDiscursiva
         ? EstadoSubmissaoEnum.ENVIADA
         : EstadoSubmissaoEnum.AVALIADA;
       submissao.finalizadoEm = new Date();
-      submissao.pontuacaoTotal = parseFloat(pontuacaoTotalCalculada.toFixed(2));
+      submissao.pontuacaoTotal = parseFloat(
+        (pontuacaoTotalCalculada - reducaoDePontuacao).toFixed(2),
+      );
       submissaoAtualizada = await submissaoRepo.save(submissao);
     });
 
@@ -798,65 +817,129 @@ export class SubmissaoService {
       throw new NotFoundException('Submissão não encontrada');
     }
 
-    /*
-    ======================================================
-    Escrever aqui lógica para processar a punicao por ocorrencia
+    const punicoes =
+      submissao.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes.filter(
+        (p) => p.tipoInfracao === dto.tipoInfracao,
+      );
 
-    No momento toda infração recebida pelo socket disparara uma notificação para o AVALIADOR caso a notificação configurada no backend seja EMAIL ou PUSH_NOTIFICATION.
-    A lógica a ser feita aqui deve considerar a quantidade de infrações minimas para disparo para o AVALIADOR e para o ESTUDANTE, caso esteja configurado para tal.
-    A lógica para disparar a notificação para o ESTUDANTE deve ser feita por meio do gateway de submissao.
+    if (punicoes.length === 0) {
+      return;
+    }
 
-    OBS: Lembrar de, caso a infração tenha como punição encerrar avaliação, deve-se alterar o status da submissão para finalizada,
-    disparar a notificação para o ESTUDANTE e encerrar a conexão do backend com o socket por meio do gateway de submissao.
-    ======================================================
-    */
-
-    const quantidadeOcorrencias = 1; // TODO: Implementar lógica para contar as ocorrências
-
-    const notificacoesConfiguradas =
-      submissao.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca
-        .notificacoes;
-
-    if (
-      notificacoesConfiguradas.some(
-        (notificacao) =>
-          notificacao.tipoNotificacao === TipoNotificacaoEnum.PUSH_NOTIFICATION,
-      )
-    ) {
-      this.notificationProvider.sendNotificationViaSocket(
-        submissao.aplicacao.avaliacao.item.avaliador.id,
-        'punicao-por-ocorrencia',
-        {
-          estudanteId: submissao.estudante.id,
-          nomeEstudante: submissao.estudante.nome,
-          nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
-          dataHoraInfracao: new Date().toLocaleString(),
-          quantidadeOcorrencias: quantidadeOcorrencias,
+    const quantidadeOcorrencias =
+      await this.registroPunicaoPorOcorrenciaRepository.count({
+        where: {
+          submissao: submissao,
           tipoInfracao: dto.tipoInfracao,
         },
-      );
-    }
-
-    if (
-      notificacoesConfiguradas.some(
-        (notificacao) =>
-          notificacao.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
-      )
-    ) {
-      const html = this.emailTemplatesProvider.punicaoPorOcorrencia({
-        nomeEstudante: submissao.estudante.nome,
-        nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
-        dataHoraInfracao: new Date().toLocaleString(),
-        quantidadeOcorrencias: quantidadeOcorrencias,
-        tipoInfracao: dto.tipoInfracao,
-        urlPlataforma: `${Env.FRONTEND_URL}`,
       });
 
-      await this.notificationProvider.sendEmail(
-        submissao.estudante.email,
-        'Provus - Infração de segurança detectada',
-        html,
-      );
+    const totalOcorrencias = quantidadeOcorrencias + 1;
+
+    let tempoReduzido = 0;
+    let pontuacaoPerdida = 0;
+    let penalidadeAplicada: TipoPenalidadeEnum | null = null;
+    for (const punicao of punicoes) {
+      if (totalOcorrencias !== punicao.quantidadeOcorrencias) {
+        continue;
+      }
+
+      penalidadeAplicada = punicao.tipoPenalidade;
+
+      if (punicao.tipoPenalidade === TipoPenalidadeEnum.REDUZIR_PONTOS) {
+        pontuacaoPerdida += punicao.pontuacaoPerdida;
+        continue;
+      }
+
+      if (punicao.tipoPenalidade === TipoPenalidadeEnum.REDUZIR_TEMPO) {
+        tempoReduzido += punicao.tempoReduzido;
+        this.submissaoGateway.emitReduzirTempoAluno(submissaoHash, {
+          tempoReduzido: punicao.tempoReduzido,
+        });
+        continue;
+      }
+
+      if (punicao.tipoPenalidade === TipoPenalidadeEnum.ALERTAR_ESTUDANTE) {
+        this.submissaoGateway.emitAlertaEstudante(submissaoHash, {
+          quantidadeOcorrencias: quantidadeOcorrencias,
+          tipoInfracao: dto.tipoInfracao,
+          penalidade: punicao.tipoPenalidade,
+        });
+        continue;
+      }
+
+      if (punicao.tipoPenalidade === TipoPenalidadeEnum.ENCERRAR_AVALIACAO) {
+        submissao.estado = EstadoSubmissaoEnum.CANCELADA;
+        submissao.finalizadoEm = new Date();
+        await this.submissaoRepository.save(submissao);
+
+        await this.submissaoGateway.emitSubmissaoCancelada(submissaoHash, {
+          tipoInfracao: dto.tipoInfracao,
+          quantidadeOcorrencias: totalOcorrencias,
+        });
+        continue;
+      }
+
+      if (punicao.tipoPenalidade === TipoPenalidadeEnum.NOTIFICAR_PROFESSOR) {
+        const notificacoesConfiguradas =
+          submissao.aplicacao.avaliacao.configuracaoAvaliacao
+            .configuracoesSeguranca.notificacoes;
+
+        if (
+          notificacoesConfiguradas.some(
+            (notificacao) =>
+              notificacao.tipoNotificacao ===
+              TipoNotificacaoEnum.PUSH_NOTIFICATION,
+          )
+        ) {
+          this.notificationProvider.sendNotificationViaSocket(
+            submissao.aplicacao.avaliacao.item.avaliador.id,
+            'punicao-por-ocorrencia',
+            {
+              estudanteId: submissao.estudante.id,
+              nomeEstudante: submissao.estudante.nome,
+              nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
+              dataHoraInfracao: new Date().toLocaleString(),
+              quantidadeOcorrencias: quantidadeOcorrencias,
+              tipoInfracao: dto.tipoInfracao,
+            },
+          );
+        }
+
+        if (
+          notificacoesConfiguradas.some(
+            (notificacao) =>
+              notificacao.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
+          )
+        ) {
+          const html = this.emailTemplatesProvider.punicaoPorOcorrencia({
+            nomeEstudante: submissao.estudante.nome,
+            nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
+            dataHoraInfracao: new Date().toLocaleString(),
+            quantidadeOcorrencias: quantidadeOcorrencias,
+            tipoInfracao: dto.tipoInfracao,
+            urlPlataforma: `${Env.FRONTEND_URL}`,
+          });
+
+          await this.notificationProvider.sendEmail(
+            submissao.estudante.email,
+            'Provus - Infração de segurança detectada',
+            html,
+          );
+        }
+        continue;
+      }
     }
+
+    const registroPunicao = this.registroPunicaoPorOcorrenciaRepository.create({
+      submissao: submissao,
+      tipoInfracao: dto.tipoInfracao,
+      quantidadeOcorrencias: totalOcorrencias,
+      tipoPenalidade: penalidadeAplicada,
+      pontuacaoPerdida: pontuacaoPerdida,
+      tempoReduzido: tempoReduzido,
+    });
+
+    await this.registroPunicaoPorOcorrenciaRepository.save(registroPunicao);
   }
 }

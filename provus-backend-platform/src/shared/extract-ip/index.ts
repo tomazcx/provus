@@ -43,8 +43,6 @@ export function extractIPv4(request: Request): string {
 }
 
 export function isIpInCidrRange(ip: string, cidr: string): boolean {
-  console.log('ip', ip);
-  console.log('cidr', cidr);
   const [networkIp, prefixLength] = cidr.split('/');
   const prefix = parseInt(prefixLength, 10);
 
