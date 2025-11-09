@@ -41,3 +41,29 @@ export function extractIPv4(request: Request): string {
 
   return requestIp || 'unknown';
 }
+
+export function isIpInCidrRange(ip: string, cidr: string): boolean {
+  console.log('ip', ip);
+  console.log('cidr', cidr);
+  const [networkIp, prefixLength] = cidr.split('/');
+  const prefix = parseInt(prefixLength, 10);
+
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+    return false;
+  }
+
+  const ipToNumber = (ipAddress: string): number => {
+    return (
+      ipAddress
+        .split('.')
+        .reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0
+    );
+  };
+
+  const ipNum = ipToNumber(ip);
+  const networkNum = ipToNumber(networkIp);
+
+  const mask = (0xffffffff << (32 - prefix)) >>> 0;
+
+  return (ipNum & mask) === (networkNum & mask);
+}

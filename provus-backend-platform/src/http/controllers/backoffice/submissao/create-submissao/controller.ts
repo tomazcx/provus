@@ -13,7 +13,7 @@ import { SubmissaoService } from 'src/services/submissao.service';
 import { SubmissaoResponse } from 'src/http/models/response/submissao.response';
 import { AplicacaoService } from 'src/services/aplicacao.service';
 import { Request } from 'express';
-import { extractIPv4 } from 'src/shared/extract-ip';
+import { extractIPv4, isIpInCidrRange } from 'src/shared/extract-ip';
 
 @Controller('backoffice/encontrar-avaliacao')
 @ApiTags('Backoffice - Submissao')
@@ -47,7 +47,15 @@ export class CreateSubmissaoController {
         `Recebido requisição de criar submissão do IP: ${clientIp}`,
       );
 
-      if (!allowedIps.some((ip) => ip.ip === clientIp)) {
+      if (
+        !allowedIps.some((ip) => {
+          const ipPermitidoStr = ip.ip;
+          if (ipPermitidoStr.includes('/')) {
+            return isIpInCidrRange(clientIp, ipPermitidoStr);
+          }
+          return ipPermitidoStr === clientIp;
+        })
+      ) {
         throw new UnauthorizedException('IP não permitido');
       }
     }

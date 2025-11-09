@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SubmissaoService } from 'src/services/submissao.service';
-import { extractIPv4 } from 'src/shared/extract-ip';
+import { extractIPv4, isIpInCidrRange } from 'src/shared/extract-ip';
 
 @Injectable()
 export class SubmissaoIpGuard implements CanActivate {
@@ -39,6 +39,16 @@ export class SubmissaoIpGuard implements CanActivate {
       submissao.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca
         .ipsPermitidos;
 
-    return allowedIps.some((ipPermitido) => ipPermitido.ip === ip);
+    console.log('allowedIps', allowedIps);
+    return allowedIps.some((ipPermitido) => {
+      const ipPermitidoStr = ipPermitido.ip;
+      console.log('ipPermitidoStr', ipPermitidoStr);
+      console.log('ip', ipPermitidoStr.includes('/'));
+      if (ipPermitidoStr.includes('/')) {
+        return isIpInCidrRange(ip, ipPermitidoStr);
+      }
+
+      return ipPermitidoStr === ip;
+    });
   }
 }
