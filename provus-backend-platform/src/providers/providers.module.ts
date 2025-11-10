@@ -7,6 +7,7 @@ import { Env } from 'src/shared/env';
 
 import GeminiProvider from './ai/gemini.provider';
 import { GatewayModule } from 'src/gateway/gateway.module';
+import { AbstractAiProvider } from './ai/interface/ai-provider.abstract';
 
 export const AI_PROVIDER = 'AI_PROVIDER';
 
@@ -29,9 +30,8 @@ export const AI_PROVIDER = 'AI_PROVIDER';
         });
       },
     },
-    GeminiProvider,
     {
-      provide: AI_PROVIDER,
+      provide: AbstractAiProvider,
       useClass: GeminiProvider,
     },
   ],
@@ -40,7 +40,7 @@ export const AI_PROVIDER = 'AI_PROVIDER';
     EmailTemplatesProvider,
     StorageProvider,
     NotificationProvider,
-    AI_PROVIDER,
+    AbstractAiProvider,
   ],
 })
 export class ProvidersModule {}

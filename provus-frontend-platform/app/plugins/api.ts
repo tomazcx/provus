@@ -11,7 +11,7 @@ async function performTokenRefresh() {
 
   try {
     const { access } = await ofetch<{ access: string }>("/token/refresh/", {
-      baseURL: process.env.PROVUS_API_URL || "http://172.18.0.3:8000/api",
+      baseURL: process.env.PROVUS_API_URL || "http://localhost:8000/api",
       method: "POST",
       body: { refresh: refreshTokenCookie.value },
     });
@@ -32,7 +32,7 @@ async function performTokenRefresh() {
 
 export default defineNuxtPlugin(() => {
   const api: typeof $fetch = $fetch.create({
-    baseURL: process.env.PROVUS_API_URL || "http://172.18.0.3:8000/api",
+    baseURL: process.env.PROVUS_API_URL || "http://localhost:8000/api",
 
     onRequest({ request, options }) {
       if (publicRoutes.includes(request.toString())) {

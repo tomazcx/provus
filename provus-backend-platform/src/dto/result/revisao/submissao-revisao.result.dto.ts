@@ -1,7 +1,13 @@
-import { ArquivoSubmissaoResultDto } from '../submissao/submissao-questoes.result';
 import { SubmissaoResultDto } from '../submissao/submissao.result';
 import { QuestaoRevisaoResultDto } from './questao-revisao.result.dto';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
+
+export class ArquivoSubmissaoResultDto {
+  id: number;
+  titulo: string;
+  url: string;
+  descricao: string;
+}
 
 export class SubmissaoRevisaoResultDto {
   submissao: SubmissaoResultDto;

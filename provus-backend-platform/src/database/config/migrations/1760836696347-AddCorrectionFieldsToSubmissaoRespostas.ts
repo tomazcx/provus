@@ -10,7 +10,7 @@ export class AddCorrectionFieldsToSubmissaoRespostasTable1760836696347
                 '${EstadoQuestaoCorrigida.CORRETA}',
                 '${EstadoQuestaoCorrigida.INCORRETA}',
                 '${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}',
-                '${EstadoQuestaoCorrigida.NAO_RESPONDIDA}',
+                '${EstadoQuestaoCorrigida.NAO_RESPONDIDA}'
             );
         `);
     await queryRunner.addColumn(
