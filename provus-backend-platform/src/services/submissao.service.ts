@@ -245,6 +245,8 @@ export class SubmissaoService {
         'aplicacao.avaliacao',
         'aplicacao.avaliacao.item',
         'aplicacao.avaliacao.item.avaliador',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         'respostas.questao',
         'respostas.questao.alternativas',
         'estudante',

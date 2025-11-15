@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -292,14 +291,33 @@ export class QuestaoService {
       throw new NotFoundException('Questão não encontrada');
     }
     const prompt = this._getEvaluationPrompt(questao, resposta);
-    const resultArray =
-      await this._callAiAndParseResponse<EvaluateByAiResultDto>(prompt)[0];
-    const result = resultArray[0];
 
-    const mapPontuacao = {
+    const responseArray =
+      await this._callAiAndParseResponse<EvaluateByAiResultDto>(prompt);
+
+    if (!responseArray || responseArray.length === 0) {
+      throw new UnprocessableEntityException(
+        'A IA não retornou uma resposta de avaliação válida.',
+      );
+    }
+
+    const result = responseArray[0];
+
+    if (
+      !result ||
+      typeof result.pontuacao === 'undefined' ||
+      !result.estadoCorrecao
+    ) {
+      throw new UnprocessableEntityException(
+        'A IA retornou um objeto de avaliação malformado.',
+      );
+    }
+
+    const mapPontuacao: Record<EstadoQuestaoCorrigida, number> = {
       [EstadoQuestaoCorrigida.INCORRETA]: 0,
       [EstadoQuestaoCorrigida.CORRETA]: questao.pontuacao,
       [EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA]: result.pontuacao,
+      [EstadoQuestaoCorrigida.NAO_RESPONDIDA]: 0,
     };
 
     return {
