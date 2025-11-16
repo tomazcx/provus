@@ -250,6 +250,8 @@ export class SubmissaoService {
         'respostas.questao',
         'respostas.questao.alternativas',
         'estudante',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
       ],
     });
 
@@ -320,7 +322,7 @@ export class SubmissaoService {
       let existeDiscursiva = false;
       const respostasParaSalvar: SubmissaoRespostasModel[] = [];
 
-      for (const resposta of submissao.respostas) {
+      for await (const resposta of submissao.respostas) {
         const questaoGabarito = resposta.questao;
         const dadosRespostaAluno = resposta.dadosResposta;
 
