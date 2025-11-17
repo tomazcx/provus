@@ -125,8 +125,4 @@ export class StorageProvider {
       };
     }
   }
-
-  getPublicUrl(path: string): string {
-    return `${Env.SUPABASE_DOWNLOAD_URL}/object/public/${this.bucket}/${path}`;
-  }
 }
