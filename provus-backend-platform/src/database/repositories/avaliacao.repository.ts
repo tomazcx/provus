@@ -373,7 +373,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
     const { configuracoesRandomizacao, ...configGeraisFields } =
       dto.configuracoesAvaliacao.configuracoesGerais;
     Object.assign(configuracoesGerais, configGeraisFields);
-
     const savedConfigGerais = await manager.save(configuracoesGerais);
 
     if (configuracoesRandomizacao && configuracoesRandomizacao.length > 0) {
@@ -383,11 +382,9 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
         configuracaoRandomizacao.dificuldade = randomizacaoDto.dificuldade;
         configuracaoRandomizacao.quantidade = randomizacaoDto.quantidade;
         configuracaoRandomizacao.configuracoesGerais = savedConfigGerais;
-
         const savedConfigRandomizacao = await manager.save(
           configuracaoRandomizacao,
         );
-
         if (randomizacaoDto.questoes && randomizacaoDto.questoes.length > 0) {
           const questoes = await manager.find(QuestaoModel, {
             where: { id: In(randomizacaoDto.questoes) },
@@ -399,18 +396,17 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
     }
 
     const configuracoesSeguranca = new ConfiguracoesSegurancaModel();
-
     const { punicoes, ipsPermitidos, notificacoes, ...configSegurancaFields } =
       dto.configuracoesAvaliacao.configuracoesSeguranca;
-
     Object.assign(configuracoesSeguranca, configSegurancaFields);
-
     const savedConfigSeguranca = await manager.save(configuracoesSeguranca);
 
     if (punicoes && punicoes.length > 0) {
       const punicoesEntities = punicoes.map((punicaoDto) => {
         const punicao = new PunicaoPorOcorrenciaModel();
+
         Object.assign(punicao, punicaoDto);
+
         punicao.configuracaoSeguranca = savedConfigSeguranca;
         return punicao;
       });
@@ -425,7 +421,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
         ipPermitido.configuracaoSeguranca = savedConfigSeguranca;
         return ipPermitido;
       });
-
       await manager.save(ipsPermitidosEntities);
     }
 
@@ -436,15 +431,12 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
         notificacao.configuracaoSeguranca = savedConfigSeguranca;
         return notificacao;
       });
-
       await manager.save(notificacoesEntities);
     }
 
     const configuracaoAvaliacao = new ConfiguracaoAvaliacaoModel();
-
     configuracaoAvaliacao.configuracoesGerais = savedConfigGerais;
     configuracaoAvaliacao.configuracoesSeguranca = savedConfigSeguranca;
-
     const savedConfiguracaoAvaliacao = await manager.save(
       configuracaoAvaliacao,
     );

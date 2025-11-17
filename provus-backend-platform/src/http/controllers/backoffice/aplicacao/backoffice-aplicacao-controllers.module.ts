@@ -10,6 +10,8 @@ import {
 import { GetMonitoramentoInicialController } from './get-monitoramento-inicial/controller';
 import { FindSubmissoesByAplicacaoController } from './find-submissoes-by-aplicacao/controller';
 import { FindSubmissionDetailsForEvaluatorController } from './find-submissao-detalhe-avaliador/controller';
+import { UpdateAplicacaoSubmissaoEstadoController } from './update-aplicacao-submissao-estado/controller';
+import { EvaluateSubmissaoRespostaDiscursivaController } from './evaluate-submissao-resposta-discursiva/controller';
 
 @Module({
   imports: [ServiceModule],
@@ -22,6 +24,8 @@ import { FindSubmissionDetailsForEvaluatorController } from './find-submissao-de
     GetMonitoramentoInicialController,
     FindSubmissoesByAplicacaoController,
     FindSubmissionDetailsForEvaluatorController,
+    EvaluateSubmissaoRespostaDiscursivaController,
+    UpdateAplicacaoSubmissaoEstadoController,
   ],
 })
 export class BackofficeAplicacaoControllersModule {}

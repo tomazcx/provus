@@ -12,6 +12,8 @@ interface PunicaoPorOcorrenciaApiResponse {
   tipoPenalidade: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
+  sempre: boolean;
+  quantidadeAplicacoes: number | null;
 }
 
 interface ConfiguracaoRandomizacaoApiResponse {

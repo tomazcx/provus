@@ -322,5 +322,6 @@ export const useExamBankStore = defineStore("examBank", () => {
     updateItem,
     deleteItem,
     getItemById,
+    fetchFolderContent
   };
 });

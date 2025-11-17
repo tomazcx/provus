@@ -110,8 +110,8 @@ const columns: TableColumn<SubmissionRow>[] = [
       });
     },
     cell: ({ row }) => {
-      const pontuacaoAluno = Number(row.original.pontuacaoTotal ?? 0);
-      const pontuacaoTotalProva = props.submissions.pontuacaoTotal || 1;
+      const pontuacaoAluno = Number(row.original.pontuacaoTotal) || 0;
+      const pontuacaoTotalProva = Number(props.submissions.pontuacaoTotal) || 1;
 
       const percentual =
         pontuacaoTotalProva > 0

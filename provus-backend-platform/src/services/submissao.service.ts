@@ -23,7 +23,6 @@ import { NotificationProvider } from 'src/providers/notification.provider';
 import { EmailTemplatesProvider } from 'src/providers/email-templates.provider';
 import { Env } from 'src/shared/env';
 import { EstudanteModel } from 'src/database/config/models/estudante.model';
-import { SubmissaoQuestoesResultDto } from 'src/dto/result/submissao/submissao-questoes.result';
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
@@ -44,6 +43,10 @@ import {
   SubmissaoComEstudanteDto,
 } from 'src/dto/result/submissao/find-submissoes.response.dto';
 import { AvaliadorSubmissaoDetalheDto } from 'src/dto/result/submissao/avaliador-submissao-detalhe.dto';
+import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
+import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
+import { QuestaoService } from './questao.service';
+import { EvaluateSubmissaoRespostaDto } from 'src/dto/result/submissao/evaluate-submissao-resposta.dto';
 
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
@@ -59,6 +62,7 @@ export class SubmissaoService {
     private readonly dataSource: DataSource,
     private readonly emailTemplatesProvider: EmailTemplatesProvider,
     private readonly notificationProvider: NotificationProvider,
+    private readonly questaoService: QuestaoService,
 
     @InjectRepository(AplicacaoModel)
     private readonly aplicacaoRepository: Repository<AplicacaoModel>,
@@ -71,6 +75,12 @@ export class SubmissaoService {
 
     @InjectRepository(EstudanteModel)
     private readonly estudanteRepository: Repository<EstudanteModel>,
+
+    @InjectRepository(RegistroPunicaoPorOcorrenciaModel)
+    private readonly registroPunicaoPorOcorrenciaRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
+
+    @InjectRepository(QuestaoModel)
+    private readonly questaoRepository: Repository<QuestaoModel>,
   ) {}
 
   async createSubmissao(
@@ -80,7 +90,10 @@ export class SubmissaoService {
       const aplicacao = await this.aplicacaoRepository.findOne({
         where: {
           codigoAcesso: body.codigoAcesso,
-          estado: EstadoAplicacaoEnum.EM_ANDAMENTO,
+          estado: In([
+            EstadoAplicacaoEnum.EM_ANDAMENTO,
+            EstadoAplicacaoEnum.CRIADA,
+          ]),
         },
         relations: [
           'avaliacao',
@@ -99,6 +112,21 @@ export class SubmissaoService {
         throw new BadRequestException('Aplicação não encontrada');
       }
 
+      if (aplicacao.estado === EstadoAplicacaoEnum.CRIADA) {
+        this.logger.log(
+          `Aplicação ${aplicacao.id} está 'CRIADA'. Iniciando-a agora.`,
+        );
+        const configGerais =
+          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+        const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+        const now = new Date();
+        aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+        aplicacao.dataInicio = now;
+        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+        await this.aplicacaoRepository.save(aplicacao);
+        this.logger.log(`Aplicação ${aplicacao.id} agora está 'EM_ANDAMENTO'.`);
+      }
+
       if (!aplicacao.avaliacao?.item?.avaliador?.id) {
         this.logger.error(
           `Falha ao carregar avaliador para aplicação ID: ${aplicacao.id}`,
@@ -107,52 +135,91 @@ export class SubmissaoService {
           'Não foi possível identificar o professor responsável pela aplicação.',
         );
       }
+
       const avaliadorId = aplicacao.avaliacao.item.avaliador.id;
-      const questoesParaAluno = await this._randomizeQuestoes(
-        aplicacao.avaliacao,
-      );
+      const questoesParaAluno = this._randomizeQuestoes(aplicacao.avaliacao);
       const totalQuestoesReal = questoesParaAluno.length;
 
       const submissaoSalva = await this.dataSource.transaction(
         async (manager) => {
-          const estudanteExists = await this.estudanteRepository.findOne({
+          let submissaoFinal: SubmissaoModel;
+          let estudante: EstudanteModel;
+
+          const estudanteExistente = await manager.findOne(EstudanteModel, {
             where: {
               email: body.email,
               submissao: { aplicacao: { id: aplicacao.id } },
             },
+            relations: ['submissao'],
           });
 
-          if (estudanteExists) {
-            throw new BadRequestException(
-              'Email já utilizado para essa avaliacao',
+          const estadosAtivos = [
+            EstadoSubmissaoEnum.INICIADA,
+            EstadoSubmissaoEnum.PAUSADA,
+            EstadoSubmissaoEnum.REABERTA,
+          ];
+
+          if (estudanteExistente) {
+            this.logger.debug(
+              `Estudante ${body.email} já existe nesta aplicação. Verificando estado...`,
             );
+            const submissaoAntiga = estudanteExistente.submissao;
+
+            if (estadosAtivos.includes(submissaoAntiga.estado)) {
+              this.logger.warn(
+                `Estudante ${body.email} tentou reentrar em submissão já ativa (${submissaoAntiga.estado}).`,
+              );
+              throw new BadRequestException(
+                'Esta submissão já está em andamento.',
+              );
+            }
+
+            this.logger.log(
+              `Reciclando submissão ${submissaoAntiga.id} para ${body.email}. Estado anterior: ${submissaoAntiga.estado}`,
+            );
+
+            await manager.delete(SubmissaoRespostasModel, {
+              submissaoId: submissaoAntiga.id,
+            });
+
+            submissaoAntiga.estado = EstadoSubmissaoEnum.INICIADA;
+            submissaoAntiga.pontuacaoTotal = 0;
+            submissaoAntiga.finalizadoEm = null;
+            submissaoAntiga.criadoEm = new Date();
+            submissaoAntiga.atualizadoEm = new Date();
+            submissaoAntiga.codigoEntrega =
+              await this._generateUniqueSubmissionCode(manager);
+
+            submissaoFinal = await manager.save(submissaoAntiga);
+            estudante = estudanteExistente;
+          } else {
+            this.logger.debug(`Estudante ${body.email} é novo. Criando...`);
+            estudante = manager.create(EstudanteModel, {
+              nome: body.nome,
+              email: body.email,
+            });
+
+            const codigoEntrega =
+              await this._generateUniqueSubmissionCode(manager);
+            const hash = this._createShortHash(
+              body.codigoAcesso + estudante.email,
+            );
+
+            const novaSubmissao = manager.create(SubmissaoModel, {
+              aplicacao: aplicacao,
+              codigoEntrega: codigoEntrega,
+              estudante: estudante,
+              hash: hash,
+              estado: EstadoSubmissaoEnum.INICIADA,
+              pontuacaoTotal: 0,
+            });
+
+            submissaoFinal = await manager.save(novaSubmissao);
           }
 
-          const estudante = this.estudanteRepository.create({
-            nome: body.nome,
-            email: body.email,
-          });
-
-          const codigoEntrega =
-            await this._generateUniqueSubmissionCode(manager);
-          const hash = this._createShortHash(
-            body.codigoAcesso + estudante.email,
-          );
-
-          const novaSubmissao = this.submissaoRepository.create({
-            aplicacao: aplicacao,
-            codigoEntrega: codigoEntrega,
-            estudante: estudante,
-            hash: hash,
-            estado: EstadoSubmissaoEnum.INICIADA,
-            pontuacaoTotal: 0,
-          });
-
-          const submissaoSalva = await manager.save(novaSubmissao);
-
           const respostasPromises = questoesParaAluno.map((questao, index) => {
-            const submissaoResposta = this.submissaoRespostasRepository.create({
-              submissaoId: submissaoSalva.id,
+            const submissaoResposta = manager.create(SubmissaoRespostasModel, {
+              submissaoId: submissaoFinal.id,
               questaoId: questao.id,
               dadosResposta: {},
               pontuacao: 0,
@@ -162,7 +229,7 @@ export class SubmissaoService {
           });
           await Promise.all(respostasPromises);
 
-          return submissaoSalva;
+          return submissaoFinal;
         },
       );
 
@@ -178,14 +245,13 @@ export class SubmissaoService {
           horaInicio: submissaoSalva.criadoEm.toISOString(),
           totalQuestoes: totalQuestoesReal,
         };
-
         this.notificationProvider.sendNotificationViaSocket(
           avaliadorId,
           'nova-submissao',
           notificationPayload,
         );
         this.logger.log(
-          `Notificação 'nova-submissao' enviada para avaliador ${avaliadorId} referente à submissão ${submissaoSalva.id}`,
+          `Notificação 'nova-submissao' (ou reentrada) enviada para avaliador ${avaliadorId} referente à submissão ${submissaoSalva.id}`,
         );
       } catch (wsError) {
         this.logger.error(
@@ -198,19 +264,18 @@ export class SubmissaoService {
         url,
         aplicacao.avaliacao.item.titulo,
       );
-
       await this.notificationProvider.sendEmail(
         body.email,
         'Provus - Avaliação iniciada',
         html,
       );
 
-      const submissaoFinal = await this.submissaoRepository.findOneOrFail({
-        where: { id: submissaoSalva.id },
-        relations: ['estudante'],
-      });
-
-      return new SubmissaoResultDto(submissaoFinal);
+      const submissaoFinalComEstudante =
+        await this.submissaoRepository.findOneOrFail({
+          where: { id: submissaoSalva.id },
+          relations: ['estudante'],
+        });
+      return new SubmissaoResultDto(submissaoFinalComEstudante);
     } catch (error) {
       console.log('Falha ao criar a submissão', error);
       throw error;
@@ -229,9 +294,13 @@ export class SubmissaoService {
         'aplicacao.avaliacao',
         'aplicacao.avaliacao.item',
         'aplicacao.avaliacao.item.avaliador',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         'respostas.questao',
         'respostas.questao.alternativas',
         'estudante',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
       ],
     });
 
@@ -271,36 +340,38 @@ export class SubmissaoService {
         const respostaExistente = respostasExistentesMap.get(
           respostaDto.questaoId,
         );
-        if (respostaExistente) {
-          let novosDadosResposta: DadosRespostaType | null = null;
-          if (
-            respostaDto.texto !== undefined &&
-            respostaDto.texto.trim() !== ''
-          ) {
-            novosDadosResposta = { texto: respostaDto.texto };
-          } else if (respostaDto.alternativa_id !== undefined) {
-            novosDadosResposta = { alternativa_id: respostaDto.alternativa_id };
-          } else if (
-            respostaDto.alternativas_id !== undefined &&
-            respostaDto.alternativas_id.length > 0
-          ) {
-            novosDadosResposta = {
-              alternativas_id: respostaDto.alternativas_id,
-            };
-          }
-          respostaExistente.dadosResposta = novosDadosResposta;
-        } else {
+
+        if (!respostaExistente) {
           this.logger.warn(
             `Recebida resposta para questão ID ${respostaDto.questaoId} que não pertence à submissão ${submissao.id}. Ignorando.`,
           );
+          continue;
         }
+
+        let novosDadosResposta: DadosRespostaType | null = null;
+        if (
+          respostaDto.texto !== undefined &&
+          respostaDto.texto.trim() !== ''
+        ) {
+          novosDadosResposta = { texto: respostaDto.texto };
+        } else if (respostaDto.alternativa_id !== undefined) {
+          novosDadosResposta = { alternativa_id: respostaDto.alternativa_id };
+        } else if (
+          respostaDto.alternativas_id !== undefined &&
+          respostaDto.alternativas_id.length > 0
+        ) {
+          novosDadosResposta = {
+            alternativas_id: respostaDto.alternativas_id,
+          };
+        }
+        respostaExistente.dadosResposta = novosDadosResposta;
       }
 
       let pontuacaoTotalCalculada = 0;
       let existeDiscursiva = false;
       const respostasParaSalvar: SubmissaoRespostasModel[] = [];
 
-      for (const resposta of submissao.respostas) {
+      for await (const resposta of submissao.respostas) {
         const questaoGabarito = resposta.questao;
         const dadosRespostaAluno = resposta.dadosResposta;
 
@@ -395,8 +466,28 @@ export class SubmissaoService {
             }
             case TipoQuestaoEnum.DISCURSIVA: {
               pontuacaoObtida = 0;
-              estadoCorrecao = null;
+              estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
               existeDiscursiva = true;
+
+              let respostaExistente = '';
+              if (isDadosRespostaDiscursiva(dadosRespostaAluno)) {
+                respostaExistente = dadosRespostaAluno?.texto;
+              }
+
+              if (
+                submissao.aplicacao.avaliacao.configuracaoAvaliacao
+                  .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa &&
+                respostaExistente.trim() !== ''
+              ) {
+                const result = await this.questaoService.evaluateByAi({
+                  questaoId: questaoGabarito.id,
+                  resposta: respostaExistente,
+                });
+                pontuacaoObtida = parseFloat(result.pontuacao.toFixed(2));
+                estadoCorrecao = result.estadoCorrecao;
+                resposta.textoRevisao = result.textoRevisao;
+              }
+
               break;
             }
             default: {
@@ -420,11 +511,17 @@ export class SubmissaoService {
         await respostasRepo.save(respostasParaSalvar);
       }
 
+      const reducaoDePontuacao = await this._calculateReductionOfPoints(
+        submissao.id,
+      );
+
       submissao.estado = existeDiscursiva
         ? EstadoSubmissaoEnum.ENVIADA
         : EstadoSubmissaoEnum.AVALIADA;
       submissao.finalizadoEm = new Date();
-      submissao.pontuacaoTotal = parseFloat(pontuacaoTotalCalculada.toFixed(2));
+      submissao.pontuacaoTotal = parseFloat(
+        (pontuacaoTotalCalculada - reducaoDePontuacao).toFixed(2),
+      );
       submissaoAtualizada = await submissaoRepo.save(submissao);
     });
 
@@ -487,6 +584,79 @@ export class SubmissaoService {
     }
 
     return new SubmissaoResultDto(submissaoAtualizada);
+  }
+
+  async evaluateDiscursiva(
+    submissaoId: number,
+    aplicacaoId: number,
+    questaoId: number,
+    dto: EvaluateSubmissaoRespostaDto,
+  ): Promise<void> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
+    });
+
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada');
+    }
+
+    const questao = await this.questaoRepository.findOne({
+      where: { id: questaoId },
+    });
+
+    if (!questao) {
+      throw new NotFoundException('Questão não encontrada');
+    }
+
+    if (questao.tipoQuestao !== TipoQuestaoEnum.DISCURSIVA) {
+      throw new BadRequestException('Questão não é discursiva');
+    }
+
+    const resposta = await this.submissaoRespostasRepository.findOne({
+      where: { submissaoId: submissaoId, questaoId: questaoId },
+    });
+
+    if (!resposta) {
+      throw new NotFoundException('Resposta não encontrada');
+    }
+
+    resposta.pontuacao = dto.pontuacao;
+    resposta.estadoCorrecao = dto.estadoCorrecao;
+    resposta.textoRevisao = dto.textoRevisao;
+
+    await this.submissaoRespostasRepository.save(resposta);
+
+    const respostas = await this.submissaoRespostasRepository.find({
+      where: { submissaoId: submissaoId },
+    });
+
+    const pontuacaoTotal = respostas.reduce(
+      (acc, resposta) => acc + (Number(resposta.pontuacao) || 0),
+      0,
+    );
+
+    const reducaoDePontuacao =
+      await this._calculateReductionOfPoints(submissaoId);
+
+    submissao.pontuacaoTotal = parseFloat(
+      (pontuacaoTotal - reducaoDePontuacao).toFixed(2),
+    );
+    await this.submissaoRepository.save(submissao);
+  }
+
+  async updateSubmissaoEstado(
+    submissaoId: number,
+    aplicacaoId: number,
+    estado: EstadoSubmissaoEnum,
+  ): Promise<void> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
+    });
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada');
+    }
+    submissao.estado = estado;
+    await this.submissaoRepository.save(submissao);
   }
 
   private async _generateUniqueSubmissionCode(
@@ -657,7 +827,7 @@ export class SubmissaoService {
     return new SubmissaoRevisaoResultDto(submissao);
   }
 
-  async findSubmissaoByHash(hash: string): Promise<SubmissaoQuestoesResultDto> {
+  async findSubmissaoByHash(hash: string): Promise<SubmissaoModel> {
     const submissao = await this.submissaoRepository.findOne({
       where: { hash: hash },
       relations: [
@@ -668,6 +838,8 @@ export class SubmissaoService {
         'aplicacao.avaliacao.item.avaliador',
         'aplicacao.avaliacao.configuracaoAvaliacao',
         'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         'aplicacao.avaliacao.arquivos',
         'aplicacao.avaliacao.arquivos.arquivo',
         'aplicacao.avaliacao.arquivos.arquivo.item',
@@ -682,7 +854,7 @@ export class SubmissaoService {
       throw new NotFoundException('Submissão não encontrada');
     }
 
-    return new SubmissaoQuestoesResultDto(submissao);
+    return submissao;
   }
 
   private _createShortHash(data: string): string {
@@ -705,9 +877,21 @@ export class SubmissaoService {
     return mapeamento[dificuldadeQuestao];
   }
 
-  private async _randomizeQuestoes(
-    avaliacao: AvaliacaoModel,
-  ): Promise<QuestaoModel[]> {
+  private async _calculateReductionOfPoints(
+    submissaoId: number,
+  ): Promise<number> {
+    const punicoes = await this.registroPunicaoPorOcorrenciaRepository.find({
+      where: { submissao: { id: submissaoId } },
+      order: { criadoEm: 'DESC' },
+      take: 50,
+    });
+    return punicoes.reduce(
+      (acc, punicao) => acc + (punicao.pontuacaoPerdida ?? 0),
+      0,
+    );
+  }
+
+  private _randomizeQuestoes(avaliacao: AvaliacaoModel): QuestaoModel[] {
     const configuracoesRandomizacao =
       avaliacao.configuracaoAvaliacao.configuracoesGerais
         .configuracoesRandomizacao;
@@ -770,90 +954,224 @@ export class SubmissaoService {
   async processarPunicaoPorOcorrencia(
     submissaoHash: string,
     dto: ProcessPunicaoPorCorrenciaDto,
-  ): Promise<void> {
-    const submissao = await this.submissaoRepository.findOne({
-      where: { hash: submissaoHash },
-      relations: [
-        'estudante',
-        'aplicacao',
-        'aplicacao.avaliacao',
-        'aplicacao.avaliacao.item',
-        'aplicacao.avaliacao.item.avaliador',
-        'aplicacao.avaliacao.configuracaoAvaliacao',
-        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
-        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
-      ],
-    });
+  ): Promise<RegistroPunicaoPorOcorrenciaModel[] | null> {
+    this.logger.debug(
+      `[DEPURAÇÃO] Iniciando processarPunicaoPorOcorrencia. Hash: ${submissaoHash}`,
+    );
 
-    if (
-      !submissao ||
-      ![EstadoSubmissaoEnum.INICIADA, EstadoSubmissaoEnum.ENVIADA].includes(
-        submissao.estado,
-      )
-    ) {
-      throw new NotFoundException('Submissão não encontrada');
-    }
-
-    /*
-    ======================================================
-    Escrever aqui lógica para processar a punicao por ocorrencia
-
-    No momento toda infração recebida pelo socket disparara uma notificação para o AVALIADOR caso a notificação configurada no backend seja EMAIL ou PUSH_NOTIFICATION.
-    A lógica a ser feita aqui deve considerar a quantidade de infrações minimas para disparo para o AVALIADOR e para o ESTUDANTE, caso esteja configurado para tal.
-    A lógica para disparar a notificação para o ESTUDANTE deve ser feita por meio do gateway de submissao.
-
-    OBS: Lembrar de, caso a infração tenha como punição encerrar avaliação, deve-se alterar o status da submissão para finalizada,
-    disparar a notificação para o ESTUDANTE e encerrar a conexão do backend com o socket por meio do gateway de submissao.
-    ======================================================
-    */
-
-    const quantidadeOcorrencias = 1; // TODO: Implementar lógica para contar as ocorrências
-
-    const notificacoesConfiguradas =
-      submissao.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca
-        .notificacoes;
-
-    if (
-      notificacoesConfiguradas.some(
-        (notificacao) =>
-          notificacao.tipoNotificacao === TipoNotificacaoEnum.PUSH_NOTIFICATION,
-      )
-    ) {
-      this.notificationProvider.sendNotificationViaSocket(
-        submissao.aplicacao.avaliacao.item.avaliador.id,
-        'punicao-por-ocorrencia',
-        {
-          estudanteId: submissao.estudante.id,
-          nomeEstudante: submissao.estudante.nome,
-          nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
-          dataHoraInfracao: new Date().toLocaleString(),
-          quantidadeOcorrencias: quantidadeOcorrencias,
-          tipoInfracao: dto.tipoInfracao,
-        },
-      );
-    }
-
-    if (
-      notificacoesConfiguradas.some(
-        (notificacao) =>
-          notificacao.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
-      )
-    ) {
-      const html = this.emailTemplatesProvider.punicaoPorOcorrencia({
-        nomeEstudante: submissao.estudante.nome,
-        nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
-        dataHoraInfracao: new Date().toLocaleString(),
-        quantidadeOcorrencias: quantidadeOcorrencias,
-        tipoInfracao: dto.tipoInfracao,
-        urlPlataforma: `${Env.FRONTEND_URL}`,
+    return await this.dataSource.transaction(async (manager) => {
+      const submissao = await manager.findOne(SubmissaoModel, {
+        where: { hash: submissaoHash },
+        relations: [
+          'estudante',
+          'aplicacao',
+          'aplicacao.avaliacao',
+          'aplicacao.avaliacao.item',
+          'aplicacao.avaliacao.item.avaliador',
+          'aplicacao.avaliacao.configuracaoAvaliacao',
+          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
+        ],
       });
 
-      await this.notificationProvider.sendEmail(
-        submissao.estudante.email,
-        'Provus - Infração de segurança detectada',
-        html,
+      const estadosValidos = [
+        EstadoSubmissaoEnum.INICIADA,
+        EstadoSubmissaoEnum.REABERTA,
+        EstadoSubmissaoEnum.PAUSADA,
+      ];
+      if (!submissao || !estadosValidos.includes(submissao.estado)) {
+        this.logger.warn(
+          `[DEPURAÇÃO] Submissão não encontrada ou em estado inválido (${
+            submissao?.estado ?? 'N/A'
+          }). Abortando.`,
+        );
+        throw new NotFoundException('Submissão não encontrada');
+      }
+
+      const punicoesConfiguradas =
+        submissao.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes.filter(
+          (p) => p.tipoInfracao === dto.tipoInfracao,
+        );
+
+      if (punicoesConfiguradas.length === 0) {
+        this.logger.debug(
+          `[DEPURAÇÃO] Nenhuma regra de punição encontrada para ${dto.tipoInfracao}. Abortando.`,
+        );
+        return null;
+      }
+
+      const quantidadeOcorrenciasAnteriores = await manager.count(
+        RegistroPunicaoPorOcorrenciaModel,
+        {
+          where: {
+            submissao: { id: submissao.id },
+            tipoInfracao: dto.tipoInfracao,
+          },
+        },
       );
-    }
+
+      const totalOcorrenciasAtual = quantidadeOcorrenciasAnteriores + 1;
+      this.logger.debug(
+        `[DEPURAÇÃO] Contagem de infrações: ${quantidadeOcorrenciasAnteriores} existentes. Novo total: ${totalOcorrenciasAtual}.`,
+      );
+
+      const punicoesAplicadas: RegistroPunicaoPorOcorrenciaModel[] = [];
+      let deveEncerrar = false;
+
+      for (const punicao of punicoesConfiguradas) {
+        const gatilhoX = punicao.quantidadeOcorrencias;
+        const limiteY = punicao.quantidadeAplicacoes;
+        const isSempre = punicao.sempre;
+        const isExata =
+          !isSempre && (limiteY === null || limiteY === undefined);
+
+        if (totalOcorrenciasAtual < gatilhoX) {
+          continue;
+        }
+
+        let aplicarPunicao = false;
+
+        if (isExata && totalOcorrenciasAtual === gatilhoX) {
+          aplicarPunicao = true;
+          this.logger.debug(
+            `[DEPURAÇÃO] Regra EXATA ativada: ID ${punicao.id} (na ${totalOcorrenciasAtual}ª ocorrência)`,
+          );
+        } else if (isSempre) {
+          aplicarPunicao = true;
+          this.logger.debug(
+            `[DEPURAÇÃO] Regra SEMPRE ativada: ID ${punicao.id} (na ${totalOcorrenciasAtual}ª ocorrência, gatilho era ${gatilhoX})`,
+          );
+        } else if (limiteY && limiteY > 0) {
+          const vezesAplicada = await manager.count(
+            RegistroPunicaoPorOcorrenciaModel,
+            {
+              where: {
+                submissao: { id: submissao.id },
+                punicaoConfigId: punicao.id,
+              },
+            },
+          );
+
+          if (vezesAplicada < limiteY) {
+            aplicarPunicao = true;
+            this.logger.debug(
+              `[DEPURAÇÃO] Regra Y VEZES ativada: ID ${punicao.id} (Aplicada ${
+                vezesAplicada + 1
+              }/${limiteY} vezes)`,
+            );
+          } else {
+            this.logger.debug(
+              `[DEPURAÇÃO] Regra Y VEZES ignorada: ID ${punicao.id} (Limite ${limiteY} atingido)`,
+            );
+          }
+        }
+
+        if (aplicarPunicao) {
+          if (
+            punicao.tipoPenalidade === TipoPenalidadeEnum.ENCERRAR_AVALIACAO
+          ) {
+            deveEncerrar = true;
+          }
+
+          if (
+            punicao.tipoPenalidade === TipoPenalidadeEnum.NOTIFICAR_PROFESSOR
+          ) {
+            const notificacoesConfiguradas =
+              submissao.aplicacao.avaliacao.configuracaoAvaliacao
+                .configuracoesSeguranca.notificacoes;
+            if (
+              notificacoesConfiguradas.some(
+                (n) => n.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
+              )
+            ) {
+              const html = this.emailTemplatesProvider.punicaoPorOcorrencia({
+                nomeEstudante: submissao.estudante.nome,
+                nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
+                dataHoraInfracao: new Date().toLocaleString(),
+                quantidadeOcorrencias: totalOcorrenciasAtual,
+                tipoInfracao: dto.tipoInfracao,
+                urlPlataforma: `${Env.FRONTEND_URL}`,
+              });
+              await this.notificationProvider.sendEmail(
+                submissao.aplicacao.avaliacao.item.avaliador.email,
+                'Provus - Infração de segurança detectada',
+                html,
+              );
+              this.logger.debug(
+                `[DEPURAÇÃO] Punição: NOTIFICAR_PROFESSOR (Email) aplicada.`,
+              );
+            }
+          }
+
+          const registro = manager.create(RegistroPunicaoPorOcorrenciaModel, {
+            submissao: submissao,
+            tipoInfracao: dto.tipoInfracao,
+            quantidadeOcorrencias: totalOcorrenciasAtual,
+            tipoPenalidade: punicao.tipoPenalidade,
+            pontuacaoPerdida: punicao.pontuacaoPerdida,
+            tempoReduzido: punicao.tempoReduzido,
+            punicaoConfigId: punicao.id,
+          });
+
+          const registroSalvo = await manager.save(registro);
+          punicoesAplicadas.push(registroSalvo);
+          this.logger.debug(
+            `[DEPURAÇÃO] Registro de infração salvo (ID: ${registroSalvo.id}) para Regra ID: ${punicao.id}`,
+          );
+        }
+      }
+
+      if (punicoesAplicadas.length > 0) {
+        this.notificationProvider.sendNotificationViaSocket(
+          submissao.aplicacao.avaliacao.item.avaliador.id,
+          'punicao-por-ocorrencia',
+          {
+            estudanteId: submissao.estudante.id,
+            nomeEstudante: submissao.estudante.nome,
+            estudanteEmail: submissao.estudante.email,
+            nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
+            dataHoraInfracao: new Date().toLocaleString(),
+            quantidadeOcorrencias: totalOcorrenciasAtual,
+            tipoInfracao: dto.tipoInfracao,
+          },
+        );
+        this.logger.debug(
+          `[DEPURAÇÃO] Notificação WebSocket 'punicao-por-ocorrencia' enviada ao avaliador.`,
+        );
+      } else {
+        this.logger.warn(
+          `[DEPURAÇÃO] Nenhuma regra de punição foi ATIVADA para ${totalOcorrenciasAtual} ocorrências. Salvando registro genérico.`,
+        );
+        const registroGenerico = manager.create(
+          RegistroPunicaoPorOcorrenciaModel,
+          {
+            submissao: submissao,
+            tipoInfracao: dto.tipoInfracao,
+            quantidadeOcorrencias: totalOcorrenciasAtual,
+            tipoPenalidade: null,
+            pontuacaoPerdida: 0,
+            tempoReduzido: 0,
+            punicaoConfigId: null,
+          },
+        );
+        await manager.save(registroGenerico);
+      }
+
+      if (deveEncerrar) {
+        submissao.estado = EstadoSubmissaoEnum.CANCELADA;
+        submissao.finalizadoEm = new Date();
+        await manager.save(submissao);
+        this.logger.debug(
+          `[DEPURAÇÃO] Punição: ENCERRAR_AVALIACAO. Estado salvo como CANCELADA.`,
+        );
+        const registroEncerrar = punicoesAplicadas.find(
+          (p) => p.tipoPenalidade === TipoPenalidadeEnum.ENCERRAR_AVALIACAO,
+        );
+        return [registroEncerrar];
+      }
+
+      return punicoesAplicadas;
+    });
   }
 }

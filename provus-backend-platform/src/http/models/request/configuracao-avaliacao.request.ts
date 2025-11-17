@@ -125,7 +125,7 @@ export class CreateConfiguracoesGeraisRequest {
   configuracoesRandomizacao: CreateConfiguracoesRandomizacaoRequest[];
 }
 
-class CreatePunicaoPorOcorrenciaRequest {
+export class CreatePunicaoPorOcorrenciaRequest {
   @ApiProperty({
     description: 'Tipo de infracção',
     example: 'Troca de Abas',
@@ -165,9 +165,29 @@ class CreatePunicaoPorOcorrenciaRequest {
   @IsInt()
   @IsNotEmpty()
   tempoReduzido: number;
+
+  @ApiProperty({
+    description:
+      'Aplica esta regra para todas as ocorrências (a partir da quantidade)',
+    example: true,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  sempre?: boolean;
+
+  @ApiProperty({
+    description: 'Limita a aplicação desta regra a um número Y de vezes',
+    example: 3,
+    required: false,
+    nullable: true,
+  })
+  @IsInt()
+  @IsOptional()
+  quantidadeAplicacoes?: number | null;
 }
 
-class CreateConfiguracoesSegurancaRequest {
+export class CreateConfiguracoesSegurancaRequest {
   @ApiProperty({
     description: 'Proibir trocar abas',
     example: true,

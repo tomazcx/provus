@@ -3,6 +3,7 @@ import type {
   QuestaoSubmissaoResponse,
   ArquivoSubmissaoResponse,
 } from "~/types/api/response/Submissao.response";
+import { useStudentAssessmentStore } from "~/store/studentAssessmentStore";
 
 const props = defineProps<{
   questoes: QuestaoSubmissaoResponse[] | null;
@@ -14,6 +15,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(["goToQuestion", "openMaterials", "toggleView"]);
+const studentAssessmentStore = useStudentAssessmentStore();
+const pontosPerdidos = computed(() => studentAssessmentStore.pontosPerdidos);
 
 const totalQuestoes = computed(() => props.questoes?.length ?? 0);
 const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
@@ -36,6 +39,12 @@ const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
           <div class="flex justify-between">
             <span class="text-gray-600">Total de Pontos:</span>
             <span class="font-medium">{{ pontuacaoTotal }} pontos</span>
+          </div>
+          <div
+            v-if="pontosPerdidos > 0"
+            class="flex justify-between text-error-600"
+          >
+            <span class="font-bold">-{{ pontosPerdidos }} ponto(s)</span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-600">Questões:</span>

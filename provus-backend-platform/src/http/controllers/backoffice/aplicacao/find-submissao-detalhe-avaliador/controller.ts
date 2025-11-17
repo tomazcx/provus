@@ -21,25 +21,13 @@ import { AvaliadorAuthGuard } from 'src/http/guards/avaliador-auth.guard';
 import { SubmissaoService } from 'src/services/submissao.service';
 
 @Controller('backoffice/aplicacao/:appId/submissao/:subId')
-@ApiTags('Backoffice - Aplicação/Submissão (Avaliador)')
-@ApiBearerAuth()
-@UseGuards(AvaliadorAuthGuard)
+@ApiTags('Backoffice - Aplicação')
 export class FindSubmissionDetailsForEvaluatorController {
   constructor(private readonly submissaoService: SubmissaoService) {}
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Busca detalhes de uma submissão para o avaliador' })
-  @ApiParam({ name: 'appId', description: 'ID da Aplicação' })
-  @ApiParam({ name: 'subId', description: 'ID da Submissão' })
-  @ApiResponse({
-    status: 200,
-    description: 'Detalhes da submissão recuperados.',
-    type: AvaliadorSubmissaoDetalheDto,
-  })
-  @ApiResponse({ status: 404, description: 'Submissão não encontrada.' })
-  @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  @ApiResponse({ status: 403, description: 'Acesso proibido.' })
+  @UseGuards(AvaliadorAuthGuard)
   async handle(
     @Param('appId', ParseIntPipe) appId: number,
     @Param('subId', ParseIntPipe) subId: number,

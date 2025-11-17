@@ -25,11 +25,11 @@ const permitirRevisao = computed(() => studentAssessmentStore.permitirRevisao);
 const isLoading = computed(() => studentAssessmentStore.isLoading);
 const error = computed(() => studentAssessmentStore.error);
 
-onMounted(() => {
-  if (!submissionDetails.value && route.params.hash) {
-    const hash = route.params.hash as string;
-    studentAssessmentStore.fetchSubmissionDataByHash(hash);
-  } else if (!submissionDetails.value && !route.params.hash) {
+onMounted(async () => {
+  const hash = route.params.hash as string;
+  if (hash) {
+    await studentAssessmentStore.fetchSubmissionDataByHash(hash);
+  } else {
     toast.add({
       title: "Erro",
       description: "Não foi possível carregar os dados da submissão.",
@@ -51,7 +51,9 @@ const pontuacaoTotalPossivel = computed(() => {
 const scorePercent = computed(() => {
   if (!submissionDetails.value || !pontuacaoTotalPossivel.value) return 0;
   const score = submissionDetails.value.pontuacaoTotal ?? 0;
-  return Math.round((score / pontuacaoTotalPossivel.value) * 100);
+  const total =
+    pontuacaoTotalPossivel.value > 0 ? pontuacaoTotalPossivel.value : 1;
+  return Math.round((score / total) * 100);
 });
 
 const confirmationCode = computed(() => {
@@ -64,16 +66,13 @@ const timeTaken = computed(() => {
     !submissionDetails.value?.finalizadoEm
   )
     return "-- minutos";
-
   try {
     const inicio = new Date(submissionDetails.value.criadoEm);
     const fim = new Date(submissionDetails.value.finalizadoEm);
     const diffMilissegundos = fim.getTime() - inicio.getTime();
-
     if (isNaN(diffMilissegundos) || diffMilissegundos < 0) {
       return "-- minutos";
     }
-
     const diffMinutos = Math.round(diffMilissegundos / 60000);
     if (diffMinutos < 1) return "< 1 minuto";
     if (diffMinutos === 1) return "1 minuto";

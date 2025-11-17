@@ -11,6 +11,7 @@ import GenerateQuestionsIaDialog from "@/components/Avaliacao/GenerateQuestionsI
 import OpenMaterialsBankDialog from "@/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
 import ViewAttachedMaterialsDialog from "@/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
 import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
+import { useExamBankStore } from "~/store/assessmentBankStore";
 
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
@@ -30,6 +31,8 @@ definePageMeta({
 const assessmentStore = useAssessmentStore();
 const applicationsStore = useApplicationsStore();
 const editorBridgeStore = useEditorBridgeStore();
+const examBankStore = useExamBankStore();
+
 const route = useRoute();
 const router = useRouter();
 
@@ -91,6 +94,7 @@ async function handleSave(action: { key: string }) {
         applicationToStart.value = newApp;
       }
     } else {
+      await examBankStore.fetchFolderContent(examBankStore.currentFolderId!);
       router.push("/banco-de-avaliacoes");
     }
   }

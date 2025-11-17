@@ -11,7 +11,6 @@ interface EstadoAplicacaoAtualizadoPayloadAvaliador {
   novoEstado: EstadoAplicacaoEnum;
   novaDataFimISO: string;
 }
-
 interface NovaSubmissaoPayload {
   submissaoId: number;
   aplicacaoId: number;
@@ -23,26 +22,12 @@ interface NovaSubmissaoPayload {
   horaInicio: string;
   totalQuestoes: number;
 }
-
 interface AlunoSaiuPayload {
   submissaoId: number;
   aplicacaoId: number;
   alunoNome: string;
   timestamp: string;
 }
-
-interface NovaSubmissaoPayload {
-  submissaoId: number;
-  aplicacaoId: number;
-  aluno: {
-    nome: string;
-    email: string;
-  };
-  estado: EstadoSubmissaoEnum;
-  horaInicio: string;
-  totalQuestoes: number;
-}
-
 interface ProgressoAtualizadoPayload {
   submissaoId: number;
   progresso: number;
@@ -50,7 +35,6 @@ interface ProgressoAtualizadoPayload {
   aplicacaoId: number;
   timestamp: string;
 }
-
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
   aplicacaoId: number;
@@ -58,25 +42,11 @@ interface SubmissaoFinalizadaPayload {
   alunoNome: string;
   timestamp: string;
 }
-
 interface TempoAjustadoPayload {
   aplicacaoId: number;
   novaDataFimISO: string;
 }
 
-let novaSubmissaoCallback: ((data: NovaSubmissaoPayload) => void) | null = null;
-let punicaoCallback: ((data: PunicaoPorOcorrenciaTemplateData) => void) | null =
-  null;
-let progressoCallback: ((data: ProgressoAtualizadoPayload) => void) | null =
-  null;
-let submissaoFinalizadaCallback:
-  | ((data: SubmissaoFinalizadaPayload) => void)
-  | null = null;
-let alunoSaiuCallback: ((data: AlunoSaiuPayload) => void) | null = null;
-let tempoAjustadoCallback: ((data: TempoAjustadoPayload) => void) | null = null;
-let estadoAplicacaoAtualizadoCallback:
-  | ((data: EstadoAplicacaoAtualizadoPayloadAvaliador) => void)
-  | null = null;
 export const useMonitoringStore = defineStore("monitoring", () => {
   const studentProgress = ref<IProgressoAluno[]>([]);
   const activityFeed = ref<ILogAtividade[]>([]);
@@ -84,7 +54,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const currentApplicationId = ref<number | null>(null);
   const toast = useToast();
   const listenersInitialized = ref(false);
-
   const nuxtApp = useNuxtApp();
   const $websocket = nuxtApp.$websocket as
     | ReturnType<typeof useWebSocket>
@@ -101,7 +70,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     if (lastLog?.alunoNome === alunoNome && lastLog?.descricao === descricao) {
       return;
     }
-
     activityFeed.value.unshift({
       id: Date.now() + Math.random(),
       tipo,
@@ -113,6 +81,247 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       activityFeed.value.pop();
     }
   }
+
+  const onNovaSubmissao = (data: NovaSubmissaoPayload) => {
+    console.log("%%% EVENTO nova-submissao RECEBIDO:", data);
+    console.log("%%% ID da Aplicação no Evento:", data.aplicacaoId);
+    console.log(
+      "%%% ID da Aplicação Atual no Store:",
+      currentApplicationId.value
+    );
+    if (data.aplicacaoId !== currentApplicationId.value) {
+      console.log("%%% IDs NÃO COINCIDEM! Evento ignorado.");
+      return;
+    }
+    console.log("%%% IDs COINCIDEM! Processando evento...");
+    const existingStudent = studentProgress.value.find(
+      (s) => s.submissaoId === data.submissaoId
+    );
+    if (!existingStudent) {
+      const novoProgresso: IProgressoAluno = {
+        submissaoId: data.submissaoId,
+        aluno: {
+          id: data.submissaoId,
+          nome: data.aluno.nome,
+          email: data.aluno.email,
+        },
+        estado: data.estado,
+        progresso: 0,
+        questoesRespondidas: 0,
+        totalQuestoes: data.totalQuestoes,
+        horaInicio: data.horaInicio,
+        alertas: 0,
+        tempoPenalidadeEmSegundos: 0,
+      };
+      studentProgress.value.push(novoProgresso);
+      addActivityLog(
+        TipoAtividadeEnum.ENTROU,
+        data.aluno.nome,
+        "iniciou a avaliação."
+      );
+      console.log(
+        "%%% studentProgress APÓS push:",
+        JSON.stringify(studentProgress.value)
+      );
+    } else {
+      existingStudent.estado = data.estado;
+      console.log(
+        `%%% Estado do aluno ${data.aluno.nome} atualizado para ${data.estado}`
+      );
+    }
+  };
+
+  const onPunicao = (data: PunicaoPorOcorrenciaTemplateData) => {
+    console.log("Evento punicao-por-ocorrencia recebido:", data);
+    const aluno = studentProgress.value.find(
+      (s) => s.aluno.email === data.estudanteEmail
+    );
+    if (aluno) {
+      aluno.alertas = data.quantidadeOcorrencias;
+      addActivityLog(
+        TipoAtividadeEnum.PENALIDADE,
+        aluno.aluno.nome,
+        `recebeu um alerta por ${data.tipoInfracao}. Total: ${aluno.alertas}`
+      );
+    } else {
+      addActivityLog(
+        TipoAtividadeEnum.PENALIDADE,
+        data.nomeEstudante,
+        `recebeu um alerta por ${data.tipoInfracao}.`
+      );
+    }
+  };
+
+  const onProgressoAtualizado = (data: ProgressoAtualizadoPayload) => {
+    console.log("Evento progresso-atualizado recebido:", data);
+    if (data.aplicacaoId !== currentApplicationId.value) {
+      console.log(
+        `%%% MonitoringStore: Progresso recebido (App ${data.aplicacaoId}) ignorado. Monitorando App ${currentApplicationId.value}.`
+      );
+      return;
+    }
+    const aluno = studentProgress.value.find(
+      (s) => s.submissaoId === data.submissaoId
+    );
+    if (aluno) {
+      aluno.progresso = data.progresso;
+      aluno.questoesRespondidas = data.questoesRespondidas;
+      console.log(
+        `Progresso do aluno ${aluno.aluno.nome} atualizado para ${aluno.progresso}% (${aluno.questoesRespondidas}/${aluno.totalQuestoes})`
+      );
+    } else {
+      console.warn(
+        `Recebido progresso para submissão ${data.submissaoId}, mas aluno não encontrado.`
+      );
+    }
+  };
+
+  const onSubmissaoFinalizada = (data: SubmissaoFinalizadaPayload) => {
+    console.log("%%% EVENTO submissao-finalizada RECEBIDO:", data);
+    if (data.aplicacaoId !== currentApplicationId.value) {
+      console.log(
+        `%%% MonitoringStore: Finalização recebida (App ${data.aplicacaoId}) ignorada. Monitorando App ${currentApplicationId.value}.`
+      );
+      return;
+    }
+    const aluno = studentProgress.value.find(
+      (s) => s.submissaoId === data.submissaoId
+    );
+    if (aluno) {
+      aluno.estado = data.estado;
+      console.log(
+        `%%% MonitoringStore: Estado do aluno ${aluno.aluno.nome} (App ${data.aplicacaoId}) atualizado para ${data.estado} (Finalizado/Cancelado)`
+      );
+      addActivityLog(
+        TipoAtividadeEnum.FINALIZOU,
+        aluno.aluno.nome,
+        `finalizou a avaliação. (Estado: ${data.estado})`
+      );
+    } else {
+      console.warn(
+        `%%% MonitoringStore: Recebida finalização para submissão ${data.submissaoId} (App ${data.aplicacaoId}), mas aluno não encontrado no estado local. Registrando atividade.`
+      );
+      addActivityLog(
+        TipoAtividadeEnum.FINALIZOU,
+        data.alunoNome,
+        `finalizou a avaliação. (Estado: ${data.estado})`
+      );
+    }
+  };
+
+  const onAlunoSaiu = (data: AlunoSaiuPayload) => {
+    console.log("%%% EVENTO aluno-saiu RECEBIDO:", data);
+    if (data.aplicacaoId !== currentApplicationId.value) {
+      console.log(
+        `%%% MonitoringStore: Evento 'aluno-saiu' (App ${data.aplicacaoId}) ignorado. Monitorando App ${currentApplicationId.value}.`
+      );
+      return;
+    }
+    const aluno = studentProgress.value.find(
+      (s) => s.submissaoId === data.submissaoId
+    );
+    if (aluno) {
+      aluno.estado = EstadoSubmissaoEnum.ABANDONADA;
+      console.log(
+        `%%% MonitoringStore: Status do aluno ${aluno.aluno.nome} (App ${data.aplicacaoId}) atualizado para ${aluno.estado} (Saiu/Desconectou)`
+      );
+      addActivityLog(
+        TipoAtividadeEnum.PAUSOU,
+        aluno.aluno.nome,
+        "desconectou ou saiu da avaliação."
+      );
+    } else {
+      console.warn(
+        `%%% MonitoringStore: Recebido 'aluno-saiu' para submissão ${data.submissaoId} (App ${data.aplicacaoId}), mas aluno não encontrado no estado local. Registrando atividade.`
+      );
+      addActivityLog(
+        TipoAtividadeEnum.PAUSOU,
+        data.alunoNome,
+        "desconectou ou saiu da avaliação."
+      );
+    }
+  };
+
+  const onTempoAjustado = (data: TempoAjustadoPayload) => {
+    console.log("%%% EVENTO tempo-ajustado RECEBIDO (para dispatch):", data);
+    if (data.aplicacaoId !== currentApplicationId.value) {
+      return;
+    }
+    console.log(
+      `%%% MonitoringStore: Solicitando atualização da dataFim para App ${data.aplicacaoId} na applicationsStore para ${data.novaDataFimISO}`
+    );
+    applicationsStore.updateApplicationData(data.aplicacaoId, {
+      dataFim: new Date(data.novaDataFimISO),
+    });
+    addActivityLog(
+      TipoAtividadeEnum.RETOMOU,
+      "Professor",
+      `ajustou o tempo final da avaliação.`
+    );
+  };
+
+  const onEstadoAplicacaoAtualizado = (
+    data: EstadoAplicacaoAtualizadoPayloadAvaliador
+  ) => {
+    console.log(
+      "%%% EVENTO estado-aplicacao-atualizado RECEBIDO (para dispatch):",
+      data
+    );
+    if (data.aplicacaoId !== currentApplicationId.value) {
+      console.log(
+        `%%% MonitoringStore: Atualização de estado recebida (App ${data.aplicacaoId}) ignorada. Monitorando App ${currentApplicationId.value}.`
+      );
+      return;
+    }
+    console.log(
+      `%%% MonitoringStore: Solicitando atualização de estado/dataFim para App ${data.aplicacaoId} na applicationsStore:`,
+      data.novoEstado,
+      data.novaDataFimISO
+    );
+    applicationsStore.updateApplicationData(data.aplicacaoId, {
+      estado: data.novoEstado,
+      dataFim: new Date(data.novaDataFimISO),
+    });
+
+    const estadosFinais: EstadoAplicacaoEnum[] = [
+      EstadoAplicacaoEnum.FINALIZADA,
+      EstadoAplicacaoEnum.CONCLUIDA,
+      EstadoAplicacaoEnum.CANCELADA,
+    ];
+
+    if (estadosFinais.includes(data.novoEstado)) {
+      console.log(
+        `%%% MonitoringStore: Estado ${data.novoEstado} é final. Atualizando estado dos alunos para ENCERRADA.`
+      );
+      studentProgress.value.forEach((aluno) => {
+        const estadosAtivosSubmissao: EstadoSubmissaoEnum[] = [
+          EstadoSubmissaoEnum.INICIADA,
+          EstadoSubmissaoEnum.REABERTA,
+          EstadoSubmissaoEnum.PAUSADA,
+        ];
+        if (estadosAtivosSubmissao.includes(aluno.estado)) {
+          aluno.estado = EstadoSubmissaoEnum.ENCERRADA;
+        }
+      });
+      addActivityLog(
+        TipoAtividadeEnum.FINALIZOU,
+        "Professor",
+        `finalizou ou cancelou a aplicação.`
+      );
+    } else if (data.novoEstado === EstadoAplicacaoEnum.PAUSADA) {
+      addActivityLog(
+        TipoAtividadeEnum.PAUSOU,
+        "Professor",
+        `pausou a aplicação.`
+      );
+    } else if (data.novoEstado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
+      addActivityLog(
+        TipoAtividadeEnum.RETOMOU,
+        "Professor",
+        `retomou a aplicação.`
+      );
+    }
+  };
 
   function initializeWebSocketListeners() {
     if (listenersInitialized.value) {
@@ -128,281 +337,37 @@ export const useMonitoringStore = defineStore("monitoring", () => {
 
     console.log("MonitoringStore: Configurando listeners WebSocket...");
 
-    novaSubmissaoCallback = (data) => {
-      console.log("%%% EVENTO nova-submissao RECEBIDO:", data);
-      console.log("%%% ID da Aplicação no Evento:", data.aplicacaoId);
-      console.log(
-        "%%% ID da Aplicação Atual no Store:",
-        currentApplicationId.value
-      );
-      if (data.aplicacaoId !== currentApplicationId.value) {
-        console.log("%%% IDs NÃO COINCIDEM! Evento ignorado.");
-        return;
-      }
-      console.log("%%% IDs COINCIDEM! Processando evento...");
-      const existingStudent = studentProgress.value.find(
-        (s) => s.submissaoId === data.submissaoId
-      );
-      if (!existingStudent) {
-        const novoProgresso: IProgressoAluno = {
-          submissaoId: data.submissaoId,
-          aluno: {
-            id: data.submissaoId,
-            nome: data.aluno.nome,
-            email: data.aluno.email,
-          },
-          estado: data.estado,
-          progresso: 0,
-          questoesRespondidas: 0,
-          totalQuestoes: data.totalQuestoes,
-          horaInicio: data.horaInicio,
-          alertas: 0,
-          tempoPenalidadeEmSegundos: 0,
-        };
-        studentProgress.value.push(novoProgresso);
-        addActivityLog(
-          TipoAtividadeEnum.ENTROU,
-          data.aluno.nome,
-          "iniciou a avaliação."
-        );
-        console.log(
-          "%%% studentProgress APÓS push:",
-          JSON.stringify(studentProgress.value)
-        );
-      } else {
-        existingStudent.estado = data.estado;
-        console.log(
-          `%%% Estado do aluno ${data.aluno.nome} atualizado para ${data.estado}`
-        );
-      }
-    };
-
-    punicaoCallback = (data) => {
-      console.log("Evento punicao-por-ocorrencia recebido:", data);
-      const aluno = studentProgress.value.find(
-        (s) => s.aluno.email === data.estudanteEmail
-      );
-      if (aluno) {
-        aluno.alertas = (aluno.alertas || 0) + 1;
-        addActivityLog(
-          TipoAtividadeEnum.PENALIDADE,
-          aluno.aluno.nome,
-          `recebeu um alerta por ${data.tipoInfracao}. Total: ${aluno.alertas}`
-        );
-      } else {
-        addActivityLog(
-          TipoAtividadeEnum.PENALIDADE,
-          data.nomeEstudante,
-          `recebeu um alerta por ${data.tipoInfracao}.`
-        );
-      }
-    };
-
-    progressoCallback = (data) => {
-      console.log("Evento progresso-atualizado recebido:", data);
-      if (data.aplicacaoId !== currentApplicationId.value) {
-        console.log(
-          `%%% MonitoringStore: Progresso recebido (App ${data.aplicacaoId}) ignorado. Monitorando App ${currentApplicationId.value}.`
-        );
-        return;
-      }
-
-      const aluno = studentProgress.value.find(
-        (s) => s.submissaoId === data.submissaoId
-      );
-      if (aluno) {
-        aluno.progresso = data.progresso;
-        aluno.questoesRespondidas = data.questoesRespondidas;
-        console.log(
-          `Progresso do aluno ${aluno.aluno.nome} atualizado para ${aluno.progresso}% (${aluno.questoesRespondidas}/${aluno.totalQuestoes})`
-        );
-      } else {
-        console.warn(
-          `Recebido progresso para submissão ${data.submissaoId}, mas aluno não encontrado.`
-        );
-      }
-    };
-
-    submissaoFinalizadaCallback = (data) => {
-      console.log("%%% EVENTO submissao-finalizada RECEBIDO:", data);
-      if (data.aplicacaoId !== currentApplicationId.value) {
-        console.log(
-          `%%% MonitoringStore: Finalização recebida (App ${data.aplicacaoId}) ignorada. Monitorando App ${currentApplicationId.value}.`
-        );
-        return;
-      }
-      const aluno = studentProgress.value.find(
-        (s) => s.submissaoId === data.submissaoId
-      );
-      if (aluno) {
-        aluno.estado = data.estado;
-        console.log(
-          `%%% MonitoringStore: Estado do aluno ${aluno.aluno.nome} (App ${data.aplicacaoId}) atualizado para ${data.estado} (Finalizado)`
-        );
-        addActivityLog(
-          TipoAtividadeEnum.FINALIZOU,
-          aluno.aluno.nome,
-          "finalizou a avaliação."
-        );
-      } else {
-        console.warn(
-          `%%% MonitoringStore: Recebida finalização para submissão ${data.submissaoId} (App ${data.aplicacaoId}), mas aluno não encontrado no estado local. Registrando atividade.`
-        );
-        addActivityLog(
-          TipoAtividadeEnum.FINALIZOU,
-          data.alunoNome,
-          "finalizou a avaliação."
-        );
-      }
-    };
-
-    alunoSaiuCallback = (data: AlunoSaiuPayload) => {
-      console.log("%%% EVENTO aluno-saiu RECEBIDO:", data);
-      if (data.aplicacaoId !== currentApplicationId.value) {
-        console.log(
-          `%%% MonitoringStore: Evento 'aluno-saiu' (App ${data.aplicacaoId}) ignorado. Monitorando App ${currentApplicationId.value}.`
-        );
-        return;
-      }
-      const aluno = studentProgress.value.find(
-        (s) => s.submissaoId === data.submissaoId
-      );
-      if (aluno) {
-        aluno.estado = EstadoSubmissaoEnum.ABANDONADA;
-
-        console.log(
-          `%%% MonitoringStore: Status do aluno ${aluno.aluno.nome} (App ${data.aplicacaoId}) atualizado para ${aluno.estado} (Saiu/Desconectou)`
-        );
-        addActivityLog(
-          TipoAtividadeEnum.PAUSOU,
-          aluno.aluno.nome,
-          "desconectou ou saiu da avaliação."
-        );
-      } else {
-        console.warn(
-          `%%% MonitoringStore: Recebido 'aluno-saiu' para submissão ${data.submissaoId} (App ${data.aplicacaoId}), mas aluno não encontrado no estado local. Registrando atividade.`
-        );
-        addActivityLog(
-          TipoAtividadeEnum.PAUSOU,
-          data.alunoNome,
-          "desconectou ou saiu da avaliação."
-        );
-      }
-    };
-
-    tempoAjustadoCallback = (data: TempoAjustadoPayload) => {
-      console.log("%%% EVENTO tempo-ajustado RECEBIDO (para dispatch):", data);
-      if (data.aplicacaoId !== currentApplicationId.value) {
-        return;
-      }
-
-      console.log(
-        `%%% MonitoringStore: Solicitando atualização da dataFim para App ${data.aplicacaoId} na applicationsStore para ${data.novaDataFimISO}`
-      );
-      applicationsStore.updateApplicationData(data.aplicacaoId, {
-        dataFim: new Date(data.novaDataFimISO),
-      });
-
-      addActivityLog(
-        TipoAtividadeEnum.RETOMOU,
-        "Professor",
-        `ajustou o tempo final da avaliação.`
-      );
-    };
-
-    estadoAplicacaoAtualizadoCallback = (
-      data: EstadoAplicacaoAtualizadoPayloadAvaliador
-    ) => {
-      console.log(
-        "%%% EVENTO estado-aplicacao-atualizado RECEBIDO (para dispatch):",
-        data
-      );
-      if (data.aplicacaoId !== currentApplicationId.value) {
-        console.log(
-          `%%% MonitoringStore: Atualização de estado recebida (App ${data.aplicacaoId}) ignorada. Monitorando App ${currentApplicationId.value}.`
-        );
-        return;
-      }
-
-      console.log(
-        `%%% MonitoringStore: Solicitando atualização de estado/dataFim para App ${data.aplicacaoId} na applicationsStore:`,
-        data.novoEstado,
-        data.novaDataFimISO
-      );
-      applicationsStore.updateApplicationData(data.aplicacaoId, {
-        estado: data.novoEstado,
-        dataFim: new Date(data.novaDataFimISO),
-      });
-
-      const estadosFinais: EstadoAplicacaoEnum[] = [
-        EstadoAplicacaoEnum.FINALIZADA,
-        EstadoAplicacaoEnum.CONCLUIDA,
-        EstadoAplicacaoEnum.CANCELADA,
-      ];
-      if (estadosFinais.includes(data.novoEstado)) {
-        console.log(
-          `%%% MonitoringStore: Estado ${data.novoEstado} é final. Atualizando estado dos alunos para ENCERRADA.`
-        );
-        studentProgress.value.forEach((aluno) => {
-          if (aluno.estado !== EstadoSubmissaoEnum.ENCERRADA) {
-            aluno.estado = EstadoSubmissaoEnum.ENCERRADA;
-          }
-        });
-        addActivityLog(
-          TipoAtividadeEnum.FINALIZOU,
-          "Professor",
-          `finalizou ou cancelou a aplicação.`
-        );
-      } else if (data.novoEstado === EstadoAplicacaoEnum.PAUSADA) {
-        addActivityLog(
-          TipoAtividadeEnum.PAUSOU,
-          "Professor",
-          `pausou a aplicação.`
-        );
-      } else if (data.novoEstado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
-        addActivityLog(
-          TipoAtividadeEnum.RETOMOU,
-          "Professor",
-          `retomou a aplicação.`
-        );
-      }
-    };
-
-    $websocket.on<NovaSubmissaoPayload>(
-      "nova-submissao",
-      novaSubmissaoCallback
-    );
+    $websocket.on<NovaSubmissaoPayload>("nova-submissao", onNovaSubmissao);
     console.log(
       "%%% MonitoringStore: Listener para 'nova-submissao' REGISTRADO."
     );
+
     $websocket.on<PunicaoPorOcorrenciaTemplateData>(
       "punicao-por-ocorrencia",
-      punicaoCallback
+      onPunicao
     );
+
     $websocket.on<ProgressoAtualizadoPayload>(
       "progresso-atualizado",
-      progressoCallback
+      onProgressoAtualizado
     );
 
     $websocket.on<SubmissaoFinalizadaPayload>(
       "submissao-finalizada",
-      submissaoFinalizadaCallback
+      onSubmissaoFinalizada
     );
     console.log(
       "%%% MonitoringStore: Listener para 'submissao-finalizada' REGISTRADO."
     );
 
-    $websocket.on<AlunoSaiuPayload>("aluno-saiu", alunoSaiuCallback);
+    $websocket.on<AlunoSaiuPayload>("aluno-saiu", onAlunoSaiu);
     console.log("%%% MonitoringStore: Listener para 'aluno-saiu' REGISTRADO.");
 
-    $websocket.on<TempoAjustadoPayload>(
-      "tempo-ajustado",
-      tempoAjustadoCallback
-    );
+    $websocket.on<TempoAjustadoPayload>("tempo-ajustado", onTempoAjustado);
 
     $websocket.on<EstadoAplicacaoAtualizadoPayloadAvaliador>(
       "estado-aplicacao-atualizado",
-      estadoAplicacaoAtualizadoCallback
+      onEstadoAplicacaoAtualizado
     );
     console.log(
       "%%% MonitoringStore: Listener para 'estado-aplicacao-atualizado' REGISTRADO."
@@ -417,56 +382,33 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       console.log(
         "MonitoringStore: Removendo listeners WebSocket explicitamente..."
       );
-      if (novaSubmissaoCallback) {
-        $websocket.socket.value.off("nova-submissao", novaSubmissaoCallback);
-        novaSubmissaoCallback = null;
-      }
-      if (punicaoCallback) {
-        $websocket.socket.value.off("punicao-por-ocorrencia", punicaoCallback);
-        punicaoCallback = null;
-      }
-      if (progressoCallback) {
-        $websocket.socket.value.off("progresso-atualizado", progressoCallback);
-        progressoCallback = null;
-      }
 
-      if (submissaoFinalizadaCallback) {
-        $websocket.socket.value.off(
-          "submissao-finalizada",
-          submissaoFinalizadaCallback
-        );
-        submissaoFinalizadaCallback = null;
-        console.log(
-          "%%% MonitoringStore: Listener para 'submissao-finalizada' REMOVIDO."
-        );
-      }
-
-      if (alunoSaiuCallback) {
-        $websocket.socket.value.off("aluno-saiu", alunoSaiuCallback);
-        alunoSaiuCallback = null;
-        console.log(
-          "%%% MonitoringStore: Listener para 'aluno-saiu' REMOVIDO."
-        );
-      }
-
-      if (tempoAjustadoCallback) {
-        $websocket.socket.value.off("tempo-ajustado", tempoAjustadoCallback);
-        tempoAjustadoCallback = null;
-        console.log(
-          "%%% MonitoringStore: Listener para 'tempo-ajustado' REMOVIDO."
-        );
-      }
-
-      if (estadoAplicacaoAtualizadoCallback) {
-        $websocket.socket.value.off(
-          "estado-aplicacao-atualizado",
-          estadoAplicacaoAtualizadoCallback
-        );
-        estadoAplicacaoAtualizadoCallback = null;
-        console.log(
-          "%%% MonitoringStore: Listener para 'estado-aplicacao-atualizado' REMOVIDO."
-        );
-      }
+      $websocket.socket.value.off("nova-submissao", onNovaSubmissao);
+      $websocket.socket.value.off("punicao-por-ocorrencia", onPunicao);
+      $websocket.socket.value.off(
+        "progresso-atualizado",
+        onProgressoAtualizado
+      );
+      $websocket.socket.value.off(
+        "submissao-finalizada",
+        onSubmissaoFinalizada
+      );
+      console.log(
+        "%%% MonitoringStore: Listener para 'submissao-finalizada' REMOVIDO."
+      );
+      $websocket.socket.value.off("aluno-saiu", onAlunoSaiu);
+      console.log("%%% MonitoringStore: Listener para 'aluno-saiu' REMOVIDO.");
+      $websocket.socket.value.off("tempo-ajustado", onTempoAjustado);
+      console.log(
+        "%%% MonitoringStore: Listener para 'tempo-ajustado' REMOVIDO."
+      );
+      $websocket.socket.value.off(
+        "estado-aplicacao-atualizado",
+        onEstadoAplicacaoAtualizado
+      );
+      console.log(
+        "%%% MonitoringStore: Listener para 'estado-aplicacao-atualizado' REMOVIDO."
+      );
 
       listenersInitialized.value = false;
     } else {
@@ -485,7 +427,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       const initialData = await $api<MonitoramentoInicialResponseDto>(
         `/backoffice/aplicacao/${applicationId}/monitoramento-inicial`
       );
-
       if (initialData && initialData.alunos) {
         studentProgress.value = initialData.alunos.map((alunoDto) => ({
           submissaoId: alunoDto.submissaoId,
@@ -503,7 +444,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
           tempoPenalidadeEmSegundos: alunoDto.tempoPenalidadeEmSegundos ?? 0,
         }));
       }
-
       if (initialData && initialData.atividadesRecentes) {
         activityFeed.value = initialData.atividadesRecentes.sort(
           (a, b) =>
@@ -547,6 +487,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     console.log("MonitoringStore: onUnmounted (store). Limpando listeners.");
     clearWebSocketListeners();
   });
+
   return {
     studentProgress,
     activityFeed,

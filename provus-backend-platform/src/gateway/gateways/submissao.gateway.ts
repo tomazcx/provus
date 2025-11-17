@@ -12,6 +12,8 @@ import {
   Logger,
   Injectable,
   InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
@@ -20,36 +22,28 @@ import { In, Repository } from 'typeorm';
 import { PunicaoPorOcorrenciaMessage } from '../messages/punicao-por-ocorrencia.message';
 import { SubmissaoService } from 'src/services/submissao.service';
 import { NotificationProvider } from 'src/providers/notification.provider';
+import { ProgressoUpdatePayload } from '../messages/progresso-update.message';
+import { TempoAjustadoPayload } from '../messages/tempo-ajustado.message';
+import { EstadoAplicacaoAtualizadoPayload } from '../messages/estado-aplicacao-atualizado.message';
+import { ReduzirTempoAlunoPayload } from '../messages/reduzir-tempo-aluno.message';
+import { AlertaEstudanteInfracaoMessage } from '../messages/alerta-estudante-infracao.message';
+import { SubmissaoCanceladaMessage } from '../messages/submissao-cancelada.message';
+import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
+import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
 
-interface TempoAjustadoPayload {
-  aplicacaoId: number;
-  novaDataFimISO: string;
-}
-
-interface EstadoAplicacaoAtualizadoPayload {
-  aplicacaoId: number;
-  novoEstado: EstadoSubmissaoEnum;
-  novaDataFimISO: string;
-}
 interface AlunoSaiuPayload {
   submissaoId: number;
   aplicacaoId: number;
   alunoNome: string;
   timestamp: string;
 }
+
 interface SubmissaoConnectionData {
   submissaoId: number;
   estudanteEmail: string;
   clientId: string;
 }
 
-interface ProgressoUpdatePayload {
-  totalQuestoes: number;
-  questoesRespondidas: number;
-  questaoId: number;
-  respondida: boolean;
-  timestamp: string;
-}
 @Injectable()
 @WebSocketGateway({
   namespace: '/submissao',
@@ -63,7 +57,6 @@ export class SubmissaoGateway
 {
   @WebSocketServer()
   server: Server;
-
   private readonly logger = new Logger(SubmissaoGateway.name);
   private readonly connectedClients = new Map<
     string,
@@ -72,8 +65,8 @@ export class SubmissaoGateway
   private readonly clientsHash = new Map<string, string>();
 
   constructor(
+    @Inject(forwardRef(() => SubmissaoService))
     private readonly submissaoService: SubmissaoService,
-
     @InjectRepository(SubmissaoModel)
     private readonly submissaoRepository: Repository<SubmissaoModel>,
     private readonly notificationProvider: NotificationProvider,
@@ -87,7 +80,6 @@ export class SubmissaoGateway
       const hash = client.handshake.auth.hash as string | undefined;
       this.logger.debug('Handshake Query:', client.handshake.query);
       this.logger.debug('Handshake Auth:', client.handshake.auth);
-
       if (!hash) {
         this.logger.warn(`Tentativa de conexão sem hash - Aluno: ${client.id}`);
         client.emit('erro-validacao', {
@@ -96,7 +88,6 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
-
       const submissaoData = await this.submissaoRepository.findOne({
         where: { hash },
         relations: [
@@ -106,9 +97,9 @@ export class SubmissaoGateway
           'aplicacao.avaliacao.item',
           'aplicacao.avaliacao.configuracaoAvaliacao',
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         ],
       });
-
       if (!submissaoData) {
         this.logger.warn(
           `Tentativa de conexão com hash inválido: ${hash} - Aluno: ${client.id}`,
@@ -119,12 +110,10 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
-
       const estadosValidos = [
         EstadoSubmissaoEnum.INICIADA,
         EstadoSubmissaoEnum.REABERTA,
       ];
-
       if (!estadosValidos.includes(submissaoData.estado)) {
         this.logger.warn(
           `Tentativa de conexão com submissão em estado inválido: ${submissaoData.estado} - Hash: ${hash} - Aluno: ${client.id}`,
@@ -136,7 +125,6 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
-
       const configSeguranca =
         submissaoData.aplicacao?.avaliacao?.configuracaoAvaliacao
           ?.configuracoesSeguranca;
@@ -151,15 +139,12 @@ export class SubmissaoGateway
       const quantidadeAcessosSimultaneos =
         submissaoData.aplicacao.avaliacao.configuracaoAvaliacao
           .configuracoesSeguranca.quantidadeAcessosSimultaneos;
-
       const connectionData: SubmissaoConnectionData = {
         clientId: client.id,
         submissaoId: submissaoData.id,
         estudanteEmail: submissaoData.estudante.email,
       };
-
       const connections = this.connectedClients.get(hash) || [];
-
       if (connections.length >= quantidadeAcessosSimultaneos) {
         this.logger.warn(
           `Tentativa de conexão com quantidade de acessos simultâneos atingida: ${connections.length} - Hash: ${hash} - Aluno: ${client.id}`,
@@ -170,23 +155,18 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
-
       const aplicacaoId = submissaoData.aplicacao.id;
       const roomName = `aplicacao_${aplicacaoId}`;
       await client.join(roomName);
-
       this.logger.log(
         `Cliente ${client.id} (SubId: ${submissaoData.id}) entrou na sala ${roomName}`,
       );
-
       connections.push(connectionData);
       this.connectedClients.set(hash, connections);
       this.clientsHash.set(client.id, hash);
-
       this.logger.log(
         `Conexão estabelecida com sucesso - Hash: ${hash}, Email: ${submissaoData.estudante.email} - Aluno: ${client.id}`,
       );
-
       client.emit('submissao-validada', {
         message: 'Conexão estabelecida com sucesso',
         submissaoId: submissaoData.id,
@@ -198,7 +178,6 @@ export class SubmissaoGateway
         `Erro ao validar submissão durante handshake - Aluno: ${client.id}`,
         error,
       );
-
       client.emit('erro-validacao', {
         message: 'Erro interno do servidor',
       });
@@ -211,28 +190,97 @@ export class SubmissaoGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() data: PunicaoPorOcorrenciaMessage,
   ) {
+    this.logger.debug(
+      `[DEPURAÇÃO] Evento 'registrar-punicao-por-ocorrencia' RECEBIDO. Cliente: ${client.id}, Infração: ${data?.tipoInfracao}`,
+    );
+
     if (!data || !data.tipoInfracao) {
       this.logger.warn(
-        `Mensagem inválida: ${JSON.stringify(data)} - Aluno: ${client.id}`,
+        `[DEPURAÇÃO] Mensagem inválida: ${JSON.stringify(data)} - Aluno: ${
+          client.id
+        }`,
       );
       return;
     }
 
     const hash = this.clientsHash.get(client.id);
     if (!hash) {
-      this.logger.warn(`Hash não encontrado para o aluno: ${client.id}`);
-      return;
-    }
-    const connections = this.connectedClients.get(hash);
-    if (!connections) {
       this.logger.warn(
-        `Conexões não encontradas para o hash: ${hash} - Aluno: ${client.id}`,
+        `[DEPURAÇÃO] Hash não encontrado para o aluno: ${client.id}`,
       );
       return;
     }
 
-    await this.submissaoService.processarPunicaoPorOcorrencia(hash, data);
+    const connections = this.connectedClients.get(hash);
+    if (!connections) {
+      this.logger.warn(
+        `[DEPURAÇÃO] Conexões não encontradas para o hash: ${hash} - Aluno: ${
+          client.id
+        }`,
+      );
+      return;
+    }
+
+    this.logger.debug(
+      `[DEPURAÇÃO] Encaminhando para SubmissaoService.processarPunicaoPorOcorrencia. Hash: ${hash}`,
+    );
+
+    try {
+      const registrosPunicao: RegistroPunicaoPorOcorrenciaModel[] | null =
+        await this.submissaoService.processarPunicaoPorOcorrencia(hash, data);
+
+      if (registrosPunicao && registrosPunicao.length > 0) {
+        for (const registroPunicao of registrosPunicao) {
+          this.logger.debug(
+            `[DEPURAÇÃO] Gateway: Processando punição do serviço: ${registroPunicao.tipoPenalidade}`,
+          );
+
+          const payloadAlerta: AlertaEstudanteInfracaoMessage = {
+            quantidadeOcorrencias: registroPunicao.quantidadeOcorrencias,
+            tipoInfracao: registroPunicao.tipoInfracao,
+            penalidade: registroPunicao.tipoPenalidade,
+            pontuacaoPerdida: registroPunicao.pontuacaoPerdida,
+          };
+
+          switch (registroPunicao.tipoPenalidade) {
+            case TipoPenalidadeEnum.ALERTAR_ESTUDANTE:
+              this.emitAlertaEstudante(client, payloadAlerta);
+              break;
+
+            case TipoPenalidadeEnum.REDUZIR_PONTOS:
+              this.emitAlertaEstudante(client, payloadAlerta);
+              break;
+
+            case TipoPenalidadeEnum.REDUZIR_TEMPO:
+              this.emitReduzirTempoAluno(client, {
+                tempoReduzido: registroPunicao.tempoReduzido,
+              });
+              break;
+
+            case TipoPenalidadeEnum.ENCERRAR_AVALIACAO:
+              this.emitSubmissaoCancelada(client, {
+                tipoInfracao: registroPunicao.tipoInfracao,
+                quantidadeOcorrencias: registroPunicao.quantidadeOcorrencias,
+              });
+              break;
+
+            case TipoPenalidadeEnum.NOTIFICAR_PROFESSOR:
+              break;
+          }
+        }
+      } else {
+        this.logger.debug(
+          '[DEPURAÇÃO] Gateway: Serviço não retornou punição (apenas notificação ao professor ou nenhuma regra).',
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[DEPURAÇÃO] Erro ao processar punição no SubmissaoService: ${error.message}`,
+        error.stack,
+      );
+    }
   }
+
   async handleDisconnect(client: Socket) {
     const clientId = client.id;
     this.logger.log(`Aluno desconectado: ${clientId}`);
@@ -296,14 +344,12 @@ export class SubmissaoGateway
               const aplicacaoId = submissao.aplicacao.id;
               const alunoNome =
                 submissao.estudante?.nome ?? connectionData.estudanteEmail;
-
               const payload: AlunoSaiuPayload = {
                 submissaoId: submissao.id,
                 aplicacaoId: aplicacaoId,
                 alunoNome: alunoNome,
                 timestamp: new Date().toISOString(),
               };
-
               this.notificationProvider.sendNotificationViaSocket(
                 avaliadorId,
                 'aluno-saiu',
@@ -355,9 +401,10 @@ export class SubmissaoGateway
     @MessageBody() payload: ProgressoUpdatePayload,
   ): Promise<void> {
     this.logger.debug(
-      `Recebido 'atualizar-progresso' do cliente ${client.id}: ${JSON.stringify(payload)}`,
+      `Recebido 'atualizar-progresso' do cliente ${client.id}: ${JSON.stringify(
+        payload,
+      )}`,
     );
-
     const hash = this.clientsHash.get(client.id);
     if (!hash) {
       this.logger.warn(
@@ -365,7 +412,6 @@ export class SubmissaoGateway
       );
       return;
     }
-
     try {
       const submissao = await this.submissaoRepository.findOne({
         where: {
@@ -383,24 +429,20 @@ export class SubmissaoGateway
           'respostas',
         ],
       });
-
       if (!submissao || !submissao.aplicacao?.avaliacao?.item?.avaliador?.id) {
         this.logger.warn(
           `Submissão ativa ou avaliador não encontrado para hash ${hash} ao processar progresso.`,
         );
         return;
       }
-
       const aplicacaoId = submissao.aplicacao.id;
       const avaliadorId = submissao.aplicacao.avaliacao.item.avaliador.id;
-
       const progressoPercentual =
         payload.totalQuestoes > 0
           ? Math.round(
               (payload.questoesRespondidas / payload.totalQuestoes) * 100,
             )
           : 0;
-
       const progressoPayloadParaAvaliador = {
         submissaoId: submissao.id,
         progresso: progressoPercentual,
@@ -408,13 +450,11 @@ export class SubmissaoGateway
         timestamp: payload.timestamp,
         aplicacaoId: aplicacaoId,
       };
-
       this.notificationProvider.sendNotificationViaSocket(
         avaliadorId,
         'progresso-atualizado',
         progressoPayloadParaAvaliador,
       );
-
       this.logger.debug(
         `Progresso ${progressoPercentual}% (Questões: ${payload.questoesRespondidas}/${payload.totalQuestoes}) da submissão ${submissao.id} enviado para avaliador ${avaliadorId}`,
       );
@@ -450,6 +490,87 @@ export class SubmissaoGateway
     } catch (error) {
       this.logger.error(
         `Erro ao tentar emitir 'tempo-ajustado' para sala ${roomAplicacao}:`,
+        error,
+      );
+    }
+  }
+
+  emitReduzirTempoAluno(
+    client: Socket,
+    payload: ReduzirTempoAlunoPayload,
+  ): void {
+    if (!client) {
+      this.logger.warn(`emitReduzirTempoAluno: Cliente (Socket) é nulo.`);
+      return;
+    }
+    try {
+      const result = client.emit('reduzir-tempo-aluno', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'reduzir-tempo-aluno' emitido para aluno ${client.id}`,
+        );
+      } else {
+        this.logger.warn(
+          `Tentativa de emitir 'reduzir-tempo-aluno' para aluno ${client.id} falhou.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar emitir 'reduzir-tempo-aluno' para aluno ${client.id}:`,
+        error,
+      );
+    }
+  }
+
+  emitAlertaEstudante(
+    client: Socket,
+    payload: AlertaEstudanteInfracaoMessage,
+  ): void {
+    if (!client) {
+      this.logger.warn(`emitAlertaEstudante: Cliente (Socket) é nulo.`);
+      return;
+    }
+    try {
+      const result = client.emit('alerta-estudante', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'alerta-estudante' emitido para aluno ${client.id}`,
+        );
+      } else {
+        this.logger.warn(
+          `Tentativa de emitir 'alerta-estudante' para aluno ${client.id} falhou.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar emitir 'alerta-estudante' para aluno ${client.id}:`,
+        error,
+      );
+    }
+  }
+
+  emitSubmissaoCancelada(
+    client: Socket,
+    payload: SubmissaoCanceladaMessage,
+  ): void {
+    if (!client) {
+      this.logger.warn(`emitSubmissaoCancelada: Cliente (Socket) é nulo.`);
+      return;
+    }
+    try {
+      const result = client.emit('submissao-cancelada', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'submissao-cancelada' emitido para aluno ${client.id}`,
+        );
+      } else {
+        this.logger.warn(
+          `Tentativa de emitir 'submissao-cancelada' para aluno ${client.id} falhou.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao tentar emitir 'submissao-cancelada' para aluno ${client.id}:`,
         error,
       );
     }

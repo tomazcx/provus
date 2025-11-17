@@ -6,6 +6,10 @@ import AnsweredQuestionCard from "@/components/Submissao/AnsweredQuestionCard/in
 import { useApplicationsStore } from "~/store/applicationsStore";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliadorSubmissaoDetalheApiResponse } from "~/types/api/response/AvaliadorSubmissaoDetalhe.response";
+import type { AvaliadorQuestaoDetalheApiResponse } from "~/types/api/response/AvaliadorQuestaoDetalhe.response";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
+import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
 const route = useRoute();
 const router = useRouter();
@@ -58,7 +62,131 @@ async function fetchData() {
 }
 
 onMounted(fetchData);
+
+function isQuestionPending(q: AvaliadorQuestaoDetalheApiResponse): boolean {
+  return !!(
+    q.tipo === TipoQuestaoEnum.DISCURSIVA &&
+    (q.estadoCorrecao === EstadoQuestaoCorrigida.NAO_RESPONDIDA ||
+      q.estadoCorrecao === null) &&
+    q.dadosResposta &&
+    "texto" in q.dadosResposta &&
+    q.dadosResposta.texto
+  );
+}
+async function handleSaveCorrection(
+  questaoId: number,
+  correcaoData: { pontuacao: number; textoRevisao: string }
+) {
+  isLoading.value = true;
+  try {
+    const questaoRef = submissionDetails.value?.questoes.find(
+      (q) => q.id === questaoId
+    );
+    if (!questaoRef) throw new Error("Questão não encontrada localmente");
+
+    let novoEstado: EstadoQuestaoCorrigida;
+    if (correcaoData.pontuacao >= questaoRef.pontuacaoMaxima) {
+      novoEstado = EstadoQuestaoCorrigida.CORRETA;
+      correcaoData.pontuacao = questaoRef.pontuacaoMaxima;
+    } else if (correcaoData.pontuacao > 0) {
+      novoEstado = EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA;
+    } else {
+      novoEstado = EstadoQuestaoCorrigida.INCORRETA;
+      correcaoData.pontuacao = 0;
+    }
+
+    const payload = {
+      pontuacao: correcaoData.pontuacao,
+      textoRevisao: correcaoData.textoRevisao,
+      estadoCorrecao: novoEstado,
+    };
+
+    await $api(
+      `/backoffice/aplicacao/${applicationId}/submissao/${submissionId}/questao/${questaoId}`,
+      { method: "PATCH", body: payload }
+    );
+
+    questaoRef.pontuacaoObtida = payload.pontuacao;
+    questaoRef.textoRevisao = payload.textoRevisao;
+    questaoRef.estadoCorrecao = payload.estadoCorrecao;
+
+    const novaPontuacaoTotal = submissionDetails.value!.questoes.reduce(
+      (acc, q) => acc + (Number(q.pontuacaoObtida) || 0),
+      0
+    );
+
+    submissionDetails.value = {
+      ...submissionDetails.value!,
+      submissao: {
+        ...submissionDetails.value!.submissao,
+        pontuacaoTotal: novaPontuacaoTotal,
+      },
+    };
+
+    await checkAndFinalizeSubmission();
+
+    toast.add({
+      title: "Correção salva com sucesso!",
+      color: "secondary",
+      icon: "i-lucide-check-circle",
+    });
+  } catch {
+    toast.add({
+      title: "Erro ao salvar correção",
+      description: "Erro desconhecido",
+      color: "error",
+      icon: "i-lucide-alert-triangle",
+    });
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function checkAndFinalizeSubmission() {
+  if (!submissionDetails.value) return;
+
+  const isAnyPending = submissionDetails.value.questoes.some(
+    (q) =>
+      q.estadoCorrecao === EstadoQuestaoCorrigida.NAO_RESPONDIDA ||
+      q.estadoCorrecao === null
+  );
+
+  if (
+    !isAnyPending &&
+    submissionDetails.value.submissao.estado === EstadoSubmissaoEnum.ENVIADA
+  ) {
+    try {
+      await $api(
+        `/backoffice/aplicacao/${applicationId}/submissao/${submissionId}/estado`,
+        { method: "PATCH", body: { estado: EstadoSubmissaoEnum.AVALIADA } }
+      );
+
+      submissionDetails.value = {
+        ...submissionDetails.value,
+        submissao: {
+          ...submissionDetails.value.submissao,
+          estado: EstadoSubmissaoEnum.AVALIADA,
+        },
+      };
+
+      toast.add({
+        title: "Correção Concluída!",
+        description:
+          "Todas as questões foram corrigidas. A nota final do aluno foi calculada.",
+        color: "info",
+        icon: "i-lucide-graduation-cap",
+      });
+    } catch {
+      toast.add({
+        title: "Erro ao finalizar submissão",
+        description: "Não foi possível atualizar o estado da prova.",
+        color: "error",
+      });
+    }
+  }
+}
 </script>
+
 <template>
   <div v-if="isLoading" class="flex items-center justify-center min-h-[50vh]">
     <div class="text-center">
@@ -66,13 +194,11 @@ onMounted(fetchData);
         name="i-lucide-loader-2"
         class="animate-spin h-12 w-12 text-primary"
       />
-
       <p class="mt-4 text-lg text-gray-600">
         Carregando detalhes da submissão...
       </p>
     </div>
   </div>
-
   <div
     v-else-if="error"
     class="flex flex-col items-center justify-center min-h-[50vh] p-4"
@@ -87,37 +213,28 @@ onMounted(fetchData);
     />
     <UButton @click="router.back()">Voltar</UButton>
   </div>
-
   <div v-else-if="submissionDetails && aplicacao">
-    <!-- <Breadcrumbs
-      :aplicacao="aplicacao"
-      :submission="submissionDetails"
-      level="submission"
-    /> -->
-
     <SubmissionHeader
       :submission="submissionDetails.submissao"
       :student="submissionDetails.estudante"
       :total-score="submissionDetails.pontuacaoTotalAvaliacao"
     />
-
     <SubmissionStats
       :questions="submissionDetails.questoes"
       :submission="submissionDetails.submissao"
     />
-
     <div class="space-y-6 mt-8">
       <h2 class="text-xl font-semibold text-gray-800">Respostas Detalhadas</h2>
-
       <AnsweredQuestionCard
         v-for="(questao, index) in submissionDetails.questoes"
         :key="questao.id"
         :questao="questao"
         :numero="index + 1"
+        :is-pending="isQuestionPending(questao)"
+        @save-correction="handleSaveCorrection(questao.id, $event)"
       />
     </div>
   </div>
-
   <div v-else class="flex items-center justify-center min-h-[50vh]">
     <UAlert
       icon="i-lucide-search-x"

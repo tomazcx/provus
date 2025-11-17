@@ -11,6 +11,7 @@ interface CreatePunicaoPorOcorrenciaRequest {
   tipoPenalidade: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
+  sempre: boolean;
 }
 
 interface CreateConfiguracoesRandomizacaoRequest {

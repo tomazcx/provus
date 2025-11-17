@@ -1,4 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AlternativaModel } from 'src/database/config/models/alternativa.model';
+import { ArquivoModel } from 'src/database/config/models/arquivo.model';
+import { SubmissaoRespostasModel } from 'src/database/config/models/submissao-respostas.model';
+import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
@@ -30,6 +34,14 @@ export class DadosRespostaSwaggerDto {
     example: [3005, 3007],
   })
   alternativas_id?: number[];
+
+  static fromModel(model: any): DadosRespostaSwaggerDto {
+    return {
+      texto: model.texto,
+      alternativa_id: model.alternativa_id,
+      alternativas_id: model.alternativas_id,
+    };
+  }
 }
 
 class AlternativaResponse {
@@ -44,6 +56,13 @@ class AlternativaResponse {
     example: 'Esta é uma alternativa correta',
   })
   descricao: string;
+
+  static fromModel(model: AlternativaModel): AlternativaResponse {
+    return {
+      id: model.id,
+      descricao: model.descricao,
+    };
+  }
 }
 
 export class ArquivoSubmissaoResponse {
@@ -70,6 +89,15 @@ export class ArquivoSubmissaoResponse {
     example: 'Material de apoio para a questão',
   })
   descricao: string;
+
+  static fromModel(model: ArquivoModel): ArquivoSubmissaoResponse {
+    return {
+      id: model.id,
+      titulo: model.item.titulo,
+      url: model.url,
+      descricao: model.descricao,
+    };
+  }
 }
 
 class QuestaoSubmissaoResponse {
@@ -125,6 +153,7 @@ class QuestaoSubmissaoResponse {
     type: DadosRespostaSwaggerDto,
   })
   dadosResposta: DadosRespostaSwaggerDto | null;
+
   @ApiProperty({
     description: 'Pontuação obtida pelo aluno nesta questão.',
     example: 8.5,
@@ -146,6 +175,24 @@ class QuestaoSubmissaoResponse {
     nullable: true,
   })
   textoRevisao: string | null;
+
+  static fromModel(model: SubmissaoRespostasModel): QuestaoSubmissaoResponse {
+    return {
+      id: model.questao.id,
+      titulo: model.questao.item.titulo,
+      descricao: model.questao.descricao,
+      pontuacao: model.questao.pontuacao,
+      dificuldade: model.questao.dificuldade,
+      tipo: model.questao.tipoQuestao,
+      alternativas: model.questao.alternativas.map((alternativa) =>
+        AlternativaResponse.fromModel(alternativa),
+      ),
+      dadosResposta: model.dadosResposta,
+      pontuacaoObtida: model.pontuacao,
+      estadoCorrecao: model.estadoCorrecao,
+      textoRevisao: model.textoRevisao,
+    };
+  }
 }
 
 class SubmissaoResponse {
@@ -204,6 +251,22 @@ class SubmissaoResponse {
     nullable: true,
   })
   finalizadoEm: string | null;
+
+  static fromModel(model: SubmissaoModel): SubmissaoResponse {
+    return {
+      id: model.id,
+      aplicacao_id: model.aplicacao?.id ?? null,
+      codigoEntrega: model.codigoEntrega,
+      hash: model.hash,
+      estado: model.estado,
+      pontuacaoTotal: model.pontuacaoTotal,
+      criadoEm: model.criadoEm.toISOString(),
+      atualizadoEm: model.atualizadoEm.toISOString(),
+      finalizadoEm: model.finalizadoEm
+        ? model.finalizadoEm.toISOString()
+        : null,
+    };
+  }
 }
 
 export class FindSubmissaoByHashResponse {
@@ -273,4 +336,48 @@ export class FindSubmissaoByHashResponse {
     nullable: true,
   })
   nomeAvaliador: string | null;
+
+  @ApiProperty({ nullable: true })
+  quantidadeTentativas: number | null;
+
+  @ApiProperty({ nullable: true })
+  proibirTrocarAbas: boolean | null;
+
+  @ApiProperty({ nullable: true })
+  proibirPrintScreen: boolean | null;
+
+  @ApiProperty({ nullable: true })
+  proibirCopiarColar: boolean | null;
+
+  @ApiProperty({ nullable: true })
+  proibirDevtools: boolean | null;
+
+  static fromModel(model: SubmissaoModel): FindSubmissaoByHashResponse {
+    const configGerais =
+      model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesGerais;
+    const configSeguranca =
+      model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesSeguranca;
+
+    return {
+      submissao: SubmissaoResponse.fromModel(model),
+      questoes: model.respostas
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((resposta) => QuestaoSubmissaoResponse.fromModel(resposta)),
+      arquivos: model.aplicacao.avaliacao.arquivos
+        .filter((arquivo) => arquivo.permitirConsultaPorEstudante)
+        .map((arquivo) => ArquivoSubmissaoResponse.fromModel(arquivo.arquivo)),
+      dataInicioAplicacao: model.aplicacao.dataInicio?.toISOString() ?? null,
+      tempoMaximoAvaliacao: configGerais?.tempoMaximo ?? null,
+      descricaoAvaliacao: model.aplicacao.avaliacao.descricao ?? null,
+      mostrarPontuacao: configGerais?.mostrarPontuacao ?? null,
+      permitirRevisao: configGerais?.permitirRevisao ?? null,
+      tituloAvaliacao: model.aplicacao.avaliacao.item.titulo ?? null,
+      nomeAvaliador: model.aplicacao.avaliacao.item.avaliador.nome ?? null,
+      quantidadeTentativas: configSeguranca?.quantidadeTentativas ?? null,
+      proibirTrocarAbas: configSeguranca?.proibirTrocarAbas ?? null,
+      proibirPrintScreen: configSeguranca?.proibirPrintScreen ?? null,
+      proibirCopiarColar: configSeguranca?.proibirCopiarColar ?? null,
+      proibirDevtools: configSeguranca?.proibirDevtools ?? null,
+    };
+  }
 }

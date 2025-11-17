@@ -56,14 +56,27 @@ function removeIpField(index: number) {
 const punitionOptions = Object.values(TipoPenalidadeEnum);
 
 function addOcorrenciaRule(tipoInfracao: TipoInfracaoEnum) {
-  formState.value.configuracao.configuracoesSeguranca.punicoes.push({
+  const newRule: PunicaoPorOcorrenciaEntity = {
     tipoInfracao: tipoInfracao,
     quantidadeOcorrencias: 1,
     tipoPenalidade: TipoPenalidadeEnum.ALERTAR_ESTUDANTE,
     pontuacaoPerdida: 0,
     tempoReduzido: 0,
-  });
+    sempre: false,
+    quantidadeAplicacoes: null,
+  };
+
+  formState.value.configuracao.configuracoesSeguranca.punicoes.push(newRule);
+
+  const punicoesArray =
+    formState.value.configuracao.configuracoesSeguranca.punicoes;
+  const reactiveNewRule = punicoesArray[punicoesArray.length - 1];
+
+  if (reactiveNewRule) {
+    watchRule(reactiveNewRule);
+  }
 }
+
 function removeOcorrenciaRule(ruleToRemove: PunicaoPorOcorrenciaEntity) {
   const punicoes = formState.value.configuracao.configuracoesSeguranca.punicoes;
   const index = punicoes.indexOf(ruleToRemove);
@@ -110,6 +123,31 @@ const isPushNotificationSelected = computed({
       Array.from(selection);
   },
 });
+
+function watchRule(rule: PunicaoPorOcorrenciaEntity) {
+  watch(
+    () => rule.sempre,
+    (isSempre) => {
+      if (isSempre && rule.quantidadeAplicacoes) {
+        rule.quantidadeAplicacoes = null;
+      }
+    }
+  );
+  watch(
+    () => rule.quantidadeAplicacoes,
+    (newQty) => {
+      if (newQty && newQty > 0 && rule.sempre) {
+        rule.sempre = false;
+      }
+    }
+  );
+}
+
+onMounted(() => {
+  formState.value.configuracao.configuracoesSeguranca.punicoes.forEach(
+    watchRule
+  );
+});
 </script>
 
 <template>
@@ -147,6 +185,7 @@ const isPushNotificationSelected = computed({
                 <span>Após</span>
                 <UInputNumber
                   v-model="ocorrenciaRule.quantidadeOcorrencias"
+                  :min="1"
                   class="w-20"
                 />
                 <span>ocorrências, aplicar:</span>
@@ -158,7 +197,7 @@ const isPushNotificationSelected = computed({
                   @click="removeOcorrenciaRule(ocorrenciaRule)"
                 />
               </div>
-              <div class="pl-6 pt-3 space-y-3">
+              <div class="pl-6 pt-3 space-y-4">
                 <div class="flex items-center gap-2">
                   <USelect
                     v-model="ocorrenciaRule.tipoPenalidade"
@@ -182,6 +221,29 @@ const isPushNotificationSelected = computed({
                     v-model="ocorrenciaRule.tempoReduzido"
                     class="w-24"
                   />
+                </div>
+                <div class="flex items-center gap-6 text-sm">
+                  <UCheckbox
+                    v-model="ocorrenciaRule.sempre"
+                    :disabled="
+                      !!(
+                        ocorrenciaRule.quantidadeAplicacoes &&
+                        ocorrenciaRule.quantidadeAplicacoes > 0
+                      )
+                    "
+                    name="sempre"
+                    label="Aplicar 'Sempre' (recorrente)"
+                  />
+                  <div class="flex items-center gap-2">
+                    <UInputNumber
+                      v-model="ocorrenciaRule.quantidadeAplicacoes"
+                      :min="1"
+                      :disabled="ocorrenciaRule.sempre"
+                      placeholder="N/A"
+                      class="w-24"
+                    />
+                    <span>vez(es)</span>
+                  </div>
                 </div>
               </div>
             </UCard>
@@ -269,7 +331,6 @@ const isPushNotificationSelected = computed({
         </div>
       </div>
     </UCard>
-
     <UCard variant="subtle">
       <template #header>
         <h2 class="font-bold">Alertas</h2>
@@ -297,7 +358,6 @@ const isPushNotificationSelected = computed({
         />
       </div>
     </UCard>
-
     <UCard variant="subtle">
       <template #header>
         <h2 class="font-bold">Notificações</h2>
