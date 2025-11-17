@@ -30,6 +30,8 @@ export class CreatePunicaoPorOcorrenciaDto {
   tipoPenalidade: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
+  sempre?: boolean;
+  quantidadeAplicacoes?: number | null;
 }
 
 export class CreateConfiguracoesSegurancaDto {

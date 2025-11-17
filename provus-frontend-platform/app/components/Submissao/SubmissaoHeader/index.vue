@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { SubmissaoResponse } from '~/types/api/response/Submissao.response';
-
+import type { SubmissaoResponse } from "~/types/api/response/Submissao.response";
 
 interface Estudante {
   nome: string;
@@ -41,10 +40,13 @@ const timeTaken = computed(() => {
   }
 });
 
-const studentScore = computed(() => props.submission.pontuacaoTotal ?? 0);
+const studentScore = computed(
+  () => Number(props.submission.pontuacaoTotal) || 0
+);
 
 const scorePercent = computed(() => {
-  const totalPossible = props.totalScore > 0 ? props.totalScore : 1;
+  const totalPossible =
+    Number(props.totalScore) > 0 ? Number(props.totalScore) : 1;
   return ((studentScore.value / totalPossible) * 100).toFixed(1);
 });
 </script>

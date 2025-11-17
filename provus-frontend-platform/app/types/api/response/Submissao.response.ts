@@ -71,4 +71,9 @@ export interface FindSubmissaoByHashResponse {
   permitirRevisao: boolean | null;
   tituloAvaliacao: string | null;
   nomeAvaliador: string | null;
+  quantidadeTentativas: number | null;
+  proibirTrocarAbas: boolean | null;
+  proibirPrintScreen: boolean | null;
+  proibirCopiarColar: boolean | null;
+  proibirDevtools: boolean | null;
 }

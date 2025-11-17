@@ -6,7 +6,6 @@ import { CreateAplicacaoDto } from 'src/dto/request/aplicacao/create-aplicacao.d
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import { AvaliacaoModel } from '../config/models/avaliacao.model';
-import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.model';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { SubmissaoModel } from '../config/models/submissao.model';
 
@@ -29,7 +28,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         },
         relations: ['configuracaoAvaliacao.configuracoesGerais'],
       });
-
       if (!avaliacaoEntity) {
         throw new BadRequestException(
           `Avaliação com ID ${dto.avaliacaoId} não encontrada.`,
@@ -39,7 +37,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const aplicacao = new AplicacaoModel();
       aplicacao.codigoAcesso = codigoAcesso;
       aplicacao.avaliacao = avaliacaoEntity;
-
       const configGerais =
         avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais;
       const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
@@ -72,6 +69,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       return savedAplicacao.id;
     });
   }
+
   async updateAplicacao(
     id: number,
     avaliacao: AvaliacaoModel,
@@ -90,6 +88,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
 
       const estadoAnterior = aplicacao.estado;
       const now = new Date();
+
       aplicacao.estado = estado;
 
       if (
@@ -110,7 +109,9 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
             aplicacao.dataFim.getTime() + pauseDurationMs,
           );
           console.log(
-            `Repositório: Aplicação ${id} retomada. Pausa durou ${pauseDurationMs / 1000}s. Data Fim original: ${aplicacao.dataFim.toISOString()}, Nova Data Fim: ${newEndTime.toISOString()}`,
+            `Repositório: Aplicação ${id} retomada. Pausa durou ${
+              pauseDurationMs / 1000
+            }s. Data Fim original: ${aplicacao.dataFim.toISOString()}, Nova Data Fim: ${newEndTime.toISOString()}`,
           );
           aplicacao.dataFim = newEndTime;
           aplicacao.pausedAt = null;
@@ -121,15 +122,34 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           aplicacao.pausedAt = null;
         }
       } else if (
+        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+        (estadoAnterior === EstadoAplicacaoEnum.CRIADA ||
+          estadoAnterior === EstadoAplicacaoEnum.AGENDADA ||
+          estadoAnterior === EstadoAplicacaoEnum.FINALIZADA ||
+          estadoAnterior === EstadoAplicacaoEnum.CONCLUIDA ||
+          estadoAnterior === EstadoAplicacaoEnum.CANCELADA)
+      ) {
+        console.log(
+          `[CORREÇÃO] Repositório: Transição de ${estadoAnterior} para EM_ANDAMENTO detectada. Reiniciando o timer.`,
+        );
+        const configGerais =
+          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+        const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+
+        aplicacao.dataInicio = now;
+        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+        aplicacao.pausedAt = null;
+
+        console.log(
+          `[CORREÇÃO] Repositório: Novo dataInicio: ${aplicacao.dataInicio.toISOString()}, Novo dataFim: ${aplicacao.dataFim.toISOString()}`,
+        );
+      } else if (
         estado === EstadoAplicacaoEnum.AGENDADA &&
         estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
       ) {
-        const configGerais = await manager.findOne(ConfiguracoesGeraisModel, {
-          where: {
-            id: aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-              .id,
-          },
-        });
+        const configGerais =
+          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+
         if (!configGerais || !configGerais.dataAgendamento) {
           throw new BadRequestException(
             'Data de agendamento não configurada para avaliação agendada',
@@ -145,11 +165,15 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           `Repositório: Aplicação ${id} agendada. Início: ${aplicacao.dataInicio.toISOString()}, Fim: ${aplicacao.dataFim.toISOString()}`,
         );
       }
-      aplicacao.estado = estado;
 
       const updatedAplicacao = await manager.save(aplicacao);
+
       console.log(
-        `Repositório: Aplicação ${id} salva com estado ${updatedAplicacao.estado}, dataFim ${updatedAplicacao.dataFim.toISOString()}, pausedAt ${String(updatedAplicacao.pausedAt)}`,
+        `Repositório: Aplicação ${id} salva com estado ${
+          updatedAplicacao.estado
+        }, dataFim ${updatedAplicacao.dataFim.toISOString()}, pausedAt ${String(
+          updatedAplicacao.pausedAt,
+        )}`,
       );
 
       const estadosFinaisAplicacao: EstadoAplicacaoEnum[] = [
@@ -183,9 +207,12 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           },
         );
         console.log(
-          `Repositório: ${updateResult.affected ?? 0} submissões atualizadas para ENCERRADA.`,
+          `Repositório: ${
+            updateResult.affected ?? 0
+          } submissões atualizadas para ENCERRADA.`,
         );
       }
+
       return updatedAplicacao.id;
     });
   }
@@ -224,11 +251,9 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const aplicacao = await manager.findOne(AplicacaoModel, {
         where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
       });
-
       if (!aplicacao) {
         throw new BadRequestException('Aplicação não encontrada');
       }
-
       await manager.delete(AplicacaoModel, { id });
     });
   }

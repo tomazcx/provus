@@ -41,6 +41,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
   const tituloAvaliacao = ref<string | null>(null);
   const nomeAvaliador = ref<string | null>(null);
 
+  const proibirTrocarAbas = ref(false);
+  const proibirPrintScreen = ref(false);
+  const proibirCopiarColar = ref(false);
+  const proibirDevtools = ref(false);
+  const pontosPerdidos = ref(0);
+
   async function createStudentSubmission(
     nome: string,
     email: string,
@@ -106,6 +112,13 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     permitirRevisao.value = null;
     tituloAvaliacao.value = null;
     nomeAvaliador.value = null;
+
+    proibirTrocarAbas.value = false;
+    proibirPrintScreen.value = false;
+    proibirCopiarColar.value = false;
+    proibirDevtools.value = false;
+    pontosPerdidos.value = 0;
+
     isLoading.value = true;
     error.value = null;
     try {
@@ -124,6 +137,11 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         permitirRevisao.value = response.permitirRevisao;
         tituloAvaliacao.value = response.tituloAvaliacao;
         nomeAvaliador.value = response.nomeAvaliador;
+        quantidadeTentativas.value = response.quantidadeTentativas ?? null;
+        proibirTrocarAbas.value = response.proibirTrocarAbas ?? false;
+        proibirPrintScreen.value = response.proibirPrintScreen ?? false;
+        proibirCopiarColar.value = response.proibirCopiarColar ?? false;
+        proibirDevtools.value = response.proibirDevtools ?? false;
       } else {
         throw new Error(
           "Resposta inválida do servidor ao buscar dados da submissão."
@@ -364,6 +382,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     }
   }
 
+  function aplicarPenalidadePontos(pontos: number) {
+    if (pontos > 0) {
+      pontosPerdidos.value += pontos;
+    }
+  }
+
   return {
     submissionDetails,
     submissionQuestions,
@@ -380,6 +404,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     nomeAvaliador,
     reviewQuestions,
     quantidadeTentativas,
+    proibirTrocarAbas,
+    proibirPrintScreen,
+    proibirCopiarColar,
+    proibirDevtools,
+    pontosPerdidos,
+    aplicarPenalidadePontos,
     createStudentSubmission,
     fetchSubmissionDataByHash,
     submitStudentAnswers,

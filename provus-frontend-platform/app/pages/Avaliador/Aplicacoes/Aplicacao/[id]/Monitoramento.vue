@@ -15,6 +15,7 @@ import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useTimer } from "~/composables/useTimer";
+import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
 const route = useRoute();
 const router = useRouter();
@@ -42,7 +43,6 @@ const dataFimRef = computed(
 const isApplicationActive = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
-
 const studentProgress = computed(() => monitoringStore.studentProgress);
 const activityFeed = computed(() => monitoringStore.activityFeed);
 
@@ -53,7 +53,6 @@ const { tempoRestanteFormatado, tempoRestanteEmSegundos } = useTimer({
 
 async function fetchApplicationIfNeeded() {
   isLoading.value = true;
-
   if (!aplicacao.value) {
     console.log(
       `Monitoramento.vue: Aplicação ${applicationId} não encontrada na store, buscando da API...`
@@ -108,7 +107,6 @@ onMounted(async () => {
   error.value = null;
   monitoringStore.clearWebSocketListeners();
   monitoringStore.currentApplicationId = applicationId;
-
   aplicacao.value = applicationsStore.getApplicationById(applicationId) ?? null;
 
   const appLoadSuccess = await fetchApplicationIfNeeded();
@@ -247,27 +245,45 @@ function handleReiniciar() {
   $websocket.emit("reiniciar-timer-aplicacao", payload);
 }
 
+const formatarTempo = (totalSegundos: number): string => {
+  if (totalSegundos <= 0) return "00:00:00";
+  totalSegundos = Math.max(0, totalSegundos);
+  const horas = Math.floor(totalSegundos / 3600)
+    .toString()
+    .padStart(2, "0");
+  const minutos = Math.floor((totalSegundos % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const segundos = Math.floor(totalSegundos % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${horas}:${minutos}:${segundos}`;
+};
+
 function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
+  const estadosFinaisOuInativos: EstadoSubmissaoEnum[] = [
+    EstadoSubmissaoEnum.ENCERRADA,
+    EstadoSubmissaoEnum.CANCELADA,
+    EstadoSubmissaoEnum.ENVIADA,
+    EstadoSubmissaoEnum.AVALIADA,
+    EstadoSubmissaoEnum.ABANDONADA,
+  ];
+
+  if (estadosFinaisOuInativos.includes(aluno.estado)) {
+    return "00:00:00";
+  }
+
   const penalidade = aluno.tempoPenalidadeEmSegundos || 0;
   const tempoRestanteIndividual = Math.max(
     0,
     tempoRestanteEmSegundos.value - penalidade
   );
 
-  if (!isApplicationActive.value || tempoRestanteIndividual <= 0)
-    return "00:00:00";
+  if (!isApplicationActive.value) {
+    return formatarTempo(tempoRestanteIndividual);
+  }
 
-  const horas = Math.floor(tempoRestanteIndividual / 3600)
-    .toString()
-    .padStart(2, "0");
-  const minutos = Math.floor((tempoRestanteIndividual % 3600) / 60)
-    .toString()
-    .padStart(2, "0");
-  const segundos = Math.floor(tempoRestanteIndividual % 60)
-    .toString()
-    .padStart(2, "0");
-
-  return `${horas}:${minutos}:${segundos}`;
+  return formatarTempo(tempoRestanteIndividual);
 }
 </script>
 <template>

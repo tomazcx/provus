@@ -9,6 +9,8 @@ import {
 } from "~/store/studentAssessmentStore";
 import { useTimer } from "~/composables/useTimer";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+import { usePageVisibility } from "~/composables/usePageVisibility";
+import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
 interface ProgressoUpdatePayload {
   questoesRespondidas: number;
@@ -17,16 +19,27 @@ interface ProgressoUpdatePayload {
   respondida: boolean;
   timestamp: string;
 }
-
 interface TempoAjustadoPayload {
   aplicacaoId: number;
   novaDataFimISO: string;
 }
-
 interface EstadoAplicacaoAtualizadoPayloadSubmissao {
   aplicacaoId: number;
   novoEstado: EstadoSubmissaoEnum;
   novaDataFimISO: string;
+}
+interface TempoReduzidoPayload {
+  tempoReduzido: number;
+}
+interface AlertaEstudantePayload {
+  quantidadeOcorrencias: number;
+  tipoInfracao: string;
+  penalidade: string;
+  pontuacaoPerdida?: number;
+}
+interface SubmissaoCanceladaPayload {
+  tipoInfracao: string;
+  quantidadeOcorrencias: number;
 }
 
 const route = useRoute();
@@ -34,22 +47,19 @@ const router = useRouter();
 const studentAssessmentStore = useStudentAssessmentStore();
 const toast = useToast();
 const currentSubmissionStatus = ref<EstadoSubmissaoEnum | null>(null);
-
 const isMaterialsOpen = ref(false);
 const viewMode = ref<"single" | "paginated">("single");
 const dataFimRef = ref<string | null>(null);
-
+const ajusteTempoPenalidade = ref(0);
 const isTimerActive = computed(
   () =>
     currentSubmissionStatus.value === EstadoSubmissaoEnum.INICIADA ||
     currentSubmissionStatus.value === EstadoSubmissaoEnum.REABERTA
 );
-
 const respostas = reactive<
   Record<number, StudentAnswerData | undefined | null>
 >({});
 const studentWebSocket = useWebSocket();
-
 const submissionDetails = computed(
   () => studentAssessmentStore.submissionDetails
 );
@@ -60,25 +70,32 @@ const submissionFiles = computed(() => studentAssessmentStore.submissionFiles);
 const isLoading = computed(() => studentAssessmentStore.isLoading);
 const isSubmitting = computed(() => studentAssessmentStore.isSubmitting);
 const error = computed(() => studentAssessmentStore.error);
-
 const dataInicioAplicacao = computed(
   () => studentAssessmentStore.dataInicioAplicacao
 );
 const tempoMaximoAvaliacao = computed(
   () => studentAssessmentStore.tempoMaximoAvaliacao
 );
-
 const descricaoAvaliacao = computed(
   () => studentAssessmentStore.descricaoAvaliacao
 );
-
 const tituloAvaliacao = computed(
   () => studentAssessmentStore.tituloAvaliacao ?? "Carregando..."
 );
 
+const proibirTrocarAbas = computed(
+  () => studentAssessmentStore.proibirTrocarAbas
+);
+const proibirCopiarColar = computed(
+  () => studentAssessmentStore.proibirCopiarColar
+);
+
+const proibirDevtools = computed(() => studentAssessmentStore.proibirDevtools);
+
 const { tempoRestanteFormatado } = useTimer({
   dataFimISO: dataFimRef,
   isActive: isTimerActive,
+  ajusteDeTempoEmSegundos: ajusteTempoPenalidade,
 });
 
 watch(
@@ -164,7 +181,6 @@ function goToQuestion(index: number) {
 
 function updateAnswer(questionId: number, answer: StudentAnswerData | null) {
   let isAnsweredNow = false;
-
   if (
     answer === null ||
     (typeof answer === "object" && Object.keys(answer).length === 0)
@@ -205,9 +221,7 @@ async function submitTest() {
     "Tem certeza que deseja enviar suas respostas? Esta ação não pode ser desfeita."
   );
   if (!confirmSubmit) return;
-
   const success = await studentAssessmentStore.submitStudentAnswers(respostas);
-
   if (success && submissionDetails.value?.hash) {
     router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
   }
@@ -215,7 +229,6 @@ async function submitTest() {
 
 function connectWebSocket(hash: string) {
   console.log(`Tentando conectar WebSocket do aluno para o hash: ${hash}`);
-
   const authPayload = { hash: hash };
   studentWebSocket.connect(`/submissao`, authPayload);
 
@@ -238,7 +251,6 @@ function connectWebSocket(hash: string) {
       }
     }
   );
-
   studentWebSocket.on("submissao-validada", (data: { message: string }) => {
     console.log("Conexão WebSocket do aluno validada:", data.message);
     toast.add({
@@ -247,21 +259,7 @@ function connectWebSocket(hash: string) {
       color: "info",
     });
   });
-
-  studentWebSocket.on<TempoAjustadoPayload>("tempo-ajustado", (data) => {
-    console.log("%%% Aluno: Evento 'tempo-ajustado' recebido:", data);
-
-    dataFimRef.value = data.novaDataFimISO;
-
-    toast.add({
-      title: "Tempo Ajustado",
-      description: "O tempo final da avaliação foi modificado pelo professor.",
-      icon: "i-lucide-clock",
-      color: "info",
-    });
-  });
   console.log("%%% Aluno: Listener para 'tempo-ajustado' REGISTRADO.");
-
   studentWebSocket.on<EstadoAplicacaoAtualizadoPayloadSubmissao>(
     "estado-aplicacao-atualizado",
     (data) => {
@@ -271,7 +269,6 @@ function connectWebSocket(hash: string) {
       );
       currentSubmissionStatus.value = data.novoEstado;
       dataFimRef.value = data.novaDataFimISO;
-
       if (data.novoEstado === EstadoSubmissaoEnum.PAUSADA) {
         toast.add({
           title: "Avaliação Pausada",
@@ -313,6 +310,7 @@ function connectWebSocket(hash: string) {
       }
     }
   );
+
   console.log(
     "%%% Aluno: Listener para 'estado-aplicacao-atualizado' REGISTRADO."
   );
@@ -327,6 +325,128 @@ function connectWebSocket(hash: string) {
       color: "info",
     });
   });
+
+  studentWebSocket.on<AlertaEstudantePayload>("alerta-estudante", (data) => {
+    console.log("%%% Aluno: Evento 'alerta-estudante' recebido:", data);
+    let toastDescription = `Você cometeu a infração "${data.tipoInfracao}" pela ${data.quantidadeOcorrencias}ª vez.`;
+    if (data.pontuacaoPerdida && data.pontuacaoPerdida > 0) {
+      studentAssessmentStore.aplicarPenalidadePontos(data.pontuacaoPerdida);
+      toastDescription += ` Você perdeu ${data.pontuacaoPerdida} ponto(s).`;
+    }
+    toast.add({
+      title: "Atenção! Infração Detectada.",
+      description: toastDescription,
+      icon: "i-lucide-alert-triangle",
+      color: "warning",
+    });
+  });
+
+  studentWebSocket.on<TempoReduzidoPayload>("reduzir-tempo-aluno", (data) => {
+    console.log("%%% Aluno: Evento 'reduzir-tempo-aluno' recebido:", data);
+    ajusteTempoPenalidade.value -= data.tempoReduzido;
+    toast.add({
+      title: "Penalidade Aplicada!",
+      description: `Você perdeu ${data.tempoReduzido} segundos do seu tempo total por cometer uma infração.`,
+      icon: "i-lucide-clock-3",
+      color: "error",
+    });
+  });
+
+  studentWebSocket.on<SubmissaoCanceladaPayload>(
+    "submissao-cancelada",
+    (data) => {
+      console.log("%%% Aluno: Evento 'submissao-cancelada' recebido:", data);
+      toast.add({
+        title: "Avaliação Encerrada Compulsoriamente",
+        description: `Você atingiu o limite de ${data.quantidadeOcorrencias} infrações (${data.tipoInfracao}). Sua avaliação foi cancelada.`,
+        icon: "i-lucide-ban",
+        color: "error",
+      });
+      studentWebSocket.disconnect();
+      if (submissionDetails.value?.hash) {
+        router.push(
+          `/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`
+        );
+      }
+    }
+  );
+}
+
+function handleTabChange() {
+  console.log(
+    `[DEPURAÇÃO] handleTabChange disparado. Estado:
+    ProibirTrocarAbas: ${proibirTrocarAbas.value},
+    Timer Ativo: ${isTimerActive.value},
+    WS Conectado: ${studentWebSocket.isConnected.value}`
+  );
+
+  if (
+    proibirTrocarAbas.value &&
+    isTimerActive.value &&
+    studentWebSocket.isConnected.value
+  ) {
+    console.log(
+      "[DEPURAÇÃO] CONDIÇÕES ATENDIDAS (Troca Aba). Emitindo evento 'registrar-punicao-por-ocorrencia'..."
+    );
+    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
+      tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
+    });
+  } else {
+    console.warn(
+      "[DEPURAÇÃO] Condições NÃO atendidas (Troca Aba). Evento de infração NÃO enviado."
+    );
+  }
+}
+usePageVisibility(handleTabChange);
+
+function handleClipboardEvent(event: ClipboardEvent) {
+  console.log(
+    `[DEPURAÇÃO] Evento Clipboard '${event.type}' detectado. Estado:
+    ProibirCopiarColar: ${proibirCopiarColar.value},
+    Timer Ativo: ${isTimerActive.value},
+    WS Conectado: ${studentWebSocket.isConnected.value}`
+  );
+
+  if (
+    proibirCopiarColar.value &&
+    isTimerActive.value &&
+    studentWebSocket.isConnected.value
+  ) {
+    console.log(
+      "[DEPURAÇÃO] CONDIÇÕES ATENDIDAS (Clipboard). Prevenindo ação e emitindo evento 'registrar-punicao-por-ocorrencia'..."
+    );
+    event.preventDefault();
+    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
+      tipoInfracao: TipoInfracaoEnum.COPIAR_COLAR,
+    });
+  } else {
+    console.warn(
+      "[DEPURAÇÃO] Condições NÃO atendidas (Clipboard). Ação permitida. Evento de infração NÃO enviado."
+    );
+  }
+}
+
+function handleContextMenu(event: MouseEvent) {
+  console.log(
+    `[DEPURAÇÃO] Evento 'contextmenu' detectado. Estado:
+    ProibirCopiarColar: ${proibirCopiarColar.value},
+    ProibirDevtools: ${proibirDevtools.value},
+    Timer Ativo: ${isTimerActive.value}`
+  );
+
+  if (
+    isTimerActive.value &&
+    (proibirCopiarColar.value || proibirDevtools.value)
+  ) {
+    console.log(
+      "[DEPURAÇÃO] CONDIÇÕES ATENDIDAS (Context Menu). Prevenindo ação (bloqueando clique direito)."
+    );
+    event.preventDefault();
+  } else {
+    console.warn(
+      "[DEPURAÇÃO] Condições NÃO atendidas (Context Menu). Ação permitida."
+    );
+  }
 }
 
 watch(
@@ -354,10 +474,20 @@ onMounted(async () => {
     });
     router.push("/aluno/entrar");
   }
+
+  document.addEventListener("copy", handleClipboardEvent);
+  document.addEventListener("paste", handleClipboardEvent);
+  document.addEventListener("cut", handleClipboardEvent);
+  document.addEventListener("contextmenu", handleContextMenu);
 });
 
 onUnmounted(() => {
   studentWebSocket.disconnect();
+
+  document.removeEventListener("copy", handleClipboardEvent);
+  document.removeEventListener("paste", handleClipboardEvent);
+  document.removeEventListener("cut", handleClipboardEvent);
+  document.removeEventListener("contextmenu", handleContextMenu);
 });
 </script>
 

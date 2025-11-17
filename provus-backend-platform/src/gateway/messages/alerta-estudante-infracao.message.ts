@@ -5,4 +5,5 @@ export interface AlertaEstudanteInfracaoMessage {
   quantidadeOcorrencias: number;
   tipoInfracao: TipoInfracaoEnum;
   penalidade: TipoPenalidadeEnum;
+  pontuacaoPerdida?: number;
 }

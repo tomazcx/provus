@@ -141,7 +141,7 @@ export class AvaliadorGateway
     avaliadorId: number,
     eventName: string,
     message: T,
-  ) {
+  ): void {
     const roomName = `avaliador_${avaliadorId}`;
     const result = this.server.to(roomName).emit(eventName, message);
 

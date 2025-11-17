@@ -9,6 +9,7 @@ import {
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { SubmissaoModel } from './submissao.model';
+import { PunicaoPorOcorrenciaModel } from './punicao-por-ocorrencia.model';
 
 @Entity('registro_punicao_por_ocorrencia')
 export class RegistroPunicaoPorOcorrenciaModel {
@@ -36,4 +37,14 @@ export class RegistroPunicaoPorOcorrenciaModel {
 
   @CreateDateColumn({ name: 'criado_em' })
   criadoEm: Date;
+
+  @Column({ name: 'punicao_config_id', nullable: true })
+  punicaoConfigId: number | null;
+
+  @ManyToOne(
+    () => PunicaoPorOcorrenciaModel,
+    (punicaoConfig) => punicaoConfig.registrosDeAplicacao,
+  )
+  @JoinColumn({ name: 'punicao_config_id' })
+  punicaoConfig: PunicaoPorOcorrenciaModel;
 }

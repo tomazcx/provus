@@ -337,7 +337,27 @@ export class FindSubmissaoByHashResponse {
   })
   nomeAvaliador: string | null;
 
+  @ApiProperty({ nullable: true })
+  quantidadeTentativas: number | null;
+
+  @ApiProperty({ nullable: true })
+  proibirTrocarAbas: boolean | null;
+
+  @ApiProperty({ nullable: true })
+  proibirPrintScreen: boolean | null;
+
+  @ApiProperty({ nullable: true })
+  proibirCopiarColar: boolean | null;
+
+  @ApiProperty({ nullable: true })
+  proibirDevtools: boolean | null;
+
   static fromModel(model: SubmissaoModel): FindSubmissaoByHashResponse {
+    const configGerais =
+      model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesGerais;
+    const configSeguranca =
+      model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesSeguranca;
+
     return {
       submissao: SubmissaoResponse.fromModel(model),
       questoes: model.respostas
@@ -347,18 +367,17 @@ export class FindSubmissaoByHashResponse {
         .filter((arquivo) => arquivo.permitirConsultaPorEstudante)
         .map((arquivo) => ArquivoSubmissaoResponse.fromModel(arquivo.arquivo)),
       dataInicioAplicacao: model.aplicacao.dataInicio?.toISOString() ?? null,
-      tempoMaximoAvaliacao:
-        model.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-          .tempoMaximo ?? null,
+      tempoMaximoAvaliacao: configGerais?.tempoMaximo ?? null,
       descricaoAvaliacao: model.aplicacao.avaliacao.descricao ?? null,
-      mostrarPontuacao:
-        model.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-          .mostrarPontuacao ?? null,
-      permitirRevisao:
-        model.aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais
-          .permitirRevisao ?? null,
+      mostrarPontuacao: configGerais?.mostrarPontuacao ?? null,
+      permitirRevisao: configGerais?.permitirRevisao ?? null,
       tituloAvaliacao: model.aplicacao.avaliacao.item.titulo ?? null,
       nomeAvaliador: model.aplicacao.avaliacao.item.avaliador.nome ?? null,
+      quantidadeTentativas: configSeguranca?.quantidadeTentativas ?? null,
+      proibirTrocarAbas: configSeguranca?.proibirTrocarAbas ?? null,
+      proibirPrintScreen: configSeguranca?.proibirPrintScreen ?? null,
+      proibirCopiarColar: configSeguranca?.proibirCopiarColar ?? null,
+      proibirDevtools: configSeguranca?.proibirDevtools ?? null,
     };
   }
 }

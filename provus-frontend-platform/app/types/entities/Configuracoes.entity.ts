@@ -14,6 +14,8 @@ export interface PunicaoPorOcorrenciaEntity {
   tipoPenalidade: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
+  sempre: boolean;
+  quantidadeAplicacoes: number | null;
 }
 
 export interface RegraGeracaoIaEntity {

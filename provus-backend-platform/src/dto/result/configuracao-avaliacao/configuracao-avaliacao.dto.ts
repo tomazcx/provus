@@ -59,6 +59,8 @@ export class PunicaoPorOcorrenciaDto {
   tipoPenalidade: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
+  sempre: boolean;
+  quantidadeAplicacoes: number | null;
 
   constructor(model: PunicaoPorOcorrenciaModel) {
     this.tipoInfracao = model.tipoInfracao;
@@ -66,6 +68,8 @@ export class PunicaoPorOcorrenciaDto {
     this.tipoPenalidade = model.tipoPenalidade;
     this.pontuacaoPerdida = model.pontuacaoPerdida;
     this.tempoReduzido = model.tempoReduzido;
+    this.sempre = model.sempre;
+    this.quantidadeAplicacoes = model.quantidadeAplicacoes;
   }
 }
 

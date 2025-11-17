@@ -85,9 +85,18 @@ export class AplicacaoService {
         `COUNT(CASE WHEN submissao.estado IN (:...finalStates) THEN 1 END)`,
         'submissoesFinalizadas',
       )
-      .addSelect('AVG(submissao.pontuacao_total)', 'mediaPontuacaoBruta')
-      .addSelect('MAX(submissao.pontuacao_total)', 'maiorPontuacaoBruta')
-      .addSelect('MIN(submissao.pontuacao_total)', 'menorPontuacaoBruta')
+      .addSelect(
+        "AVG(CAST(NULLIF(submissao.pontuacao_total::text, 'NaN') AS numeric))",
+        'mediaPontuacaoBruta',
+      )
+      .addSelect(
+        "MAX(CAST(NULLIF(submissao.pontuacao_total::text, 'NaN') AS numeric))",
+        'maiorPontuacaoBruta',
+      )
+      .addSelect(
+        "MIN(CAST(NULLIF(submissao.pontuacao_total::text, 'NaN') AS numeric))",
+        'menorPontuacaoBruta',
+      )
       .addSelect(
         'AVG(EXTRACT(EPOCH FROM (submissao.finalizado_em - submissao.criado_em)))',
         'tempoMedioSegundos',
@@ -97,30 +106,44 @@ export class AplicacaoService {
         aplicacaoId: id,
         finalStates: finalStates,
       });
+
     const rawStats = await statsQuery.getRawOne<{
       totalSubmissoes: string;
       submissoesFinalizadas: string;
       mediaPontuacaoBruta: string | null;
       maiorPontuacaoBruta: string | null;
-      menorPontuacaoBruta: string | null;
+      menorNotaPercentual: string | null;
       tempoMedioSegundos: string | null;
     }>();
 
     const scoresQuery = this.submissaoRepository
       .createQueryBuilder('submissao')
-      .select('submissao.pontuacao_total', 'score')
+      .select('CAST(submissao.pontuacao_total AS numeric)', 'score')
       .where('submissao.aplicacao_id = :aplicacaoId', { aplicacaoId: id })
       .andWhere('submissao.estado IN (:...finalStates)', {
         finalStates: finalStates,
       })
-      .andWhere('submissao.pontuacao_total IS NOT NULL');
+      .andWhere(
+        "submissao.pontuacao_total IS NOT NULL AND submissao.pontuacao_total::text != 'NaN'",
+      );
 
     const rawScores = await scoresQuery.getRawMany<{ score: string }>();
     const finalScores = rawScores
       .map((s) => parseFloat(s.score))
       .filter((s) => !isNaN(s));
 
-    let stats: AplicacaoStatsDto | undefined = undefined;
+    const stats: AplicacaoStatsDto = {
+      totalSubmissoes: 0,
+      submissoesFinalizadas: 0,
+      taxaDeConclusaoPercentual: 0,
+      mediaGeralPercentual: null,
+      maiorNotaPercentual: null,
+      menorNotaPercentual: null,
+      tempoMedioMinutos: null,
+      pontuacaoTotalAvaliacao: pontuacaoTotalAvaliacao,
+      finalScores: finalScores,
+    };
+
     if (rawStats && parseInt(rawStats.totalSubmissoes, 10) > 0) {
       const total = parseInt(rawStats.totalSubmissoes, 10);
       const finalizadas = parseInt(rawStats.submissoesFinalizadas, 10);
@@ -130,35 +153,35 @@ export class AplicacaoService {
       const maiorBruta = rawStats.maiorPontuacaoBruta
         ? parseFloat(rawStats.maiorPontuacaoBruta)
         : null;
-      const menorBruta = rawStats.menorPontuacaoBruta
-        ? parseFloat(rawStats.menorPontuacaoBruta)
+      const menorBruta = rawStats.menorNotaPercentual
+        ? parseFloat(rawStats.menorNotaPercentual)
         : null;
       const tempoMedioS = rawStats.tempoMedioSegundos
         ? parseFloat(rawStats.tempoMedioSegundos)
         : null;
 
-      stats = {
-        totalSubmissoes: total,
-        submissoesFinalizadas: finalizadas,
-        taxaDeConclusaoPercentual:
-          total > 0 ? Math.round((finalizadas / total) * 100) : 0,
-        mediaGeralPercentual:
-          mediaBruta !== null && pontuacaoTotalAvaliacao > 0
-            ? Math.round((mediaBruta / pontuacaoTotalAvaliacao) * 100)
-            : null,
-        maiorNotaPercentual:
-          maiorBruta !== null && pontuacaoTotalAvaliacao > 0
-            ? Math.round((maiorBruta / pontuacaoTotalAvaliacao) * 100)
-            : null,
-        menorNotaPercentual:
-          menorBruta !== null && pontuacaoTotalAvaliacao > 0
-            ? Math.round((menorBruta / pontuacaoTotalAvaliacao) * 100)
-            : null,
-        tempoMedioMinutos:
-          tempoMedioS !== null ? Math.round(tempoMedioS / 60) : null,
-        pontuacaoTotalAvaliacao: pontuacaoTotalAvaliacao,
-        finalScores: finalScores,
-      };
+      stats.totalSubmissoes = total;
+      stats.submissoesFinalizadas = finalizadas;
+      stats.taxaDeConclusaoPercentual =
+        total > 0 ? Math.round((finalizadas / total) * 100) : 0;
+
+      stats.mediaGeralPercentual =
+        mediaBruta !== null && pontuacaoTotalAvaliacao > 0
+          ? Math.round((mediaBruta / pontuacaoTotalAvaliacao) * 100)
+          : null;
+
+      stats.maiorNotaPercentual =
+        maiorBruta !== null && pontuacaoTotalAvaliacao > 0
+          ? Math.round((maiorBruta / pontuacaoTotalAvaliacao) * 100)
+          : null;
+
+      stats.menorNotaPercentual =
+        menorBruta !== null && pontuacaoTotalAvaliacao > 0
+          ? Math.round((menorBruta / pontuacaoTotalAvaliacao) * 100)
+          : null;
+
+      stats.tempoMedioMinutos =
+        tempoMedioS !== null ? Math.round(tempoMedioS / 60) : null;
     }
 
     const violationsRaw = await this.registroPunicaoRepository
@@ -177,6 +200,7 @@ export class AplicacaoService {
       .getRawMany<
         Omit<AplicacaoViolationDto, 'timestamp'> & { timestamp: Date }
       >();
+
     const violations: AplicacaoViolationDto[] = violationsRaw.map((v) => ({
       ...v,
       timestamp: v.timestamp.toISOString(),
@@ -413,6 +437,7 @@ export class AplicacaoService {
       EstadoSubmissaoEnum.INICIADA,
       EstadoSubmissaoEnum.PAUSADA,
       EstadoSubmissaoEnum.REABERTA,
+      EstadoSubmissaoEnum.ENCERRADA,
     ];
 
     const submissoes = await this.submissaoRepository.find({

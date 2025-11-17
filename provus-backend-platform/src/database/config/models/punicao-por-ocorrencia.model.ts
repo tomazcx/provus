@@ -4,10 +4,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ConfiguracoesSegurancaModel } from './configuracoes-seguranca.model';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
+import { RegistroPunicaoPorOcorrenciaModel } from './registro-punicao-por-ocorrencia.model';
 
 @Entity('punicao_por_ocorrencia')
 export class PunicaoPorOcorrenciaModel {
@@ -20,6 +22,9 @@ export class PunicaoPorOcorrenciaModel {
   @Column({ name: 'quantidade_ocorrencias' })
   quantidadeOcorrencias: number;
 
+  @Column({ default: false })
+  sempre: boolean;
+
   @Column({ name: 'tipo_penalidade', type: 'enum', enum: TipoPenalidadeEnum })
   tipoPenalidade: TipoPenalidadeEnum;
 
@@ -31,6 +36,15 @@ export class PunicaoPorOcorrenciaModel {
 
   @Column({ name: 'configuracoes_seguranca_id' })
   configuracoesSegurancaId: number;
+
+  @Column({ name: 'quantidade_aplicacoes', type: 'int', nullable: true })
+  quantidadeAplicacoes: number | null;
+
+  @OneToMany(
+    () => RegistroPunicaoPorOcorrenciaModel,
+    (registro) => registro.punicaoConfig,
+  )
+  registrosDeAplicacao: RegistroPunicaoPorOcorrenciaModel[];
 
   @ManyToOne(() => ConfiguracoesSegurancaModel, (config) => config.punicoes)
   @JoinColumn({ name: 'configuracoes_seguranca_id' })
