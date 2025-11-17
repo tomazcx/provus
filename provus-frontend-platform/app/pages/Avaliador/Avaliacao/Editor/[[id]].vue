@@ -4,6 +4,7 @@ import AssessmentQuestionList from "@/components/Avaliacao/AssessmentQuestionLis
 import Overview from "@/components/Avaliacao/Overview/index.vue";
 import QuickSettings from "@/components/Avaliacao/QuickSettings/index.vue";
 import SettingsDialog from "@/components/Avaliacao/SettingsDialog/index.vue";
+import EditFileDialog from "~/components/BancoDeMateriais/EditFileDialog/index.vue";
 import OpenQuestionBankDialog from "@/components/Avaliacao/OpenQuestionBankDialog/index.vue";
 import SaveToExamBankDialog from "@/components/BancoDeAvaliacoes/SaveToExamBankDialog/index.vue";
 import SaveToQuestionsBankDialog from "@/components/Avaliacao/SaveToQuestionsBankDialog/index.vue";
@@ -36,6 +37,8 @@ const examBankStore = useExamBankStore();
 const route = useRoute();
 const router = useRouter();
 
+const toast = useToast();
+
 const bancoDeQuestoesDialog = ref(false);
 const saveToBankDialog = ref(false);
 const questionToSave = ref<QuestaoEntity | null>(null);
@@ -45,6 +48,7 @@ const applicationToStart = ref<AplicacaoEntity | null>(null);
 const isMaterialsBankDialogOpen = ref(false);
 const isViewMaterialsDialogOpen = ref(false);
 const configuringIaRule = ref<RegraGeracaoIaEntity | null>(null);
+const editingAttachedMaterial = ref<ArquivoEntity | null>(null);
 
 const isDialogVisible = computed({
   get: () => !!applicationToStart.value,
@@ -135,10 +139,25 @@ function handleViewMaterialsForIa(rule: RegraGeracaoIaEntity) {
   console.log("Visualizar materiais para a regra:", rule);
 }
 
-function handleMaterialsSelectionForIa(selection: { files: ArquivoEntity[] }) {
-  if (configuringIaRule.value && assessmentStore.assessmentState) {
-    const selectedFileIds = selection.files.map((f) => f.id);
+function handleMaterialsSelection(selection: { files: ArquivoEntity[] }) {
+  if (!assessmentStore.assessmentState) return;
 
+  if (configuringIaRule.value) {
+    const selectedFileIds = selection.files.map((f) => f.id);
+    selection.files.forEach((file) => {
+      const anexoExistente = assessmentStore.assessmentState!.arquivos.some(
+        (aw) => aw.arquivo.id === file.id
+      );
+      if (!anexoExistente) {
+        assessmentStore.assessmentState!.arquivos.push({
+          arquivo: file,
+          permitirConsultaPorEstudante: false,
+        });
+      }
+    });
+    configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
+    configuringIaRule.value = null;
+  } else {
     selection.files.forEach((file) => {
       const anexoExistente = assessmentStore.assessmentState!.arquivos.some(
         (aw) => aw.arquivo.id === file.id
@@ -150,10 +169,46 @@ function handleMaterialsSelectionForIa(selection: { files: ArquivoEntity[] }) {
         });
       }
     });
-
-    configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
-    configuringIaRule.value = null;
+    toast.add({
+      title: `${selection.files.length} material(is) anexado(s) à prova.`,
+      icon: "i-lucide-check-circle",
+      color: "secondary",
+    });
   }
+}
+
+function handleRemoveMaterial(fileId: number) {
+  if (!assessmentStore.assessmentState) return;
+  const index = assessmentStore.assessmentState.arquivos.findIndex(
+    (aw) => aw.arquivo.id === fileId
+  );
+  if (index > -1) {
+    assessmentStore.assessmentState.arquivos.splice(index, 1);
+  }
+}
+
+function handleEditMaterial(fileToEdit: ArquivoEntity) {
+  isViewMaterialsDialogOpen.value = false;
+  editingAttachedMaterial.value = fileToEdit;
+}
+
+function openMaterialsBankForConsultation() {
+  configuringIaRule.value = null;
+  isMaterialsBankDialogOpen.value = true;
+}
+
+function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
+  if (!editingAttachedMaterial.value || !assessmentStore.assessmentState)
+    return;
+
+  const originalFileWrapper = assessmentStore.assessmentState.arquivos.find(
+    (aw) => aw.arquivo.id === editingAttachedMaterial.value!.id
+  );
+
+  if (originalFileWrapper) {
+    Object.assign(originalFileWrapper.arquivo, updatedData);
+  }
+  editingAttachedMaterial.value = null;
 }
 </script>
 
@@ -202,13 +257,20 @@ function handleMaterialsSelectionForIa(selection: { files: ArquivoEntity[] }) {
         />
         <OpenMaterialsBankDialog
           v-model="isMaterialsBankDialogOpen"
-          @add-materials="handleMaterialsSelectionForIa"
+          @add-materials="handleMaterialsSelection"
         />
         <ViewAttachedMaterialsDialog
           v-model="isViewMaterialsDialogOpen"
-          :selected-materials="
-            assessmentStore.assessmentState.arquivos.map((a) => a.arquivo)
-          "
+          :selected-materials="assessmentStore.assessmentState.arquivos"
+          @remove-material="handleRemoveMaterial"
+          @edit-material="handleEditMaterial"
+        />
+
+        <EditFileDialog
+          :model-value="!!editingAttachedMaterial"
+          :file="editingAttachedMaterial"
+          @update:model-value="editingAttachedMaterial = null"
+          @update:file="handleUpdateMaterial"
         />
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -233,6 +295,34 @@ function handleMaterialsSelectionForIa(selection: { files: ArquivoEntity[] }) {
             <div class="sticky top-24 space-y-6 self-start">
               <Overview :prova="assessmentStore.assessment" />
               <QuickSettings v-model="assessmentStore.assessmentState" />
+
+              <UCard>
+                <template #header>
+                  <h3 class="text-lg font-semibold">Materiais Anexados</h3>
+                </template>
+                <div class="space-y-3">
+                  <p class="text-sm text-gray-500">
+                    {{ assessmentStore.assessmentState.arquivos.length }}
+                    arquivo(s) anexado(s).
+                  </p>
+                  <UButton
+                    label="Anexar Material"
+                    icon="i-lucide-plus"
+                    variant="solid"
+                    color="secondary"
+                    block
+                    @click="openMaterialsBankForConsultation"
+                  />
+
+                  <UButton
+                    label="Gerenciar Materiais"
+                    icon="i-lucide-file-cog"
+                    variant="outline"
+                    block
+                    @click="isViewMaterialsDialogOpen = true"
+                  />
+                </div>
+              </UCard>
             </div>
           </div>
         </div>

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import MaterialsBankFileItem from "~/components/BancoDeMateriais/MaterialsBankFileItem/index.vue";
 import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
+import type { ArquivoAvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 
 defineProps<{
   modelValue: boolean;
-  selectedMaterials: ArquivoEntity[];
+  selectedMaterials: ArquivoAvaliacaoEntity[];
 }>();
 
 const emit = defineEmits([
@@ -19,6 +20,13 @@ function handleRemove(file: ArquivoEntity) {
 
 function handleEdit(file: ArquivoEntity) {
   emit("edit-material", file);
+}
+
+function handleToggleConsulta(
+  arquivoWrapper: ArquivoAvaliacaoEntity,
+  novoValor: boolean
+) {
+  arquivoWrapper.permitirConsultaPorEstudante = novoValor;
 }
 </script>
 
@@ -37,16 +45,19 @@ function handleEdit(file: ArquivoEntity) {
         </p>
         <div v-else class="space-y-2">
           <MaterialsBankFileItem
-            v-for="file in selectedMaterials"
-            :key="file.id"
-            :item="file"
-            @delete="handleRemove(file)"
-            @edit="handleEdit(file)"
+            v-for="arquivoWrapper in selectedMaterials"
+            :key="arquivoWrapper.arquivo.id"
+            :item="arquivoWrapper.arquivo"
+            :permitir-consulta="arquivoWrapper.permitirConsultaPorEstudante"
+            @delete="handleRemove(arquivoWrapper.arquivo)"
+            @edit="handleEdit(arquivoWrapper.arquivo)"
+            @update:permitir-consulta="
+              handleToggleConsulta(arquivoWrapper, $event)
+            "
           />
         </div>
       </div>
     </template>
-
     <template #footer>
       <div class="flex justify-end">
         <UButton
