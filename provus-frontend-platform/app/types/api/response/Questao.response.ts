@@ -25,3 +25,16 @@ export interface QuestaoApiResponse {
   alternativas: AlternativaApiResponse[];
   path?: string;
 }
+
+interface AlternativaGeradaDto {
+  descricao: string;
+  isCorreto: boolean;
+}
+
+export interface GeneratedQuestaoDto {
+  titulo: string;
+  descricao: string;
+  dificuldade: DificuldadeQuestaoEnum;
+  exemplo_resposta: string;
+  alternativas?: AlternativaGeradaDto[];
+}

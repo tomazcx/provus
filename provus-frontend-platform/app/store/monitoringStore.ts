@@ -418,6 +418,42 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     }
   }
 
+  async function confirmarCodigo(submissaoId: number, codigoEntrega: number) {
+    if (!currentApplicationId.value) {
+      toast.add({
+        title: "Erro",
+        description: "ID da aplicação não encontrado.",
+        color: "error",
+      });
+      return false;
+    }
+
+    try {
+      const payload = { codigoEntrega };
+      await $api(
+        `/backoffice/aplicacao/${currentApplicationId.value}/submissao/${submissaoId}/confirmar-codigo`,
+        { method: "PATCH", body: payload }
+      );
+
+      const aluno = studentProgress.value.find(
+        (s) => s.submissaoId === submissaoId
+      );
+      if (aluno) {
+        aluno.estado = EstadoSubmissaoEnum.CODIGO_CONFIRMADO;
+      }
+
+      toast.add({ title: "Entrega Confirmada!", color: "secondary" });
+      return true;
+    } catch {
+      toast.add({
+        title: "Erro na confirmação",
+        description: "Código incorreto.",
+        color: "error",
+      });
+      return false;
+    }
+  }
+
   async function fetchMonitoringData(applicationId: number) {
     isLoading.value = true;
     studentProgress.value = [];
@@ -497,5 +533,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     fetchMonitoringData,
     initializeWebSocketListeners,
     clearWebSocketListeners,
+    confirmarCodigo
   };
 });

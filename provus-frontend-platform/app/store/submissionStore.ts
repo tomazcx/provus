@@ -1,3 +1,4 @@
+import type EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import type {
   FindSubmissoesResponse,
   SubmissaoNaListaResponse,
@@ -57,6 +58,20 @@ export const useSubmissionsStore = defineStore("submissions", () => {
     return response.value.submissoes.find((sub) => sub.id === id);
   }
 
+  function updateSubmissionStatus(
+    submissionId: number,
+    newStatus: EstadoSubmissaoEnum
+  ) {
+    if (response.value?.submissoes) {
+      const submission = response.value.submissoes.find(
+        (s) => s.id === submissionId
+      );
+      if (submission) {
+        submission.estado = newStatus;
+      }
+    }
+  }
+
   const submissions = computed(() => response.value || null);
 
   return {
@@ -65,5 +80,6 @@ export const useSubmissionsStore = defineStore("submissions", () => {
     isLoading,
     fetchSubmissions,
     getSubmissionById,
+    updateSubmissionStatus,
   };
 });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IProgressoAluno } from "~/types/IMonitoring";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+import { useMonitoringStore } from "~/store/monitoringStore";
 
 defineProps({
   progressoAlunos: {
@@ -12,6 +13,52 @@ defineProps({
     required: true,
   },
 });
+
+const monitoringStore = useMonitoringStore();
+const toast = useToast();
+
+const codigoAConfirmar = ref<{
+  submissaoId: number | null;
+  codigo: string;
+  isLoading: boolean;
+}>({
+  submissaoId: null,
+  codigo: "",
+  isLoading: false,
+});
+
+function openPopover(aluno: IProgressoAluno) {
+  codigoAConfirmar.value.submissaoId = aluno.submissaoId;
+  codigoAConfirmar.value.codigo = "";
+  codigoAConfirmar.value.isLoading = false;
+}
+
+async function handleConfirmarCodigo(aluno: IProgressoAluno) {
+  if (
+    !codigoAConfirmar.value.codigo ||
+    codigoAConfirmar.value.codigo.length !== 6
+  ) {
+    toast.add({
+      title: "Código inválido",
+      description: "O código deve ter 6 dígitos.",
+      color: "error",
+    });
+    return;
+  }
+  codigoAConfirmar.value.isLoading = true;
+  const success = await monitoringStore.confirmarCodigo(
+    aluno.submissaoId,
+    parseInt(codigoAConfirmar.value.codigo, 10)
+  );
+  codigoAConfirmar.value.isLoading = false;
+
+  if (success) {
+    const popoverButton = document.getElementById(
+      `monitor-popover-btn-${aluno.submissaoId}`
+    );
+    popoverButton?.click();
+  }
+}
 
 type UBadgeColor =
   | "success"
@@ -44,6 +91,10 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
       [EstadoSubmissaoEnum.ENCERRADA]: { text: "Encerrado", color: "gray" },
       [EstadoSubmissaoEnum.CANCELADA]: { text: "Cancelado", color: "gray" },
       [EstadoSubmissaoEnum.REABERTA]: { text: "Reaberto", color: "warning" },
+      [EstadoSubmissaoEnum.CODIGO_CONFIRMADO]: {
+        text: "Código Confirmado",
+        color: "secondary",
+      },
     };
   return map[estado] || { text: "Desconhecido", color: "gray" };
 }
@@ -56,7 +107,7 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div
         v-for="aluno in progressoAlunos"
-        :key="aluno.aluno.id"
+        :key="aluno.submissaoId"
         class="p-4 border border-gray-200 rounded-lg"
       >
         <div class="flex items-center justify-between mb-3">
@@ -72,6 +123,7 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
             >{{ getStatusVisuals(aluno.estado).text }}</UBadge
           >
         </div>
+
         <div class="mb-2">
           <div class="flex justify-between text-sm text-gray-600 mb-1">
             <span>Progresso</span>
@@ -84,11 +136,86 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
             :color="aluno.alertas > 0 ? 'error' : 'secondary'"
           />
         </div>
-        <div class="text-xs text-gray-500">
-          Iniciou: {{ new Date(aluno.horaInicio).toLocaleTimeString("pt-BR") }}
+
+        <div class="flex justify-between text-xs text-gray-500">
+          <span
+            >Iniciou:
+            {{ new Date(aluno.horaInicio).toLocaleTimeString("pt-BR") }}</span
+          >
+          <span class="font-mono font-medium">{{
+            getTempoRestante(aluno)
+          }}</span>
         </div>
-        <div class="font-mono">{{ getTempoRestante(aluno) }}</div>
-        <div>{{ aluno.alertas }} Alertas</div>
+
+        <div
+          class="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between"
+        >
+          <div class="flex items-center space-x-2">
+            <Icon
+              name="i-lucide-shield-alert"
+              class="h-4 w-4"
+              :class="aluno.alertas > 0 ? 'text-error-500' : 'text-gray-400'"
+            />
+            <span
+              class="text-sm font-medium"
+              :class="aluno.alertas > 0 ? 'text-error-600' : 'text-gray-500'"
+            >
+              {{ aluno.alertas }} Alerta(s)
+            </span>
+          </div>
+
+          <div vNextClickOutsideStop>
+            <UPopover
+              v-if="
+                aluno.estado === EstadoSubmissaoEnum.AVALIADA ||
+                aluno.estado === EstadoSubmissaoEnum.ENVIADA
+              "
+              mode="click"
+            >
+              <UButton
+                :id="`monitor-popover-btn-${aluno.submissaoId}`"
+                label="Confirmar"
+                size="xs"
+                color="warning"
+                variant="outline"
+                @click.stop="openPopover(aluno)"
+              />
+              <template #content>
+                <div class="p-4 w-64 space-y-3" @click.stop>
+                  <p class="text-sm font-medium">
+                    Confirmar: {{ aluno.aluno.nome }}
+                  </p>
+                  <UInput
+                    v-model="codigoAConfirmar.codigo"
+                    placeholder="Código de 6 dígitos"
+                    maxlength="6"
+                    :disabled="codigoAConfirmar.isLoading"
+                  />
+                  <UButton
+                    label="OK"
+                    size="sm"
+                    block
+                    :loading="
+                      codigoAConfirmar.isLoading &&
+                      codigoAConfirmar.submissaoId === aluno.submissaoId
+                    "
+                    @click.stop="handleConfirmarCodigo(aluno)"
+                  />
+                </div>
+              </template>
+            </UPopover>
+
+            <UBadge
+              v-else-if="aluno.estado === EstadoSubmissaoEnum.CODIGO_CONFIRMADO"
+              color="secondary"
+              variant="solid"
+              size="xs"
+            >
+              <Icon name="i-lucide-check" class="h-3 w-3 mr-1" />
+              Confirmado
+            </UBadge>
+          </div>
+        </div>
       </div>
     </div>
   </UCard>

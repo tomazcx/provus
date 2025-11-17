@@ -5,6 +5,11 @@ import type {
   SubmissaoNaListaResponse,
 } from "~/types/api/response/FindSubmissoes.response";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+import { useSubmissionsStore } from "~/store/submissionStore";
+
+const toast = useToast();
+const { $api } = useNuxtApp();
+const submissionsStore = useSubmissionsStore();
 
 const UBadge = resolveComponent("UBadge");
 const UAvatar = resolveComponent("UAvatar");
@@ -57,6 +62,72 @@ const filteredData = computed<SubmissionRow[]>(() => {
 
   return filtered;
 });
+
+const codigoAConfirmar = ref<{
+  submissaoId: number | null;
+  codigo: string;
+  isLoading: boolean;
+}>({
+  submissaoId: null,
+  codigo: "",
+  isLoading: false,
+});
+
+function openPopover(row: SubmissionRow) {
+  codigoAConfirmar.value.submissaoId = row.id;
+  codigoAConfirmar.value.codigo = "";
+  codigoAConfirmar.value.isLoading = false;
+}
+
+async function handleConfirmarCodigo(submissao: SubmissionRow) {
+  if (
+    !codigoAConfirmar.value.codigo ||
+    codigoAConfirmar.value.codigo.length !== 6
+  ) {
+    toast.add({
+      title: "Código inválido",
+      description: "O código deve ter 6 dígitos.",
+      color: "error",
+    });
+    return;
+  }
+
+  codigoAConfirmar.value.isLoading = true;
+  try {
+    const payload = {
+      codigoEntrega: parseInt(codigoAConfirmar.value.codigo, 10),
+    };
+
+    await $api(
+      `/backoffice/aplicacao/${props.submissions.applicationId}/submissao/${submissao.id}/confirmar-codigo`,
+      { method: "PATCH", body: payload }
+    );
+
+    submissionsStore.updateSubmissionStatus(
+      submissao.id,
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO
+    );
+
+    toast.add({ title: "Entrega Confirmada!", color: "secondary" });
+    codigoAConfirmar.value = {
+      submissaoId: null,
+      codigo: "",
+      isLoading: false,
+    };
+    const popoverButton = document.getElementById(
+      `popover-btn-${submissao.id}`
+    );
+    popoverButton?.click();
+  } catch {
+    toast.add({
+      title: "Erro na confirmação",
+      description: "Código incorreto.",
+      color: "error",
+    });
+  } finally {
+    codigoAConfirmar.value.isLoading = false;
+  }
+}
 
 const table = useTemplateRef("table");
 const pagination = ref({
@@ -187,19 +258,32 @@ const columns: TableColumn<SubmissionRow>[] = [
     cell: ({ row }) => {
       const estado = row.original.estado;
       const colorMap: Record<string, string> = {
-        [EstadoSubmissaoEnum.AVALIADA]: "secondary",
-        [EstadoSubmissaoEnum.ENVIADA]: "primary",
+        [EstadoSubmissaoEnum.CODIGO_CONFIRMADO]: "secondary",
+        [EstadoSubmissaoEnum.AVALIADA]: "primary",
+        [EstadoSubmissaoEnum.ENVIADA]: "blue",
         [EstadoSubmissaoEnum.INICIADA]: "yellow",
         [EstadoSubmissaoEnum.ABANDONADA]: "error",
         [EstadoSubmissaoEnum.ENCERRADA]: "gray",
         [EstadoSubmissaoEnum.REABERTA]: "orange",
       };
+
+      const textoEstado =
+        estado === EstadoSubmissaoEnum.AVALIADA
+          ? "Avaliada (Não Confirmada)"
+          : estado === EstadoSubmissaoEnum.ENVIADA
+          ? "Enviada (Não Confirmada)"
+          : estado;
+
       return h(
         UBadge,
         { color: colorMap[estado] || "gray", variant: "subtle" },
-        () => estado
+        () => textoEstado
       );
     },
+  },
+  {
+    accessorKey: "actions",
+    header: "Confirmação",
   },
 ];
 
@@ -216,6 +300,7 @@ function onSelect(row: TableRow<SubmissionRow>) {
   );
 }
 </script>
+
 <template>
   <div class="w-full space-y-4 pb-4">
     <UTable
@@ -227,7 +312,60 @@ function onSelect(row: TableRow<SubmissionRow>) {
       :loading="isLoading"
       class="flex-1"
       @select="onSelect"
-    />
+    >
+      <template #actions="{ row }">
+        <UBadge
+          v-if="row.original.estado === EstadoSubmissaoEnum.CODIGO_CONFIRMADO"
+          color="secondary"
+          variant="solid"
+          size="xs"
+        >
+          Confirmado
+        </UBadge>
+
+        <UPopover
+          v-else-if="
+            row.original.estado === EstadoSubmissaoEnum.AVALIADA ||
+            row.original.estado === EstadoSubmissaoEnum.ENVIADA
+          "
+          mode="click"
+        >
+          <UButton
+            :id="`popover-btn-${row.original.id}`"
+            label="Confirmar"
+            size="xs"
+            color="warning"
+            variant="outline"
+            @click.stop="openPopover(row.original)"
+          />
+
+          <template #content>
+            <div class="p-4 w-64 space-y-3" @click.stop>
+              <p class="text-sm font-medium">
+                Confirmar: {{ row.original.estudante.nome }}
+              </p>
+              <UInput
+                v-model="codigoAConfirmar.codigo"
+                placeholder="Código de 6 dígitos"
+                maxlength="6"
+              />
+              <UButton
+                label="OK"
+                size="sm"
+                block
+                :loading="
+                  codigoAConfirmar.isLoading &&
+                  codigoAConfirmar.submissaoId === row.original.id
+                "
+                @click.stop="handleConfirmarCodigo(row.original)"
+              />
+            </div>
+          </template>
+        </UPopover>
+
+        <span v-else class="text-gray-400">N/A</span>
+      </template>
+    </UTable>
     <div
       v-if="table && filteredData.length > 0"
       class="flex justify-center border-t border-gray-200 dark:border-gray-700 pt-4"

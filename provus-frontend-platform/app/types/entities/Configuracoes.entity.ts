@@ -25,6 +25,7 @@ export interface RegraGeracaoIaEntity {
   dificuldade: DificuldadeQuestaoEnum;
   pontuacao: number;
   materiaisAnexadosIds: number[];
+  assunto?: string;
 }
 
 export interface RandomizationRuleEntity {

@@ -6,8 +6,8 @@ import AnsweredQuestionCard from "@/components/Submissao/AnsweredQuestionCard/in
 import { useApplicationsStore } from "~/store/applicationsStore";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliadorSubmissaoDetalheApiResponse } from "~/types/api/response/AvaliadorSubmissaoDetalhe.response";
-import type { AvaliadorQuestaoDetalheApiResponse } from "~/types/api/response/AvaliadorQuestaoDetalhe.response";
-import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+// import type { AvaliadorQuestaoDetalheApiResponse } from "~/types/api/response/AvaliadorQuestaoDetalhe.response";
+// import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
@@ -63,16 +63,16 @@ async function fetchData() {
 
 onMounted(fetchData);
 
-function isQuestionPending(q: AvaliadorQuestaoDetalheApiResponse): boolean {
-  return !!(
-    q.tipo === TipoQuestaoEnum.DISCURSIVA &&
-    (q.estadoCorrecao === EstadoQuestaoCorrigida.NAO_RESPONDIDA ||
-      q.estadoCorrecao === null) &&
-    q.dadosResposta &&
-    "texto" in q.dadosResposta &&
-    q.dadosResposta.texto
-  );
-}
+// function isQuestionPending(q: AvaliadorQuestaoDetalheApiResponse): boolean {
+//   return !!(
+//     q.tipo === TipoQuestaoEnum.DISCURSIVA &&
+//     (q.estadoCorrecao === EstadoQuestaoCorrigida.NAO_RESPONDIDA ||
+//       q.estadoCorrecao === null) &&
+//     q.dadosResposta &&
+//     "texto" in q.dadosResposta &&
+//     q.dadosResposta.texto
+//   );
+// }
 async function handleSaveCorrection(
   questaoId: number,
   correcaoData: { pontuacao: number; textoRevisao: string }
@@ -225,12 +225,19 @@ async function checkAndFinalizeSubmission() {
     />
     <div class="space-y-6 mt-8">
       <h2 class="text-xl font-semibold text-gray-800">Respostas Detalhadas</h2>
-      <AnsweredQuestionCard
+      <!-- <AnsweredQuestionCard
         v-for="(questao, index) in submissionDetails.questoes"
         :key="questao.id"
         :questao="questao"
         :numero="index + 1"
         :is-pending="isQuestionPending(questao)"
+        @save-correction="handleSaveCorrection(questao.id, $event)"
+      /> -->
+      <AnsweredQuestionCard
+        v-for="(questao, index) in submissionDetails.questoes"
+        :key="questao.id"
+        :questao="questao"
+        :numero="index + 1"
         @save-correction="handleSaveCorrection(questao.id, $event)"
       />
     </div>

@@ -24,10 +24,20 @@ import { useAssessmentStore } from "~/store/assessmentStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
 import { useEditorBridgeStore } from "~/store/editorBridgeStore";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+import type DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
+import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 
 definePageMeta({
   layout: false,
 });
+
+interface TemaForm {
+  assunto: string;
+  quantidade: number;
+  tipo: TipoQuestaoEnum;
+  dificuldade: DificuldadeQuestaoEnum;
+  pontuacao: number;
+}
 
 const assessmentStore = useAssessmentStore();
 const applicationsStore = useApplicationsStore();
@@ -126,8 +136,17 @@ function handleSaveQuestionToBank(question: QuestaoEntity) {
   saveToBankDialog.value = true;
 }
 
-function handleAIGeneration(regras: RegraGeracaoIaEntity[]) {
+async function handleAIGeneration(regras: RegraGeracaoIaEntity[]) {
   console.log("Regras de Geração por IA recebidas:", regras);
+  await assessmentStore.generateQuestionsByFile(regras);
+  isGenerateAIDialogOpen.value = false;
+}
+
+async function handleAIGenerationByTopic(regra: TemaForm) {
+  // <-- Adicionar async
+  console.log("Regra de Geração por IA (Tema) recebida:", regra);
+  await assessmentStore.generateQuestionsByTopic(regra);
+  isGenerateAIDialogOpen.value = false;
 }
 
 function handleOpenMaterialsBankForIa(rule: RegraGeracaoIaEntity) {
@@ -251,7 +270,9 @@ function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
           :materiais-anexados="
             assessmentStore.assessmentState.arquivos.map((a) => a.arquivo)
           "
+          :is-loading="assessmentStore.isSaving"
           @generate="handleAIGeneration"
+          @generate-by-topic="handleAIGenerationByTopic"
           @open-materials-bank="handleOpenMaterialsBankForIa"
           @view-materials="handleViewMaterialsForIa"
         />

@@ -6,6 +6,13 @@ interface AlternativaRequest {
   isCorreto: boolean;
 }
 
+export interface CreateAiQuestaoDto {
+  assunto: string;
+  dificuldade: DificuldadeQuestaoEnum;
+  tipoQuestao: TipoQuestaoEnum;
+  quantidade: number;
+}
+
 export interface CreateQuestaoRequest {
   titulo: string;
   paiId?: number;

@@ -43,6 +43,7 @@ const dataFimRef = computed(
 const isApplicationActive = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
+
 const studentProgress = computed(() => monitoringStore.studentProgress);
 const activityFeed = computed(() => monitoringStore.activityFeed);
 
@@ -108,15 +109,11 @@ onMounted(async () => {
   monitoringStore.clearWebSocketListeners();
   monitoringStore.currentApplicationId = applicationId;
   aplicacao.value = applicationsStore.getApplicationById(applicationId) ?? null;
-
   const appLoadSuccess = await fetchApplicationIfNeeded();
-
   if (appLoadSuccess) {
     await fetchMonitoringDetails();
   }
-
   isLoading.value = false;
-
   if ($websocket) {
     watch(
       $websocket.isConnected,
@@ -261,31 +258,32 @@ const formatarTempo = (totalSegundos: number): string => {
 };
 
 function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
+  // *** INÍCIO DA CORREÇÃO ***
   const estadosFinaisOuInativos: EstadoSubmissaoEnum[] = [
     EstadoSubmissaoEnum.ENCERRADA,
     EstadoSubmissaoEnum.CANCELADA,
     EstadoSubmissaoEnum.ENVIADA,
     EstadoSubmissaoEnum.AVALIADA,
     EstadoSubmissaoEnum.ABANDONADA,
+    EstadoSubmissaoEnum.CODIGO_CONFIRMADO, // <-- ADICIONADO ESTE ESTADO
   ];
+  // *** FIM DA CORREÇÃO ***
 
   if (estadosFinaisOuInativos.includes(aluno.estado)) {
     return "00:00:00";
   }
-
   const penalidade = aluno.tempoPenalidadeEmSegundos || 0;
   const tempoRestanteIndividual = Math.max(
     0,
     tempoRestanteEmSegundos.value - penalidade
   );
-
   if (!isApplicationActive.value) {
     return formatarTempo(tempoRestanteIndividual);
   }
-
   return formatarTempo(tempoRestanteIndividual);
 }
 </script>
+
 <template>
   <div v-if="isLoading" class="flex items-center justify-center min-h-[50vh]">
     <div class="text-center">

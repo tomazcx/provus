@@ -10,6 +10,18 @@ import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import TipoItemEnum from "~/enums/TipoItemEnum";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
+import type { CreateAiQuestaoDto } from "~/types/api/request/Questao.request";
+import type { GeneratedQuestaoDto } from "~/types/api/response/Questao.response";
+import type { GenerateQuestaoFromFileRequestDto } from "~/types/api/request/GenerateQuestaoFromFile.request";
+import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
+
+interface TemaForm {
+  assunto: string;
+  quantidade: number;
+  tipo: TipoQuestaoEnum;
+  dificuldade: DificuldadeQuestaoEnum;
+  pontuacao: number;
+}
 
 function mapEntityToRequest(entity: AvaliacaoEntity): CreateAvaliacaoRequest {
   return {
@@ -285,6 +297,160 @@ export const useAssessmentStore = defineStore("assessment", () => {
     assessmentState.value.questoes.push(newQuestion);
   }
 
+  async function generateQuestionsByTopic(regra: TemaForm) {
+    console.log('oi???')
+    if (!assessmentState.value) return;
+
+    isSaving.value = true;
+
+    try {
+      const payload: CreateAiQuestaoDto = {
+        assunto: regra.assunto,
+        dificuldade: regra.dificuldade,
+        tipoQuestao: regra.tipo,
+        quantidade: regra.quantidade,
+      };
+
+      const generatedQuestions = await $api<GeneratedQuestaoDto[]>(
+        "/backoffice/questao/generate-by-ai",
+        {
+          method: "POST",
+          body: payload,
+        }
+      );
+
+      if (!generatedQuestions || generatedQuestions.length === 0) {
+        throw new Error("A I.A. não retornou nenhuma questão.");
+      }
+
+      const novasQuestoes: QuestaoEntity[] = generatedQuestions.map(
+        (genQuestao) => {
+          return {
+            id: Date.now() + Math.random(),
+            titulo: genQuestao.titulo,
+            descricao: genQuestao.descricao,
+            dificuldade: genQuestao.dificuldade,
+            tipoQuestao: regra.tipo,
+            pontuacao: regra.pontuacao,
+            isModelo: false,
+            tipo: TipoItemEnum.QUESTAO,
+            paiId: assessmentState.value?.paiId ?? null,
+            criadoEm: new Date().toISOString(),
+            atualizadoEm: new Date().toISOString(),
+            exemploRespostaIa: genQuestao.exemplo_resposta || "",
+            textoRevisao: "",
+            alternativas: (genQuestao.alternativas || []).map((alt) => ({
+              id: Date.now() + Math.random(),
+              descricao: alt.descricao,
+              isCorreto: alt.isCorreto,
+            })),
+          };
+        }
+      );
+
+      assessmentState.value.questoes.push(...novasQuestoes);
+
+      toast.add({
+        title: `${novasQuestoes.length} questão(ões) gerada(s) por I.A.`,
+        color: "secondary",
+        icon: "i-lucide-wand-2",
+      });
+    } catch {
+      toast.add({
+        title: "Erro da I.A.",
+        description: "Não foi possível gerar as questões.",
+        color: "error",
+      });
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  async function generateQuestionsByFile(regras: RegraGeracaoIaEntity[]) {
+    if (!assessmentState.value) return;
+    isSaving.value = true;
+
+    const allGeneratedQuestions: QuestaoEntity[] = [];
+
+    try {
+      for (const rule of regras) {
+        if (rule.materiaisAnexadosIds.length === 0) {
+          toast.add({
+            title: "Regra Ignorada",
+            description:
+              "Uma regra de geração por material foi ignorada por não ter materiais selecionados.",
+            color: "warning",
+          });
+          continue;
+        }
+
+        const payload: GenerateQuestaoFromFileRequestDto = {
+          arquivoIds: rule.materiaisAnexadosIds,
+          assunto: rule.assunto || undefined,
+          dificuldade: rule.dificuldade,
+          tipoQuestao: rule.tipo,
+          quantidade: rule.quantidade,
+        };
+
+        const generatedQuestions = await $api<GeneratedQuestaoDto[]>(
+          "/backoffice/questao/generate-by-ai/gerar-por-arquivo",
+          {
+            method: "POST",
+            body: payload,
+          }
+        );
+
+        if (!generatedQuestions || generatedQuestions.length === 0) {
+          throw new Error("A I.A. não retornou nenhuma questão para a regra.");
+        }
+
+        const novasQuestoes: QuestaoEntity[] = generatedQuestions.map(
+          (genQuestao) => ({
+            id: Date.now() + Math.random(),
+            titulo: genQuestao.titulo,
+            descricao: genQuestao.descricao,
+            dificuldade: genQuestao.dificuldade,
+            tipoQuestao: rule.tipo,
+            pontuacao: rule.pontuacao,
+            isModelo: false,
+            tipo: TipoItemEnum.QUESTAO,
+            paiId: assessmentState.value?.paiId ?? null,
+            criadoEm: new Date().toISOString(),
+            atualizadoEm: new Date().toISOString(),
+            exemploRespostaIa: genQuestao.exemplo_resposta || "",
+            textoRevisao: "",
+            alternativas: (genQuestao.alternativas || []).map((alt) => ({
+              id: Date.now() + Math.random(),
+              descricao: alt.descricao,
+              isCorreto: alt.isCorreto,
+            })),
+          })
+        );
+
+        allGeneratedQuestions.push(...novasQuestoes);
+      }
+
+      assessmentState.value.questoes.push(...allGeneratedQuestions);
+
+      if (allGeneratedQuestions.length > 0) {
+        toast.add({
+          title: `${allGeneratedQuestions.length} questão(ões) gerada(s) por I.A.`,
+          color: "secondary",
+          icon: "i-lucide-wand-2",
+        });
+      }
+    } catch {
+      console.error("Erro ao gerar questões por I.A. (Material):");
+      toast.add({
+        title: "Erro da I.A.",
+        description: "Não foi possível gerar as questões.",
+        color: "error",
+      });
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
   function removeQuestion(questionId: number) {
     if (!assessmentState.value) return;
     const index = assessmentState.value.questoes.findIndex(
@@ -324,5 +490,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
     removeQuestion,
     addQuestionsFromBank,
     updateSettings,
+    generateQuestionsByTopic,
+    generateQuestionsByFile,
   };
 });

@@ -368,10 +368,10 @@ export class SubmissaoService {
       }
 
       let pontuacaoTotalCalculada = 0;
-      let existeDiscursiva = false;
+      let correcaoManualPendente = false;
       const respostasParaSalvar: SubmissaoRespostasModel[] = [];
 
-      for await (const resposta of submissao.respostas) {
+      for (const resposta of submissao.respostas) {
         const questaoGabarito = resposta.questao;
         const dadosRespostaAluno = resposta.dadosResposta;
 
@@ -465,20 +465,15 @@ export class SubmissaoService {
               break;
             }
             case TipoQuestaoEnum.DISCURSIVA: {
-              pontuacaoObtida = 0;
-              estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
-              existeDiscursiva = true;
-
+              const isAiCorrectionEnabled =
+                submissao.aplicacao.avaliacao.configuracaoAvaliacao
+                  .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa;
               let respostaExistente = '';
               if (isDadosRespostaDiscursiva(dadosRespostaAluno)) {
-                respostaExistente = dadosRespostaAluno?.texto;
+                respostaExistente = dadosRespostaAluno?.texto ?? '';
               }
 
-              if (
-                submissao.aplicacao.avaliacao.configuracaoAvaliacao
-                  .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa &&
-                respostaExistente.trim() !== ''
-              ) {
+              if (isAiCorrectionEnabled) {
                 const result = await this.questaoService.evaluateByAi({
                   questaoId: questaoGabarito.id,
                   resposta: respostaExistente,
@@ -486,6 +481,12 @@ export class SubmissaoService {
                 pontuacaoObtida = parseFloat(result.pontuacao.toFixed(2));
                 estadoCorrecao = result.estadoCorrecao;
                 resposta.textoRevisao = result.textoRevisao;
+              } else {
+                correcaoManualPendente = true;
+                pontuacaoObtida = 0;
+                estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
+                resposta.textoRevisao =
+                  'Esta questão será corrigida manualmente pelo professor.';
               }
 
               break;
@@ -515,7 +516,7 @@ export class SubmissaoService {
         submissao.id,
       );
 
-      submissao.estado = existeDiscursiva
+      submissao.estado = correcaoManualPendente
         ? EstadoSubmissaoEnum.ENVIADA
         : EstadoSubmissaoEnum.AVALIADA;
       submissao.finalizadoEm = new Date();
@@ -1173,5 +1174,29 @@ export class SubmissaoService {
 
       return punicoesAplicadas;
     });
+  }
+
+  async confirmarCodigoEntrega(
+    submissaoId: number,
+    aplicacaoId: number,
+    codigoEntregaInput: number,
+  ): Promise<SubmissaoResultDto> {
+    const submissao = await this.submissaoRepository.findOne({
+      where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
+      relations: ['estudante'],
+    });
+
+    if (!submissao) {
+      throw new NotFoundException('Submissão não encontrada');
+    }
+
+    if (submissao.codigoEntrega !== codigoEntregaInput) {
+      throw new BadRequestException('Código de entrega incorreto.');
+    }
+
+    submissao.estado = EstadoSubmissaoEnum.CODIGO_CONFIRMADO;
+    const submissaoSalva = await this.submissaoRepository.save(submissao);
+
+    return new SubmissaoResultDto(submissaoSalva);
   }
 }

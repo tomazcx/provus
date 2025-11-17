@@ -7,7 +7,7 @@ import { z } from "zod";
 const props = defineProps<{
   questao: AvaliadorQuestaoDetalheApiResponse;
   numero: number;
-  isPending: boolean;
+  // isPending: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -97,32 +97,17 @@ const getStudentDiscursiveAnswer = computed(() => {
 
 <template>
   <UCard v-if="questao" :id="`question-${questao.id}`">
-    <div
-      class="flex items-start justify-between mb-4 flex-wrap gap-2"
-      :class="{ 'opacity-50': isPending }"
-    >
+    <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
       <div class="flex items-center space-x-3">
-        <template v-if="!isPending">
-          <div
-            :class="headerVisuals.colorClasses"
-            class="w-8 h-8 rounded-full flex items-center justify-center"
-          >
-            <Icon :name="headerVisuals.icon" class="text-sm" />
-          </div>
-          <span class="text-sm font-medium" :class="headerVisuals.colorClasses">
-            {{ headerVisuals.text }}
-          </span>
-        </template>
-        <template v-else>
-          <div
-            class="w-8 h-8 rounded-full flex items-center justify-center bg-blue-100 text-blue-600"
-          >
-            <Icon name="i-lucide-edit-3" class="text-sm" />
-          </div>
-          <span class="text-sm font-medium text-blue-600">
-            Correção Pendente
-          </span>
-        </template>
+        <div
+          :class="headerVisuals.colorClasses"
+          class="w-8 h-8 rounded-full flex items-center justify-center"
+        >
+          <Icon :name="headerVisuals.icon" class="text-sm" />
+        </div>
+        <span class="text-sm font-medium" :class="headerVisuals.colorClasses">
+          {{ headerVisuals.text }}
+        </span>
       </div>
       <span class="text-sm text-gray-500"
         >Questão {{ numero }} • {{ questao.pontuacaoMaxima }} Ponto(s)</span
@@ -230,7 +215,7 @@ const getStudentDiscursiveAnswer = computed(() => {
       </template>
     </div>
 
-    <template v-if="isPending">
+    <template v-if="questao.tipo === TipoQuestaoEnum.DISCURSIVA">
       <UForm
         :schema="correctionSchema"
         :state="formCorrecao"
@@ -272,20 +257,5 @@ const getStudentDiscursiveAnswer = computed(() => {
         />
       </UForm>
     </template>
-
-    <div
-      v-if="!isPending && questao.textoRevisao"
-      class="mt-4 p-4 bg-amber-50 border-l-4 border-amber-400"
-    >
-      <h4
-        class="font-semibold text-sm text-amber-800 flex items-center gap-1.5"
-      >
-        <Icon name="i-lucide-message-square-quote" class="h-4 w-4" /> Feedback
-        do Professor:
-      </h4>
-      <p class="text-sm text-amber-700 mt-1 whitespace-pre-wrap">
-        {{ questao.textoRevisao }}
-      </p>
-    </div>
   </UCard>
 </template>
