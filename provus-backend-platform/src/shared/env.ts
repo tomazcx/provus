@@ -77,8 +77,12 @@ export class Env {
     return process.env.SUPABASE_SECRET_ACCESS_KEY || '';
   }
 
-  static get SUPABASE_URL(): string {
-    return process.env.SUPABASE_URL || '';
+  static get SUPABASE_UPLOAD_URL(): string {
+    return process.env.SUPABASE_UPLOAD_URL || '';
+  }
+
+  static get SUPABASE_DOWNLOAD_URL(): string {
+    return process.env.SUPABASE_DOWNLOAD_URL || '';
   }
 
   static get SUPABASE_BUCKET(): string {

@@ -25,8 +25,8 @@ export class StorageProvider {
   private readonly bucket: string;
 
   constructor() {
-    if (!Env.SUPABASE_URL) {
-      throw new Error('SUPABASE_URL é obrigatório');
+    if (!Env.SUPABASE_UPLOAD_URL) {
+      throw new Error('SUPABASE_UPLOAD_URL é obrigatório');
     }
     if (!Env.SUPABASE_ACCESS_KEY) {
       throw new Error('SUPABASE_ACCESS_KEY é obrigatório');
@@ -38,16 +38,10 @@ export class StorageProvider {
       throw new Error('SUPABASE_BUCKET é obrigatório');
     }
 
-    const projectRef = Env.SUPABASE_URL.split('.')[0]
-      .replace('https://', '')
-      .replace('/storage', '');
-
-    const s3Endpoint = `https://${projectRef}.s3.sa-east-1.amazonaws.com`;
-
     this.client = new S3Client({
       forcePathStyle: true,
-      region: 'sa-east-1',
-      endpoint: s3Endpoint,
+      region: 'auto',
+      endpoint: Env.SUPABASE_UPLOAD_URL,
       credentials: {
         accessKeyId: Env.SUPABASE_ACCESS_KEY,
         secretAccessKey: Env.SUPABASE_SECRET_ACCESS_KEY,
@@ -83,7 +77,7 @@ export class StorageProvider {
 
       await this.client.send(command);
 
-      const publicUrl = `${Env.SUPABASE_URL}/object/public/${this.bucket}/${sanitizedPath}`;
+      const publicUrl = `${Env.SUPABASE_DOWNLOAD_URL}/${this.bucket}/${sanitizedPath}`;
 
       return {
         success: true,
@@ -133,6 +127,6 @@ export class StorageProvider {
   }
 
   getPublicUrl(path: string): string {
-    return `${Env.SUPABASE_URL}/object/public/${this.bucket}/${path}`;
+    return `${Env.SUPABASE_DOWNLOAD_URL}/object/public/${this.bucket}/${path}`;
   }
 }
