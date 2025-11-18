@@ -301,11 +301,17 @@ export class SubmissaoService {
           url,
           aplicacao.avaliacao.item.titulo,
         );
-        await this.notificationProvider.sendEmail(
-          body.email,
-          'Provus - Avaliação iniciada',
-          html,
-        );
+        try {
+          await this.notificationProvider.sendEmail(
+            body.email,
+            'Provus - Avaliação iniciada',
+            html,
+          );
+        } catch (emailError) {
+          this.logger.error(
+            `Falha ao enviar email de início para ${body.email}. O aluno poderá continuar, mas não recebeu o link. Erro: ${emailError.message}`,
+          );
+        }
       }
 
       const submissaoCompleta = await this.findSubmissaoByHash(
@@ -519,7 +525,7 @@ export class SubmissaoService {
                 estadoCorrecao = result.estadoCorrecao;
                 resposta.textoRevisao = result.textoRevisao;
               } else {
-                correcaoManualPendente = true; 
+                correcaoManualPendente = true;
                 pontuacaoObtida = 0;
                 estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
                 resposta.textoRevisao =
@@ -852,7 +858,7 @@ export class SubmissaoService {
 
     const estadosPermitidosParaRevisao = [
       EstadoSubmissaoEnum.AVALIADA,
-      EstadoSubmissaoEnum.CODIGO_CONFIRMADO, 
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
     ];
 
     if (
@@ -887,6 +893,7 @@ export class SubmissaoService {
         'respostas.questao',
         'respostas.questao.item',
         'respostas.questao.alternativas',
+        'registrosPunicaoPorOcorrencia',
       ],
     });
 

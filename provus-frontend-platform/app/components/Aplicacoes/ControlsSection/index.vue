@@ -1,45 +1,46 @@
 <script setup lang="ts">
-const filters = reactive({
-  search: "",
-  type: "Todos",
-  sortBy: "Última Modificação",
-});
+const search = defineModel<string>("search");
+const status = defineModel<string>("status");
+const sortBy = defineModel<string>("sortBy");
+
+const statusOptions = [
+  "Todos",
+  "Em Andamento",
+  "Agendada",
+  "Concluída",
+  "Finalizada",
+  "Pausada",
+  "Cancelada",
+  "Criada",
+];
+
+const sortOptions = [
+  "Última Modificação",
+  "Mais Recente",
+  "Mais Antigo",
+  "Título A-Z",
+  "Título Z-A",
+];
 </script>
+
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-    <div class="flex gap-4 w-full">
+    <div class="flex flex-col md:flex-row gap-4 w-full">
       <UFormField label="Buscar" class="w-full">
         <UInput
-          v-model="filters.search"
-          placeholder="Buscar por nome"
+          v-model="search"
+          placeholder="Buscar por título"
           icon="i-lucide-search"
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Tipo de status" class="w-full">
-        <USelect
-          v-model="filters.type"
-          :items="[
-            'Todos',
-            'Em Andamento',
-            'Agendada',
-            'Concluída',
-            'Cancelada',
-          ]"
-          class="w-full"
-        />
+
+      <UFormField label="Status" class="w-full md:w-1/4">
+        <USelect v-model="status" :items="statusOptions" class="w-full" />
       </UFormField>
-      <UFormField label="Ordenar Por" class="w-full">
-        <USelect
-          v-model="filters.sortBy"
-          class="w-full"
-          :items="[
-            'Última Modificação',
-            'Mais Recente',
-            'Mais Antigo',
-            'Título A-Z',
-          ]"
-        />
+
+      <UFormField label="Ordenar Por" class="w-full md:w-1/4">
+        <USelect v-model="sortBy" class="w-full" :items="sortOptions" />
       </UFormField>
     </div>
   </div>

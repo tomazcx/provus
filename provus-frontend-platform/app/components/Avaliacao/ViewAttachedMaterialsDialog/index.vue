@@ -49,6 +49,7 @@ function handleToggleConsulta(
             :key="arquivoWrapper.arquivo.id"
             :item="arquivoWrapper.arquivo"
             :permitir-consulta="arquivoWrapper.permitirConsultaPorEstudante"
+            :show-consulta-toggle="true"
             @delete="handleRemove(arquivoWrapper.arquivo)"
             @edit="handleEdit(arquivoWrapper.arquivo)"
             @update:permitir-consulta="

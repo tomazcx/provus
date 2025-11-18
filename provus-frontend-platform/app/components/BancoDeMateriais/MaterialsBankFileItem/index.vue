@@ -3,12 +3,21 @@ import Item from "@/components/ui/BankItem/index.vue";
 import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 import formatDate from "~/utils/formatDate";
 
-const props = defineProps<{
-  item: ArquivoEntity;
-  isSelected?: boolean;
-  selectable?: boolean;
-  permitirConsulta?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    item: ArquivoEntity;
+    isSelected?: boolean;
+    selectable?: boolean;
+    permitirConsulta?: boolean;
+    showConsultaToggle?: boolean;
+  }>(),
+  {
+    isSelected: false,
+    selectable: false,
+    permitirConsulta: false,
+    showConsultaToggle: false,
+  }
+);
 
 const emit = defineEmits([
   "edit",
@@ -48,8 +57,12 @@ const consultaModel = computed({
       </p>
     </div>
 
-    <div class="ml-auto flex items-center space-x-2 pl-4" @click.stop>
-      <div class="flex flex-col items-end">
+    <div
+      v-if="showConsultaToggle"
+      class="ml-auto flex items-center space-x-2 pl-4"
+      @click.stop
+    >
+      <div class="flex items-center space-x-2">
         <span class="text-xs text-gray-500">Consulta do Aluno</span>
         <USwitch v-model="consultaModel" />
       </div>

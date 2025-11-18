@@ -65,13 +65,32 @@ export const useApplicationsStore = defineStore("applications", () => {
 
   async function fetchApplications() {
     isLoading.value = true;
+    console.log("🔄 [Store] Iniciando busca de aplicações...");
+
     try {
       const response = await $api<AplicacaoApiResponse[]>(
         "/backoffice/aplicacoes"
       );
+
+      console.log("✅ [Store] Resposta bruta da API:", response);
+
+      if (!Array.isArray(response)) {
+        console.error("❌ [Store] A resposta da API não é um array!", response);
+        applications.value = [];
+        return;
+      }
+
       applications.value = response.map(mapAplicacaoApiResponseToEntity);
+      console.log(
+        "📦 [Store] Aplicações mapeadas na Store:",
+        applications.value
+      );
     } catch {
-      toast.add({ title: "Erro ao buscar aplicações", color: "error" });
+      toast.add({
+        title: "Erro ao buscar aplicações",
+        description: "Erro de conexão",
+        color: "error",
+      });
     } finally {
       isLoading.value = false;
     }
@@ -113,6 +132,41 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  async function updateApplicationStatus(
+    applicationId: number,
+    newStatus: EstadoAplicacaoEnum
+  ) {
+    try {
+      const payload: UpdateAplicacaoRequest = { estado: newStatus };
+      const updatedResponse = await $api<AplicacaoApiResponse>(
+        `/backoffice/aplicacao/${applicationId}`,
+        {
+          method: "PUT",
+          body: payload,
+        }
+      );
+
+      const updatedEntity = mapAplicacaoApiResponseToEntity(updatedResponse);
+
+      const index = applications.value.findIndex((a) => a.id === applicationId);
+      if (index !== -1) {
+        applications.value[index] = updatedEntity;
+      }
+
+      toast.add({
+        title: "Status da aplicação atualizado!",
+        color: "secondary",
+      });
+    } catch {
+      const errorMessage = "Ocorreu um erro desconhecido.";
+      toast.add({
+        title: "Erro ao atualizar status",
+        description: errorMessage,
+        color: "error",
+      });
+    }
+  }
+
   function updateApplicationData(
     applicationId: number,
     updatedFields: Partial<Pick<AplicacaoEntity, "estado" | "dataFim">>
@@ -131,40 +185,6 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
-  async function updateApplicationStatus(
-    applicationId: number,
-    newStatus: EstadoAplicacaoEnum
-  ) {
-    try {
-      const payload: UpdateAplicacaoRequest = { estado: newStatus };
-      const updatedResponse = await $api<AplicacaoApiResponse>(
-        `/backoffice/aplicacao/${applicationId}`,
-        {
-          method: "PUT",
-          body: payload,
-        }
-      );
-
-      const updatedEntity = mapAplicacaoApiResponseToEntity(updatedResponse);
-      updateApplicationData(applicationId, {
-        estado: updatedEntity.estado,
-        dataFim: updatedEntity.dataFim,
-      });
-
-      toast.add({
-        title: "Status da aplicação atualizado!",
-        color: "secondary",
-      });
-    } catch {
-      const errorMessage = "Ocorreu um erro desconhecido.";
-      toast.add({
-        title: "Erro ao atualizar status",
-        description: errorMessage,
-        color: "error",
-      });
-    }
-  }
-
   async function deleteApplication(applicationId: number) {
     try {
       await $api(`/backoffice/aplicacao/${applicationId}`, {
@@ -179,8 +199,11 @@ export const useApplicationsStore = defineStore("applications", () => {
         title: "Aplicação deletada com sucesso!",
         color: "secondary",
       });
-    } catch {
-      const errorMessage = "Ocorreu um erro desconhecido.";
+    } catch (error: any) {
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      }
       toast.add({
         title: "Erro ao deletar aplicação",
         description: errorMessage,

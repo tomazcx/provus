@@ -138,6 +138,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         proibirPrintScreen.value = response.proibirPrintScreen ?? false;
         proibirCopiarColar.value = response.proibirCopiarColar ?? false;
         proibirDevtools.value = response.proibirDevtools ?? false;
+        pontosPerdidos.value = response.pontosPerdidos ?? 0;
       } else {
         throw new Error(
           "Resposta inválida do servidor ao buscar dados da submissão."

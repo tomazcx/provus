@@ -67,6 +67,10 @@ export class ItemSistemaArquivosRepository extends Repository<ItemSistemaArquivo
       .leftJoinAndSelect('arquivosAvaliacoes.arquivo', 'arquivoDaAvaliacao')
       .leftJoinAndSelect('arquivoDaAvaliacao.item', 'itemDoArquivoDaAvaliacao')
       .leftJoinAndSelect(
+        'itemDoArquivoDaAvaliacao.arquivo',
+        'detalhesDoArquivoAnexado',
+      )
+      .leftJoinAndSelect(
         'avaliacao.configuracaoAvaliacao',
         'configuracaoAvaliacao',
       )

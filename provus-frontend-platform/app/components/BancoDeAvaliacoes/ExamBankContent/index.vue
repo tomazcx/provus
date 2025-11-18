@@ -34,8 +34,8 @@ const selectedItems = ref({
   folders: new Set<number>(),
   exams: new Set<number>(),
 });
-const applicationToStart = ref<AplicacaoEntity | null>(null);
 
+const applicationToStart = ref<AplicacaoEntity | null>(null);
 const isDialogVisible = computed({
   get: () => !!applicationToStart.value,
   set: (value) => {
@@ -43,26 +43,72 @@ const isDialogVisible = computed({
   },
 });
 
-const filters = reactive({ search: "", sort: "Última modificação" });
+const filters = reactive({
+  search: "",
+  sort: "Última modificação",
+});
+
+const sortOptions = [
+  "Última modificação",
+  "Mais Recente",
+  "Mais Antigo",
+  "Ordem alfabética A-Z",
+  "Ordem alfabética Z-A",
+];
 
 onMounted(() => {
   examBankStore.initialize();
 });
 
-const items = computed(() =>
-  examBankStore.items.filter((item) =>
-    item.titulo.toLowerCase().includes(filters.search.toLowerCase())
-  )
-);
 const breadcrumbs = computed(() =>
   examBankStore.breadcrumbs.map((crumb, index) => ({
     label: crumb.titulo,
     index,
   }))
 );
+
 const currentPathLabel = computed(() =>
   examBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
 );
+
+const filteredItems = computed(() => {
+  let result = [...examBankStore.items];
+
+  if (filters.search && filters.search.trim() !== "") {
+    const term = filters.search.toLowerCase();
+    result = result.filter((item) => item.titulo.toLowerCase().includes(term));
+  }
+
+  result.sort((a, b) => {
+    const typeA = isFolder(a) ? 0 : 1;
+    const typeB = isFolder(b) ? 0 : 1;
+    if (typeA !== typeB) {
+      return typeA - typeB;
+    }
+
+    const dateUpdatedA = new Date(a.atualizadoEm).getTime();
+    const dateUpdatedB = new Date(b.atualizadoEm).getTime();
+    const dateCreatedA = new Date(a.criadoEm).getTime();
+    const dateCreatedB = new Date(b.criadoEm).getTime();
+
+    switch (filters.sort) {
+      case "Última modificação":
+        return dateUpdatedB - dateUpdatedA;
+      case "Mais Recente":
+        return dateCreatedB - dateCreatedA;
+      case "Mais Antigo":
+        return dateCreatedA - dateCreatedB;
+      case "Ordem alfabética A-Z":
+        return a.titulo.localeCompare(b.titulo);
+      case "Ordem alfabética Z-A":
+        return b.titulo.localeCompare(a.titulo);
+      default:
+        return 0;
+    }
+  });
+
+  return result;
+});
 
 function handleItemClick(item: AvaliacaoEntity | FolderEntity) {
   if (isFolder(item)) {
@@ -79,6 +125,7 @@ function handleSelectItem(item: AvaliacaoEntity | FolderEntity) {
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
     : selectedItems.value.exams;
+
   if (targetSet.has(item.id)) {
     targetSet.delete(item.id);
   } else {
@@ -135,7 +182,6 @@ function handleUpdate(
 function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
   examBankStore.deleteItem(itemToDelete);
 }
-
 </script>
 
 <template>
@@ -150,6 +196,7 @@ function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
       :current-path-label="currentPathLabel"
       @create="handleCreateFolder"
     />
+
     <EditFolderDialog
       v-if="editingItem && isFolder(editingItem)"
       :model-value="!!editingItem"
@@ -194,28 +241,33 @@ function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
           />
         </UFormField>
         <UFormField label="Ordenar por" class="w-full">
-          <USelect
-            v-model="filters.sort"
-            :items="[
-              'Última modificação',
-              'Ordem alfabética A-Z',
-              'Ordem alfabética Z-A',
-            ]"
-            class="w-full"
-          />
+          <USelect v-model="filters.sort" :items="sortOptions" class="w-full" />
         </UFormField>
       </div>
     </div>
 
     <div v-if="examBankStore.isLoading" class="text-center text-gray-500 py-10">
-      Carregando...
+      <Icon
+        name="i-lucide-loader-2"
+        class="animate-spin h-8 w-8 text-primary"
+      />
+      <p class="mt-2">Carregando...</p>
     </div>
+
     <div v-else class="space-y-4">
-      <div v-if="items.length === 0" class="text-center text-gray-500 py-10">
-        Esta pasta está vazia.
-      </div>
       <div
-        v-for="item in items"
+        v-if="filteredItems.length === 0"
+        class="text-center text-gray-500 py-10"
+      >
+        <span v-if="filters.search"
+          >Nenhum item encontrado para "{{ filters.search }}".</span
+        >
+        <span v-else>Esta pasta está vazia.</span>
+      </div>
+
+      <div
+        v-for="item in filteredItems"
+        v-else
         :key="item.id"
         class="cursor-pointer"
         @click.prevent="handleItemClick(item)"

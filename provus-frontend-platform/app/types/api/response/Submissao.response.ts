@@ -76,4 +76,5 @@ export interface FindSubmissaoByHashResponse {
   proibirPrintScreen: boolean | null;
   proibirCopiarColar: boolean | null;
   proibirDevtools: boolean | null;
+  pontosPerdidos: number;
 }

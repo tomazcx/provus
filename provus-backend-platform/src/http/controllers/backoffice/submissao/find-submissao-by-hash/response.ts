@@ -352,11 +352,21 @@ export class FindSubmissaoByHashResponse {
   @ApiProperty({ nullable: true })
   proibirDevtools: boolean | null;
 
+  @ApiProperty({
+    description: 'Total de pontos perdidos por infrações até o momento.',
+    example: 10,
+  })
+  pontosPerdidos: number;
+
   static fromModel(model: SubmissaoModel): FindSubmissaoByHashResponse {
     const configGerais =
       model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesGerais;
     const configSeguranca =
       model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesSeguranca;
+
+    const totalPontosPerdidos = (
+      model.registrosPunicaoPorOcorrencia || []
+    ).reduce((acc, registro) => acc + (registro.pontuacaoPerdida || 0), 0);
 
     return {
       submissao: SubmissaoResponse.fromModel(model),
@@ -378,6 +388,7 @@ export class FindSubmissaoByHashResponse {
       proibirPrintScreen: configSeguranca?.proibirPrintScreen ?? null,
       proibirCopiarColar: configSeguranca?.proibirCopiarColar ?? null,
       proibirDevtools: configSeguranca?.proibirDevtools ?? null,
+      pontosPerdidos: totalPontosPerdidos,
     };
   }
 }

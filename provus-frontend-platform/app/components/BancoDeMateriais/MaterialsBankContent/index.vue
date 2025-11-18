@@ -5,7 +5,6 @@ import EditFileDialog from "@/components/BancoDeMateriais/EditFileDialog/index.v
 import MaterialsBankFileItem from "@/components/BancoDeMateriais/MaterialsBankFileItem/index.vue";
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
-
 import { useMaterialsBankStore } from "~/store/materialsBankStore";
 import type { FolderEntity } from "~/types/entities/Item.entity";
 import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
@@ -31,11 +30,19 @@ const selectedItems = ref({
   folders: new Set<number>(),
   files: new Set<number>(),
 });
+
 const filters = reactive({
   search: "",
-  type: "Todos os tipos",
   sort: "Última modificação",
 });
+
+const sortOptions = [
+  "Última modificação",
+  "Mais Recente",
+  "Mais Antigo",
+  "Ordem alfabética A-Z",
+  "Ordem alfabética Z-A",
+];
 
 onMounted(() => {
   materialsBankStore.initialize();
@@ -58,7 +65,6 @@ function handleSelectItem(item: ArquivoEntity | FolderEntity) {
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
     : selectedItems.value.files;
-
   if (targetSet.has(item.id)) {
     targetSet.delete(item.id);
   } else {
@@ -101,16 +107,49 @@ const currentPathLabel = computed(() =>
   materialsBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
 );
 
-const filteredItems = computed(() =>
-  materialsBankStore.items.filter((item) =>
-    item.titulo.toLowerCase().includes(filters.search.toLowerCase())
-  )
-);
-
 function getChildCount(folder: FolderEntity): number {
   return materialsBankStore.items.filter((item) => item.paiId === folder.id)
     .length;
 }
+
+const filteredItems = computed(() => {
+  let result = [...materialsBankStore.items];
+
+  if (filters.search && filters.search.trim() !== "") {
+    const term = filters.search.toLowerCase();
+    result = result.filter((item) => item.titulo.toLowerCase().includes(term));
+  }
+
+  result.sort((a, b) => {
+    const typeA = isFolder(a) ? 0 : 1;
+    const typeB = isFolder(b) ? 0 : 1;
+    if (typeA !== typeB) {
+      return typeA - typeB;
+    }
+
+    const dateUpdatedA = new Date(a.atualizadoEm).getTime();
+    const dateUpdatedB = new Date(b.atualizadoEm).getTime();
+    const dateCreatedA = new Date(a.criadoEm).getTime();
+    const dateCreatedB = new Date(b.criadoEm).getTime();
+
+    switch (filters.sort) {
+      case "Última modificação":
+        return dateUpdatedB - dateUpdatedA;
+      case "Mais Recente":
+        return dateCreatedB - dateCreatedA;
+      case "Mais Antigo":
+        return dateCreatedA - dateCreatedB;
+      case "Ordem alfabética A-Z":
+        return a.titulo.localeCompare(b.titulo);
+      case "Ordem alfabética Z-A":
+        return b.titulo.localeCompare(a.titulo);
+      default:
+        return 0;
+    }
+  });
+
+  return result;
+});
 
 defineExpose({
   selectedItems,
@@ -181,30 +220,9 @@ defineExpose({
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Tipo de arquivo" class="w-full">
-          <USelect
-            v-model="filters.type"
-            :items="[
-              'Todos os tipos',
-              'PDF',
-              'Documento Word',
-              'Apresentação',
-              'Texto',
-              'Outro',
-            ]"
-            class="w-full"
-          />
-        </UFormField>
+
         <UFormField label="Ordenar por" class="w-full">
-          <USelect
-            v-model="filters.sort"
-            :items="[
-              'Última modificação',
-              'Ordem alfabética A-Z',
-              'Ordem alfabética Z-A',
-            ]"
-            class="w-full"
-          />
+          <USelect v-model="filters.sort" :items="sortOptions" class="w-full" />
         </UFormField>
       </div>
     </div>
@@ -215,8 +233,14 @@ defineExpose({
         class="text-center text-gray-500 py-10"
       >
         <span v-if="materialsBankStore.isLoading">Carregando...</span>
-        <span v-else>Esta pasta está vazia.</span>
+        <span v-else>
+          <span v-if="filters.search"
+            >Nenhum item encontrado para "{{ filters.search }}".</span
+          >
+          <span v-else>Esta pasta está vazia.</span>
+        </span>
       </div>
+
       <div
         v-for="item in filteredItems"
         v-else

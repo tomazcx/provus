@@ -13,6 +13,11 @@ import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import { usePageVisibility } from "~/composables/usePageVisibility";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 
+interface ErroValidacaoPayload {
+  message: string;
+  estado?: EstadoSubmissaoEnum;
+}
+
 interface ProgressoUpdatePayload {
   questoesRespondidas: number;
   totalQuestoes: number;
@@ -20,6 +25,7 @@ interface ProgressoUpdatePayload {
   respondida: boolean;
   timestamp: string;
 }
+
 interface TempoAjustadoPayload {
   aplicacaoId: number;
   novaDataFimISO: string;
@@ -53,15 +59,25 @@ const viewMode = ref<"single" | "paginated">("single");
 const dataFimRef = ref<string | null>(null);
 const isSubmitConfirmOpen = ref(false);
 const ajusteTempoPenalidade = ref(0);
+const isExitingForSubmission = ref(false);
+
+const isFullscreen = ref(true);
+const showFullscreenBlocker = computed(() => {
+  return proibirTrocarAbas.value && isTimerActive.value && !isFullscreen.value;
+});
+
 const isTimerActive = computed(
   () =>
     currentSubmissionStatus.value === EstadoSubmissaoEnum.INICIADA ||
     currentSubmissionStatus.value === EstadoSubmissaoEnum.REABERTA
 );
+
 const respostas = reactive<
   Record<number, StudentAnswerData | undefined | null>
 >({});
+
 const studentWebSocket = useWebSocket();
+
 const submissionDetails = computed(
   () => studentAssessmentStore.submissionDetails
 );
@@ -84,14 +100,12 @@ const descricaoAvaliacao = computed(
 const tituloAvaliacao = computed(
   () => studentAssessmentStore.tituloAvaliacao ?? "Carregando..."
 );
-
 const proibirTrocarAbas = computed(
   () => studentAssessmentStore.proibirTrocarAbas
 );
 const proibirCopiarColar = computed(
   () => studentAssessmentStore.proibirCopiarColar
 );
-
 const proibirDevtools = computed(() => studentAssessmentStore.proibirDevtools);
 
 const { tempoRestanteFormatado } = useTimer({
@@ -120,9 +134,6 @@ watch(
           dataInicioDate.getTime() + duracao * 60000
         );
         dataFimRef.value = dataFimCalculada.toISOString();
-        console.log(
-          `%%% Aluno: Data Fim inicial calculada: ${dataFimRef.value}`
-        );
       } catch (e) {
         console.error("%%% Aluno: Erro ao calcular data fim inicial:", e);
         dataFimRef.value = null;
@@ -142,9 +153,7 @@ const answeredQuestions = computed(
         .map(([key]) => Number(key))
     )
 );
-
 const totalQuestoes = computed(() => submissionQuestions.value?.length ?? 0);
-
 const pontuacaoTotalPossivel = computed(() => {
   return (
     submissionQuestions.value?.reduce(
@@ -210,140 +219,189 @@ function updateAnswer(questionId: number, answer: StudentAnswerData | null) {
       "atualizar-progresso",
       payload
     );
-    console.log("Emitindo atualizar-progresso:", payload);
-  } else {
-    console.warn(
-      "WebSocket não conectado, não foi possível enviar atualização de progresso."
-    );
   }
 }
 
 async function submit() {
-  console.log('1')
   isSubmitConfirmOpen.value = true;
 }
 
+async function onConfirmSubmit() {
+  isExitingForSubmission.value = true;
+
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen();
+    } catch {}
+  }
+
+  const success = await studentAssessmentStore.submitStudentAnswers(respostas);
+  if (success && submissionDetails.value?.hash) {
+    router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
+  } else {
+    isExitingForSubmission.value = false;
+  }
+}
+
+function requestFullscreen() {
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen().catch((err) => {
+      console.error(`Erro ao tentar entrar em fullscreen: ${err.message}`);
+    });
+  }
+}
+
+function checkFullscreenState() {
+  isFullscreen.value = !!document.fullscreenElement;
+}
+
+function handleFullscreenChange() {
+  const isNowFull = !!document.fullscreenElement;
+  isFullscreen.value = isNowFull;
+
+  if (
+    !isNowFull &&
+    proibirTrocarAbas.value &&
+    isTimerActive.value &&
+    !isExitingForSubmission.value
+  ) {
+    console.log("[Proctoring] Violação: Saiu do modo Tela Cheia.");
+
+    if (studentWebSocket.isConnected.value) {
+      studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
+        tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
+      });
+    }
+  }
+}
+
+function onVisibilityViolation() {
+  console.log("[Proctoring] Violação de Visibilidade/Foco detectada.");
+  if (
+    proibirTrocarAbas.value &&
+    isTimerActive.value &&
+    studentWebSocket.isConnected.value
+  ) {
+    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
+      tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
+    });
+  }
+}
+
+usePageVisibility(onVisibilityViolation);
+
+function handleClipboardEvent(event: ClipboardEvent) {
+  if (proibirCopiarColar.value && isTimerActive.value) {
+    event.preventDefault();
+    if (studentWebSocket.isConnected.value) {
+      studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
+        tipoInfracao: TipoInfracaoEnum.COPIAR_COLAR,
+      });
+    }
+  }
+}
+
+function handleContextMenu(event: MouseEvent) {
+  if (
+    isTimerActive.value &&
+    (proibirCopiarColar.value || proibirDevtools.value)
+  ) {
+    event.preventDefault();
+  }
+}
+
 function connectWebSocket(hash: string) {
-  console.log(`Tentando conectar WebSocket do aluno para o hash: ${hash}`);
   const authPayload = { hash: hash };
   studentWebSocket.connect(`/submissao`, authPayload);
 
-  studentWebSocket.on(
-    "erro-validacao",
-    (data: { message: string; estado?: string }) => {
-      toast.add({
-        title: "Erro de Conexão",
-        description: data.message,
-        color: "error",
-      });
-      if (
-        data.estado &&
-        data.estado !== EstadoSubmissaoEnum.INICIADA &&
-        data.estado !== EstadoSubmissaoEnum.REABERTA
-      ) {
-        router.push(`/aluno/avaliacao/${hash}/finalizado`);
-      } else {
-        router.push("/aluno/entrar");
-      }
-    }
-  );
-  studentWebSocket.on("submissao-validada", (data: { message: string }) => {
-    console.log("Conexão WebSocket do aluno validada:", data.message);
+  studentWebSocket.on<ErroValidacaoPayload>("erro-validacao", (data) => {
     toast.add({
-      title: "Conectado",
-      description: "Monitoramento em tempo real ativo.",
-      color: "info",
+      title: "Erro de Conexão",
+      description: data.message,
+      color: "error",
     });
+
+    if (
+      data.estado &&
+      data.estado !== EstadoSubmissaoEnum.INICIADA &&
+      data.estado !== EstadoSubmissaoEnum.REABERTA
+    ) {
+      router.push(`/aluno/avaliacao/${hash}/finalizado`);
+    } else {
+      router.push("/aluno/entrar");
+    }
   });
-  console.log("%%% Aluno: Listener para 'tempo-ajustado' REGISTRADO.");
+
   studentWebSocket.on<EstadoAplicacaoAtualizadoPayloadSubmissao>(
     "estado-aplicacao-atualizado",
     (data) => {
-      console.log(
-        "%%% Aluno: Evento 'estado-aplicacao-atualizado' recebido:",
-        data
-      );
       currentSubmissionStatus.value = data.novoEstado;
       dataFimRef.value = data.novaDataFimISO;
+
+      if (
+        (data.novoEstado === EstadoSubmissaoEnum.INICIADA ||
+          data.novoEstado === EstadoSubmissaoEnum.REABERTA) &&
+        proibirTrocarAbas.value
+      ) {
+        checkFullscreenState();
+      }
+
       if (data.novoEstado === EstadoSubmissaoEnum.PAUSADA) {
         toast.add({
           title: "Avaliação Pausada",
           description: "O professor pausou a avaliação.",
-          icon: "i-lucide-pause-circle",
           color: "warning",
         });
-      } else if (
-        data.novoEstado === EstadoSubmissaoEnum.INICIADA ||
-        data.novoEstado === EstadoSubmissaoEnum.REABERTA
-      ) {
-        toast.remove("avaliacao-pausada-toast");
-        toast.add({
-          title: "Avaliação Retomada",
-          description: "Você pode continuar respondendo.",
-          icon: "i-lucide-play-circle",
-          color: "info",
-        });
+        if (document.fullscreenElement)
+          document.exitFullscreen().catch(() => {});
       } else if (
         data.novoEstado === EstadoSubmissaoEnum.ENCERRADA ||
         data.novoEstado === EstadoSubmissaoEnum.CANCELADA
       ) {
-        toast.add({
-          title: "Avaliação Finalizada",
-          description:
-            "A avaliação foi finalizada pelo professor. Redirecionando...",
-          icon: "i-lucide-stop-circle",
-          color: "info",
-        });
+        if (document.fullscreenElement)
+          document.exitFullscreen().catch(() => {});
+        toast.add({ title: "Avaliação Finalizada", color: "info" });
         setTimeout(() => {
-          if (submissionDetails.value?.hash) {
+          if (submissionDetails.value?.hash)
             router.push(
               `/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`
             );
-          } else {
-            router.push("/aluno/entrar");
-          }
         }, 1500);
       }
     }
   );
 
-  console.log(
-    "%%% Aluno: Listener para 'estado-aplicacao-atualizado' REGISTRADO."
-  );
-
   studentWebSocket.on<TempoAjustadoPayload>("tempo-ajustado", (data) => {
-    console.log("%%% Aluno: Evento 'tempo-ajustado' recebido:", data);
     dataFimRef.value = data.novaDataFimISO;
     toast.add({
       title: "Tempo Ajustado",
-      description: "O tempo final da avaliação foi modificado pelo professor.",
-      icon: "i-lucide-clock",
+      description: "O tempo foi atualizado pelo professor.",
       color: "info",
     });
   });
 
   studentWebSocket.on<AlertaEstudantePayload>("alerta-estudante", (data) => {
-    console.log("%%% Aluno: Evento 'alerta-estudante' recebido:", data);
-    let toastDescription = `Você cometeu a infração "${data.tipoInfracao}" pela ${data.quantidadeOcorrencias}ª vez.`;
+    let desc = `Infração: ${data.tipoInfracao} (${data.quantidadeOcorrencias}x).`;
+    if (data.pontuacaoPerdida) desc += ` -${data.pontuacaoPerdida} pontos.`;
+
     if (data.pontuacaoPerdida && data.pontuacaoPerdida > 0) {
       studentAssessmentStore.aplicarPenalidadePontos(data.pontuacaoPerdida);
-      toastDescription += ` Você perdeu ${data.pontuacaoPerdida} ponto(s).`;
     }
+
     toast.add({
-      title: "Atenção! Infração Detectada.",
-      description: toastDescription,
+      title: "Atenção!",
+      description: desc,
       icon: "i-lucide-alert-triangle",
       color: "warning",
     });
   });
 
   studentWebSocket.on<TempoReduzidoPayload>("reduzir-tempo-aluno", (data) => {
-    console.log("%%% Aluno: Evento 'reduzir-tempo-aluno' recebido:", data);
     ajusteTempoPenalidade.value -= data.tempoReduzido;
     toast.add({
-      title: "Penalidade Aplicada!",
-      description: `Você perdeu ${data.tempoReduzido} segundos do seu tempo total por cometer uma infração.`,
-      icon: "i-lucide-clock-3",
+      title: "Penalidade de Tempo",
+      description: `-${data.tempoReduzido} segundos.`,
       color: "error",
     });
   });
@@ -351,98 +409,19 @@ function connectWebSocket(hash: string) {
   studentWebSocket.on<SubmissaoCanceladaPayload>(
     "submissao-cancelada",
     (data) => {
-      console.log("%%% Aluno: Evento 'submissao-cancelada' recebido:", data);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       toast.add({
-        title: "Avaliação Encerrada Compulsoriamente",
-        description: `Você atingiu o limite de ${data.quantidadeOcorrencias} infrações (${data.tipoInfracao}). Sua avaliação foi cancelada.`,
-        icon: "i-lucide-ban",
+        title: "Avaliação Cancelada",
+        description: `Limite de infrações atingido (${data.tipoInfracao}).`,
         color: "error",
       });
       studentWebSocket.disconnect();
-      if (submissionDetails.value?.hash) {
+      if (submissionDetails.value?.hash)
         router.push(
           `/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`
         );
-      }
     }
   );
-}
-
-function handleTabChange() {
-  console.log(
-    `[DEPURAÇÃO] handleTabChange disparado. Estado:
-    ProibirTrocarAbas: ${proibirTrocarAbas.value},
-    Timer Ativo: ${isTimerActive.value},
-    WS Conectado: ${studentWebSocket.isConnected.value}`
-  );
-
-  if (
-    proibirTrocarAbas.value &&
-    isTimerActive.value &&
-    studentWebSocket.isConnected.value
-  ) {
-    console.log(
-      "[DEPURAÇÃO] CONDIÇÕES ATENDIDAS (Troca Aba). Emitindo evento 'registrar-punicao-por-ocorrencia'..."
-    );
-    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
-      tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
-    });
-  } else {
-    console.warn(
-      "[DEPURAÇÃO] Condições NÃO atendidas (Troca Aba). Evento de infração NÃO enviado."
-    );
-  }
-}
-usePageVisibility(handleTabChange);
-
-function handleClipboardEvent(event: ClipboardEvent) {
-  console.log(
-    `[DEPURAÇÃO] Evento Clipboard '${event.type}' detectado. Estado:
-    ProibirCopiarColar: ${proibirCopiarColar.value},
-    Timer Ativo: ${isTimerActive.value},
-    WS Conectado: ${studentWebSocket.isConnected.value}`
-  );
-
-  if (
-    proibirCopiarColar.value &&
-    isTimerActive.value &&
-    studentWebSocket.isConnected.value
-  ) {
-    console.log(
-      "[DEPURAÇÃO] CONDIÇÕES ATENDIDAS (Clipboard). Prevenindo ação e emitindo evento 'registrar-punicao-por-ocorrencia'..."
-    );
-    event.preventDefault();
-    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
-      tipoInfracao: TipoInfracaoEnum.COPIAR_COLAR,
-    });
-  } else {
-    console.warn(
-      "[DEPURAÇÃO] Condições NÃO atendidas (Clipboard). Ação permitida. Evento de infração NÃO enviado."
-    );
-  }
-}
-
-function handleContextMenu(event: MouseEvent) {
-  console.log(
-    `[DEPURAÇÃO] Evento 'contextmenu' detectado. Estado:
-    ProibirCopiarColar: ${proibirCopiarColar.value},
-    ProibirDevtools: ${proibirDevtools.value},
-    Timer Ativo: ${isTimerActive.value}`
-  );
-
-  if (
-    isTimerActive.value &&
-    (proibirCopiarColar.value || proibirDevtools.value)
-  ) {
-    console.log(
-      "[DEPURAÇÃO] CONDIÇÕES ATENDIDAS (Context Menu). Prevenindo ação (bloqueando clique direito)."
-    );
-    event.preventDefault();
-  } else {
-    console.warn(
-      "[DEPURAÇÃO] Condições NÃO atendidas (Context Menu). Ação permitida."
-    );
-  }
 }
 
 watch(
@@ -461,13 +440,8 @@ onMounted(async () => {
   const hash = route.params.hash as string;
   if (hash) {
     await studentAssessmentStore.fetchSubmissionDataByHash(hash);
+    checkFullscreenState();
   } else {
-    console.error("Hash não encontrado na rota!");
-    toast.add({
-      title: "Erro",
-      description: "Não foi possível identificar a avaliação.",
-      color: "error",
-    });
     router.push("/aluno/entrar");
   }
 
@@ -475,23 +449,17 @@ onMounted(async () => {
   document.addEventListener("paste", handleClipboardEvent);
   document.addEventListener("cut", handleClipboardEvent);
   document.addEventListener("contextmenu", handleContextMenu);
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
 });
 
 onUnmounted(() => {
   studentWebSocket.disconnect();
-
   document.removeEventListener("copy", handleClipboardEvent);
   document.removeEventListener("paste", handleClipboardEvent);
   document.removeEventListener("cut", handleClipboardEvent);
   document.removeEventListener("contextmenu", handleContextMenu);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
 });
-
-async function onConfirmSubmit() {
-  const success = await studentAssessmentStore.submitStudentAnswers(respostas);
-  if (success && submissionDetails.value?.hash) {
-    router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
-  }
-}
 </script>
 
 <template>
@@ -510,13 +478,38 @@ async function onConfirmSubmit() {
       icon="i-lucide-alert-triangle"
       color="error"
       variant="soft"
-      title="Erro ao Carregar Avaliação"
+      title="Erro"
       :description="error"
     />
     <UButton class="mt-4" @click="router.push('/aluno/entrar')">Voltar</UButton>
   </div>
 
   <div v-else-if="submissionDetails && submissionQuestions">
+    <UModal :open="showFullscreenBlocker" prevent-close>
+      <template #body>
+        <div class="p-8 text-center">
+          <div
+            class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6"
+          >
+            <Icon name="i-lucide-maximize" class="text-red-600 text-4xl" />
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">
+            Modo Tela Cheia Obrigatório
+          </h2>
+          <p class="text-gray-600 mb-8 text-lg">
+            Esta avaliação possui regras de segurança rígidas. Para continuar,
+            você deve entrar em modo de tela cheia.
+            <br /><span class="text-red-500 text-sm font-bold mt-2 block"
+              >Sair da tela cheia será registrado como infração.</span
+            >
+          </p>
+          <UButton size="xl" color="primary" block @click="requestFullscreen">
+            Entrar em Tela Cheia e Continuar
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
     <ExamHeader
       :titulo-avaliacao="tituloAvaliacao"
       :tempo-restante-formatado="tempoRestanteFormatado"
@@ -592,13 +585,14 @@ async function onConfirmSubmit() {
       @confirm="onConfirmSubmit"
     />
   </div>
+
   <div v-else class="flex items-center justify-center min-h-screen">
     <UAlert
       icon="i-lucide-search-x"
       color="warning"
       variant="soft"
       title="Dados Não Encontrados"
-      description="Não foi possível carregar os detalhes da avaliação. Tente acessar novamente."
+      description="Não foi possível carregar os detalhes da avaliação."
     />
     <UButton class="mt-4" @click="router.push('/aluno/entrar')">Voltar</UButton>
   </div>

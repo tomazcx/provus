@@ -5,7 +5,6 @@ import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
-
 import { useQuestionBankStore } from "~/store/questionBankstore";
 import type {
   CreateQuestaoRequest,
@@ -14,9 +13,14 @@ import type {
 import type { FolderEntity } from "~/types/entities/Item.entity";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import TipoItemEnum from "~/enums/TipoItemEnum";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum"; 
 
 function isFolder(item: QuestaoEntity | FolderEntity): item is FolderEntity {
   return item.tipo === TipoItemEnum.PASTA;
+}
+
+function isQuestion(item: QuestaoEntity | FolderEntity): item is QuestaoEntity {
+  return item.tipo === TipoItemEnum.QUESTAO;
 }
 
 const props = defineProps({
@@ -39,11 +43,28 @@ const selectedItems = ref({
   folders: new Set<number>(),
   questions: new Set<number>(),
 });
+
 const filters = reactive({
   search: "",
   type: "Todos os tipos",
   sort: "Última modificação",
 });
+
+const typeOptions = [
+  "Todos os tipos",
+  "Múltipla Escolha",
+  "Objetiva",
+  "Verdadeiro ou Falso",
+  "Discursiva",
+];
+
+const sortOptions = [
+  "Última modificação",
+  "Ordem alfabética A-Z",
+  "Ordem alfabética Z-A",
+  "Mais Recente",
+  "Mais Antigo",
+];
 
 function handleItemClick(item: QuestaoEntity | FolderEntity) {
   if (isFolder(item)) {
@@ -80,10 +101,8 @@ function handleUpdate(
   updatedData: { newTitle: string } | UpdateQuestaoRequest
 ) {
   if (!editingItem.value) return;
-
   const dataToSend =
     "newTitle" in updatedData ? { titulo: updatedData.newTitle } : updatedData;
-
   questionBankStore.updateItem(editingItem.value, dataToSend);
   editingItem.value = null;
 }
@@ -103,10 +122,64 @@ const currentPathLabel = computed(() =>
   questionBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
 );
 
+
 const filteredItems = computed(() => {
-  return [...questionBankStore.items].filter((item) =>
-    item.titulo.toLowerCase().includes(filters.search.toLowerCase())
-  );
+  let result = [...questionBankStore.items];
+
+  if (filters.search && filters.search.trim() !== "") {
+    const term = filters.search.toLowerCase();
+    result = result.filter((item) => item.titulo.toLowerCase().includes(term));
+  }
+
+  if (filters.type !== "Todos os tipos") {
+    const typeMap: Record<string, TipoQuestaoEnum> = {
+      "Múltipla Escolha": TipoQuestaoEnum.MULTIPLA_ESCOLHA,
+      Objetiva: TipoQuestaoEnum.OBJETIVA,
+      "Verdadeiro ou Falso": TipoQuestaoEnum.VERDADEIRO_FALSO,
+      Discursiva: TipoQuestaoEnum.DISCURSIVA,
+    };
+
+    const targetType = typeMap[filters.type];
+    if (targetType) {
+      result = result.filter(
+        (item) => isQuestion(item) && item.tipoQuestao === targetType
+      );
+    }
+  }
+
+  result.sort((a, b) => {
+    const dateUpdatedA = new Date(a.atualizadoEm).getTime();
+    const dateUpdatedB = new Date(b.atualizadoEm).getTime();
+    const dateCreatedA = new Date(a.criadoEm).getTime();
+    const dateCreatedB = new Date(b.criadoEm).getTime();
+
+    switch (filters.sort) {
+      case "Última modificação":
+        return dateUpdatedB - dateUpdatedA; 
+      case "Ordem alfabética A-Z":
+        return a.titulo.localeCompare(b.titulo);
+      case "Ordem alfabética Z-A":
+        return b.titulo.localeCompare(a.titulo);
+      case "Mais Recente": 
+        return dateCreatedB - dateCreatedA;
+      case "Mais Antigo": 
+        return dateCreatedA - dateCreatedB;
+      default:
+        return 0;
+    }
+  });
+
+  if (filters.type === "Todos os tipos") {
+    result.sort((a, b) => {
+      if (a.tipo === TipoItemEnum.PASTA && b.tipo !== TipoItemEnum.PASTA)
+        return -1;
+      if (a.tipo !== TipoItemEnum.PASTA && b.tipo === TipoItemEnum.PASTA)
+        return 1;
+      return 0;
+    });
+  }
+
+  return result;
 });
 
 defineExpose({
@@ -182,31 +255,13 @@ defineExpose({
             class="w-full"
           />
         </UFormField>
+
         <UFormField label="Tipo de questão" class="w-full">
-          <USelect
-            v-model="filters.type"
-            :items="[
-              'Todos os tipos',
-              'Múltipla Escolha',
-              'Objetiva',
-              'Verdadeiro ou Falso',
-              'Discursiva',
-            ]"
-            class="w-full"
-          />
+          <USelect v-model="filters.type" :items="typeOptions" class="w-full" />
         </UFormField>
+
         <UFormField label="Ordenar por" class="w-full">
-          <USelect
-            v-model="filters.sort"
-            :items="[
-              'Última modificação',
-              'Alphabetical A-Z',
-              'Alphabetical Z-A',
-              'Oldest First',
-              'Newest First',
-            ]"
-            class="w-full"
-          />
+          <USelect v-model="filters.sort" :items="sortOptions" class="w-full" />
         </UFormField>
       </div>
     </div>
@@ -217,8 +272,9 @@ defineExpose({
         class="text-center text-gray-500 py-10"
       >
         <span v-if="questionBankStore.isLoading">Carregando...</span>
-        <span v-else>Esta pasta está vazia.</span>
+        <span v-else>Nenhum item encontrado nesta pasta.</span>
       </div>
+
       <div
         v-for="item in filteredItems"
         v-else
