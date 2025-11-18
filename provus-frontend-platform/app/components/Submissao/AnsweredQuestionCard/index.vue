@@ -7,7 +7,6 @@ import { z } from "zod";
 const props = defineProps<{
   questao: AvaliadorQuestaoDetalheApiResponse;
   numero: number;
-  // isPending: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +35,19 @@ const formCorrecao = reactive({
 const headerVisuals = computed(() => {
   const estado = props.questao.estadoCorrecao;
   const pontuacaoObtida = props.questao.pontuacaoObtida ?? 0;
+
+  if (
+    props.questao.tipo === TipoQuestaoEnum.DISCURSIVA &&
+    (estado === EstadoQuestaoCorrigida.NAO_RESPONDIDA || estado === null) &&
+    getStudentDiscursiveAnswer.value
+  ) {
+    return {
+      text: `Aguardando Correção`,
+      icon: "i-lucide-edit-3",
+      colorClasses: "bg-blue-100 text-blue-600",
+    };
+  }
+
   switch (estado) {
     case EstadoQuestaoCorrigida.CORRETA:
       return {

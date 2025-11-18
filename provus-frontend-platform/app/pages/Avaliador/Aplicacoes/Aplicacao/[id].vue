@@ -13,12 +13,19 @@ import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
+import ConfirmationDialog from "~/components/ui/ConfirmationDialog/index.vue";
 
 const applicationsStore = useApplicationsStore();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const nuxtApp = useNuxtApp();
+
+const isConfirmOpen = ref(false);
+const confirmAction = ref<"finalizar" | "deletar" | null>(null);
+const confirmTitle = ref("");
+const confirmDescription = ref("");
+const confirmColor = ref<"warning" | "error">("warning");
 
 const $websocket = nuxtApp.$websocket as
   | ReturnType<typeof useWebSocket>
@@ -165,27 +172,13 @@ function handleFinish() {
     toast.add({ title: "Erro de Conexão WS", color: "error" });
     return;
   }
-  if (
-    confirm(
-      "Tem certeza que deseja finalizar esta aplicação para todos os alunos?"
-    )
-  ) {
-    $websocket.emit("finalizar-aplicacao", { aplicacaoId: aplicacao.value.id });
-  }
-}
 
-async function handleDelete() {
-  if (!aplicacao.value) return;
-  if (
-    confirm(
-      `Tem certeza que deseja deletar a aplicação "${aplicacao.value.avaliacao.titulo}"? Esta ação não pode ser desfeita.`
-    )
-  ) {
-    isLoadingData.value = true;
-    await applicationsStore.deleteApplication(aplicacao.value.id);
-    isLoadingData.value = false;
-    router.push("/aplicacoes");
-  }
+  confirmTitle.value = "Finalizar Aplicação?";
+  confirmDescription.value =
+    "Tem certeza que deseja finalizar esta aplicação para todos os alunos? Alunos que não enviaram terão suas provas encerradas.";
+  confirmAction.value = "finalizar";
+  confirmColor.value = "error";
+  isConfirmOpen.value = true;
 }
 
 function copyCode(code?: string) {
@@ -218,6 +211,36 @@ const statusVisuals = computed(() => {
     return { color: "error" as const };
   return { color: "gray" as const };
 });
+
+async function handleDelete() {
+  if (!aplicacao.value) return;
+
+  confirmTitle.value = "Deletar Aplicação?";
+  confirmDescription.value = `Tem certeza que deseja deletar a aplicação '${aplicacao.value.avaliacao.titulo}'? Esta ação não pode ser desfeita.`;
+  confirmAction.value = "deletar";
+  confirmColor.value = "error";
+  isConfirmOpen.value = true;
+}
+
+async function onConfirmDialog() {
+  if (!aplicacao.value) return;
+
+  if (confirmAction.value === "deletar") {
+    isLoadingData.value = true;
+    await applicationsStore.deleteApplication(aplicacao.value.id);
+    isLoadingData.value = false;
+    router.push("/aplicacoes");
+  } else if (confirmAction.value === "finalizar") {
+    if (!$websocket || !$websocket.isConnected.value) {
+      toast.add({ title: "Erro de Conexão WS", color: "error" });
+      return;
+    }
+    $websocket.emit("finalizar-aplicacao", { aplicacaoId: aplicacao.value.id });
+  }
+
+  isConfirmOpen.value = false;
+  confirmAction.value = null;
+}
 </script>
 <template>
   <div v-if="isLoadingData" class="text-center p-8">
@@ -350,6 +373,17 @@ const statusVisuals = computed(() => {
     <ViewConfigurationDialog
       v-model="isConfigDialogOpen"
       :configuracao="modeloDaAplicacao"
+    />
+
+    <ConfirmationDialog
+      v-model="isConfirmOpen"
+      :title="confirmTitle"
+      :description="confirmDescription"
+      :confirm-label="
+        confirmAction === 'deletar' ? 'Sim, deletar' : 'Sim, finalizar'
+      "
+      :confirm-color="confirmColor"
+      @confirm="onConfirmDialog"
     />
   </div>
   <div v-else class="text-center p-8">

@@ -51,24 +51,20 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     nome: string,
     email: string,
     codigoAcesso: string
-  ): Promise<string | null> {
+  ): Promise<FindSubmissaoByHashResponse | null> {
     isLoading.value = true;
     error.value = null;
     try {
-      const response = await $api<SubmissaoResponse>(
+      const response = await $api<FindSubmissaoByHashResponse>(
         "/backoffice/encontrar-avaliacao",
         {
           method: "POST",
-          body: {
-            nome,
-            email,
-            codigoAcesso,
-          },
+          body: { nome, email, codigoAcesso },
         }
       );
 
-      if (response && response.hash) {
-        return response.hash;
+      if (response && response.submissao) {
+        return response;
       } else {
         throw new Error("Resposta inválida do servidor ao criar submissão.");
       }
@@ -332,7 +328,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         if (response.permitirRevisao === false) {
           throw new Error("A revisão não está permitida para esta avaliação.");
         }
-        const estadosPermitidos = [EstadoSubmissaoEnum.AVALIADA];
+
+        const estadosPermitidos = [
+          EstadoSubmissaoEnum.AVALIADA,
+          EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
+        ];
+
         if (!estadosPermitidos.includes(response.submissao.estado)) {
           throw new Error(
             `A revisão não está disponível para o estado "${response.submissao.estado}".`

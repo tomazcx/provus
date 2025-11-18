@@ -10,10 +10,10 @@ import { ApiTags } from '@nestjs/swagger';
 import { CreateSubmissaoDecorators } from './decorators';
 import { CreateSubmissaoRequest } from './request';
 import { SubmissaoService } from 'src/services/submissao.service';
-import { SubmissaoResponse } from 'src/http/models/response/submissao.response';
 import { AplicacaoService } from 'src/services/aplicacao.service';
 import { Request } from 'express';
 import { extractIPv4, isIpInCidrRange } from 'src/shared/extract-ip';
+import { FindSubmissaoByHashResponse } from '../find-submissao-by-hash/response';
 
 @Controller('backoffice/encontrar-avaliacao')
 @ApiTags('Backoffice - Submissao')
@@ -30,7 +30,7 @@ export class CreateSubmissaoController {
   async handle(
     @Body() body: CreateSubmissaoRequest,
     @Req() request: Request,
-  ): Promise<SubmissaoResponse> {
+  ): Promise<FindSubmissaoByHashResponse> {
     const aplicacao = await this.aplicacaoService.findByCode(body.codigoAcesso);
 
     if (

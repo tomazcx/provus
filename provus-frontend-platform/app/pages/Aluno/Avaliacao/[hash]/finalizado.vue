@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useStudentAssessmentStore } from "~/store/studentAssessmentStore";
+import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
 definePageMeta({
   layout: false,
@@ -117,6 +118,7 @@ function backToHome() {
       />
       <UButton @click="backToHome">Voltar para o Início</UButton>
     </div>
+
     <UCard
       v-else-if="submissionDetails && submissionQuestions"
       class="w-full max-w-2xl"
@@ -167,7 +169,17 @@ function backToHome() {
           </UCard>
         </div>
 
-        <template v-if="mostrarPontuacao">
+        <!-- *** INÍCIO DA LÓGICA DE NOTA CORRIGIDA *** -->
+
+        <!-- CASO 1: A nota pode ser exibida (Prof liberou E (prova foi Avaliada OU Confirmada)) -->
+        <template
+          v-if="
+            mostrarPontuacao &&
+            (submissionDetails.estado === EstadoSubmissaoEnum.AVALIADA ||
+              submissionDetails.estado ===
+                EstadoSubmissaoEnum.CODIGO_CONFIRMADO)
+          "
+        >
           <UCard>
             <div class="text-center">
               <p class="text-sm text-gray-600 mb-2">Sua Pontuação</p>
@@ -180,6 +192,22 @@ function backToHome() {
             </div>
           </UCard>
         </template>
+
+        <!-- CASO 2: A prova está pendente de correção manual (Estado 'Enviada') -->
+        <template
+          v-else-if="submissionDetails.estado === EstadoSubmissaoEnum.ENVIADA"
+        >
+          <UAlert
+            icon="i-lucide-loader-2"
+            color="info"
+            variant="subtle"
+            title="Aguardando Correção"
+            description="Sua avaliação foi enviada. Algumas questões estão aguardando a correção do professor. Sua nota final aparecerá aqui assim que for liberada."
+            class="mt-4"
+          />
+        </template>
+
+        <!-- CASO 3: O professor ocultou a nota (mostrarPontuacao === false) -->
         <template v-else-if="mostrarPontuacao === false">
           <UAlert
             icon="i-lucide-lock"
@@ -190,13 +218,36 @@ function backToHome() {
             class="mt-4"
           />
         </template>
+
+        <!-- CASO 4: Outros estados (Cancelada, Encerrada, etc.) -->
+        <template
+          v-else-if="
+            submissionDetails.estado === EstadoSubmissaoEnum.CANCELADA ||
+            submissionDetails.estado === EstadoSubmissaoEnum.ENCERRADA
+          "
+        >
+          <UAlert
+            icon="i-lucide-ban"
+            color="warning"
+            variant="subtle"
+            title="Avaliação Encerrada"
+            description="Esta avaliação foi encerrada ou cancelada."
+            class="mt-4"
+          />
+        </template>
+
+        <!-- CASO 5: Fallback genérico (similar ao Caso 3) -->
         <template v-else>
           <UAlert
             icon="i-lucide-lock"
+            color="primary"
+            variant="subtle"
             title="Pontuação Oculta"
             description="A pontuação desta avaliação será divulgada pelo professor posteriormente."
+            class="mt-4"
           />
         </template>
+        <!-- *** FIM DA LÓGICA DE NOTA CORRIGIDA *** -->
       </UCard>
 
       <div class="bg-primary rounded-xl p-6 mb-5 mt-5">
@@ -216,7 +267,12 @@ function backToHome() {
 
       <div class="flex flex-col sm:flex-row gap-4">
         <UButton
-          v-if="permitirRevisao"
+          v-if="
+            permitirRevisao &&
+            (submissionDetails.estado === EstadoSubmissaoEnum.AVALIADA ||
+              submissionDetails.estado ===
+                EstadoSubmissaoEnum.CODIGO_CONFIRMADO)
+          "
           block
           color="primary"
           size="lg"
@@ -231,7 +287,13 @@ function backToHome() {
           variant="outline"
           size="lg"
           icon="i-lucide-home"
-          :class="{ 'w-full': !permitirRevisao }"
+          :class="{
+            'w-full':
+              !permitirRevisao ||
+              (submissionDetails.estado !== EstadoSubmissaoEnum.AVALIADA &&
+                submissionDetails.estado !==
+                  EstadoSubmissaoEnum.CODIGO_CONFIRMADO),
+          }"
           @click="backToHome"
         >
           Voltar para o Início

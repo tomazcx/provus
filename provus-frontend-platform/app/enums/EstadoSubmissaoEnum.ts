@@ -7,7 +7,7 @@ enum EstadoSubmissaoEnum {
   REABERTA = "Reaberta",
   PAUSADA = "Pausada",
   CANCELADA = "Cancelada",
-  CODIGO_CONFIRMADO = "Código Confirmado",
+  CODIGO_CONFIRMADO = "Código confirmado",
 }
 
 export default EstadoSubmissaoEnum;

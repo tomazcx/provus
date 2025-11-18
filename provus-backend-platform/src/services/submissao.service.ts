@@ -47,6 +47,7 @@ import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/re
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { QuestaoService } from './questao.service';
 import { EvaluateSubmissaoRespostaDto } from 'src/dto/result/submissao/evaluate-submissao-resposta.dto';
+import { FindSubmissaoByHashResponse } from 'src/http/controllers/backoffice/submissao/find-submissao-by-hash/response';
 
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
@@ -85,7 +86,7 @@ export class SubmissaoService {
 
   async createSubmissao(
     body: CreateSubmissaoRequest,
-  ): Promise<SubmissaoResultDto> {
+  ): Promise<FindSubmissaoByHashResponse> {
     try {
       const aplicacao = await this.aplicacaoRepository.findOne({
         where: {
@@ -105,6 +106,12 @@ export class SubmissaoService {
           'avaliacao.configuracaoAvaliacao.configuracoesGerais',
           'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
           'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+          'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+          'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
+          'avaliacao.arquivos',
+          'avaliacao.arquivos.arquivo',
+          'avaliacao.arquivos.arquivo.item',
+          'avaliacao.questoes.questao.alternativas',
         ],
       });
 
@@ -167,31 +174,55 @@ export class SubmissaoService {
 
             if (estadosAtivos.includes(submissaoAntiga.estado)) {
               this.logger.warn(
-                `Estudante ${body.email} tentou reentrar em submissão já ativa (${submissaoAntiga.estado}).`,
+                `Estudante ${body.email} reentrando em submissão já ativa (${submissaoAntiga.estado}).`,
               );
-              throw new BadRequestException(
-                'Esta submissão já está em andamento.',
-              );
+              return submissaoAntiga;
             }
 
-            this.logger.log(
-              `Reciclando submissão ${submissaoAntiga.id} para ${body.email}. Estado anterior: ${submissaoAntiga.estado}`,
-            );
+            const configGerais =
+              aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
 
-            await manager.delete(SubmissaoRespostasModel, {
-              submissaoId: submissaoAntiga.id,
-            });
+            if (configGerais.permitirMultiplosEnvios) {
+              this.logger.log(
+                `Reciclando submissão ${submissaoAntiga.id} para ${body.email} (Múltiplos Envios Permitido).`,
+              );
+              await manager.delete(SubmissaoRespostasModel, {
+                submissaoId: submissaoAntiga.id,
+              });
+              submissaoAntiga.estado = EstadoSubmissaoEnum.INICIADA;
+              submissaoAntiga.pontuacaoTotal = 0;
+              submissaoAntiga.finalizadoEm = null;
+              submissaoAntiga.criadoEm = new Date();
+              submissaoAntiga.atualizadoEm = new Date();
+              submissaoAntiga.codigoEntrega =
+                await this._generateUniqueSubmissionCode(manager);
 
-            submissaoAntiga.estado = EstadoSubmissaoEnum.INICIADA;
-            submissaoAntiga.pontuacaoTotal = 0;
-            submissaoAntiga.finalizadoEm = null;
-            submissaoAntiga.criadoEm = new Date();
-            submissaoAntiga.atualizadoEm = new Date();
-            submissaoAntiga.codigoEntrega =
-              await this._generateUniqueSubmissionCode(manager);
+              submissaoFinal = await manager.save(submissaoAntiga);
+              estudante = estudanteExistente;
+              const respostasPromises = questoesParaAluno.map(
+                (questao, index) => {
+                  const submissaoResposta = manager.create(
+                    SubmissaoRespostasModel,
+                    {
+                      submissaoId: submissaoFinal.id,
+                      questaoId: questao.id,
+                      dadosResposta: {},
+                      pontuacao: 0,
+                      ordem: index + 1,
+                    },
+                  );
+                  return manager.save(submissaoResposta);
+                },
+              );
+              await Promise.all(respostasPromises);
 
-            submissaoFinal = await manager.save(submissaoAntiga);
-            estudante = estudanteExistente;
+              return submissaoFinal;
+            } else {
+              this.logger.log(
+                `Estudante ${body.email} tentou reentrar, mas múltiplos envios estão desabilitados. Retornando submissão finalizada.`,
+              );
+              return submissaoAntiga;
+            }
           } else {
             this.logger.debug(`Estudante ${body.email} é novo. Criando...`);
             estudante = manager.create(EstudanteModel, {
@@ -215,67 +246,73 @@ export class SubmissaoService {
             });
 
             submissaoFinal = await manager.save(novaSubmissao);
+
+            const respostasPromises = questoesParaAluno.map(
+              (questao, index) => {
+                const submissaoResposta = manager.create(
+                  SubmissaoRespostasModel,
+                  {
+                    submissaoId: submissaoFinal.id,
+                    questaoId: questao.id,
+                    dadosResposta: {},
+                    pontuacao: 0,
+                    ordem: index + 1,
+                  },
+                );
+                return manager.save(submissaoResposta);
+              },
+            );
+            await Promise.all(respostasPromises);
+
+            return submissaoFinal;
           }
-
-          const respostasPromises = questoesParaAluno.map((questao, index) => {
-            const submissaoResposta = manager.create(SubmissaoRespostasModel, {
-              submissaoId: submissaoFinal.id,
-              questaoId: questao.id,
-              dadosResposta: {},
-              pontuacao: 0,
-              ordem: index + 1,
-            });
-            return manager.save(submissaoResposta);
-          });
-          await Promise.all(respostasPromises);
-
-          return submissaoFinal;
         },
       );
 
-      try {
-        const notificationPayload = {
-          submissaoId: submissaoSalva.id,
-          aplicacaoId: aplicacao.id,
-          aluno: {
-            nome: body.nome,
-            email: body.email,
-          },
-          estado: EstadoSubmissaoEnum.INICIADA,
-          horaInicio: submissaoSalva.criadoEm.toISOString(),
-          totalQuestoes: totalQuestoesReal,
-        };
-        this.notificationProvider.sendNotificationViaSocket(
-          avaliadorId,
-          'nova-submissao',
-          notificationPayload,
+      if (submissaoSalva.estado === EstadoSubmissaoEnum.INICIADA) {
+        try {
+          const notificationPayload = {
+            submissaoId: submissaoSalva.id,
+            aplicacaoId: aplicacao.id,
+            aluno: {
+              nome: body.nome,
+              email: body.email,
+            },
+            estado: EstadoSubmissaoEnum.INICIADA,
+            horaInicio: submissaoSalva.criadoEm.toISOString(),
+            totalQuestoes: totalQuestoesReal,
+          };
+          this.notificationProvider.sendNotificationViaSocket(
+            avaliadorId,
+            'nova-submissao',
+            notificationPayload,
+          );
+          this.logger.log(
+            `Notificação 'nova-submissao' (ou reentrada) enviada para avaliador ${avaliadorId} referente à submissão ${submissaoSalva.id}`,
+          );
+        } catch (wsError) {
+          this.logger.error(
+            `Falha ao enviar notificação WebSocket 'nova-submissao' para avaliador ${avaliadorId}: ${wsError}`,
+          );
+        }
+
+        const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
+        const html = this.emailTemplatesProvider.submissaoCriada(
+          url,
+          aplicacao.avaliacao.item.titulo,
         );
-        this.logger.log(
-          `Notificação 'nova-submissao' (ou reentrada) enviada para avaliador ${avaliadorId} referente à submissão ${submissaoSalva.id}`,
-        );
-      } catch (wsError) {
-        this.logger.error(
-          `Falha ao enviar notificação WebSocket 'nova-submissao' para avaliador ${avaliadorId}: ${wsError}`,
+        await this.notificationProvider.sendEmail(
+          body.email,
+          'Provus - Avaliação iniciada',
+          html,
         );
       }
 
-      const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
-      const html = this.emailTemplatesProvider.submissaoCriada(
-        url,
-        aplicacao.avaliacao.item.titulo,
-      );
-      await this.notificationProvider.sendEmail(
-        body.email,
-        'Provus - Avaliação iniciada',
-        html,
+      const submissaoCompleta = await this.findSubmissaoByHash(
+        submissaoSalva.hash,
       );
 
-      const submissaoFinalComEstudante =
-        await this.submissaoRepository.findOneOrFail({
-          where: { id: submissaoSalva.id },
-          relations: ['estudante'],
-        });
-      return new SubmissaoResultDto(submissaoFinalComEstudante);
+      return FindSubmissaoByHashResponse.fromModel(submissaoCompleta);
     } catch (error) {
       console.log('Falha ao criar a submissão', error);
       throw error;
@@ -482,13 +519,12 @@ export class SubmissaoService {
                 estadoCorrecao = result.estadoCorrecao;
                 resposta.textoRevisao = result.textoRevisao;
               } else {
-                correcaoManualPendente = true;
+                correcaoManualPendente = true; 
                 pontuacaoObtida = 0;
                 estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
                 resposta.textoRevisao =
                   'Esta questão será corrigida manualmente pelo professor.';
               }
-
               break;
             }
             default: {
@@ -814,14 +850,17 @@ export class SubmissaoService {
         ?.permitirRevisao;
     const estadoSubmissao = submissao.estado;
 
-    const estadoPermitidoParaRevisao = EstadoSubmissaoEnum.AVALIADA;
+    const estadosPermitidosParaRevisao = [
+      EstadoSubmissaoEnum.AVALIADA,
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO, 
+    ];
 
     if (
       permitirRevisaoConfig === false ||
-      estadoSubmissao !== estadoPermitidoParaRevisao
+      !estadosPermitidosParaRevisao.includes(estadoSubmissao)
     ) {
       throw new ForbiddenException(
-        'A revisão não está disponível para esta submissão no momento.',
+        `A revisão não está disponível para esta submissão no momento (Estado: ${estadoSubmissao}).`,
       );
     }
 
@@ -1191,12 +1230,23 @@ export class SubmissaoService {
     }
 
     if (submissao.codigoEntrega !== codigoEntregaInput) {
+      this.logger.warn(
+        `Tentativa de confirmação falhou para submissao ${submissaoId}. Código esperado: ${submissao.codigoEntrega}, Recebido: ${codigoEntregaInput}`,
+      );
       throw new BadRequestException('Código de entrega incorreto.');
     }
 
-    submissao.estado = EstadoSubmissaoEnum.CODIGO_CONFIRMADO;
-    const submissaoSalva = await this.submissaoRepository.save(submissao);
+    const estadosValidosParaConfirmar = [
+      EstadoSubmissaoEnum.ENVIADA,
+      EstadoSubmissaoEnum.AVALIADA,
+    ];
 
-    return new SubmissaoResultDto(submissaoSalva);
+    if (estadosValidosParaConfirmar.includes(submissao.estado)) {
+      submissao.estado = EstadoSubmissaoEnum.CODIGO_CONFIRMADO;
+      const submissaoSalva = await this.submissaoRepository.save(submissao);
+      return new SubmissaoResultDto(submissaoSalva);
+    }
+
+    return new SubmissaoResultDto(submissao);
   }
 }

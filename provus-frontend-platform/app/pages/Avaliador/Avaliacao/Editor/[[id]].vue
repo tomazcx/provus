@@ -143,7 +143,6 @@ async function handleAIGeneration(regras: RegraGeracaoIaEntity[]) {
 }
 
 async function handleAIGenerationByTopic(regra: TemaForm) {
-  // <-- Adicionar async
   console.log("Regra de Geração por IA (Tema) recebida:", regra);
   await assessmentStore.generateQuestionsByTopic(regra);
   isGenerateAIDialogOpen.value = false;

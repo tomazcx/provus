@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { EntityManager, DataSource, In, Repository } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
@@ -23,6 +23,8 @@ import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
 import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-sistema-arquivos.repository';
 import { AvaliacaoDto } from 'src/dto/result/avaliacao/avaliacao.dto';
+import { EstudanteModel } from 'src/database/config/models/estudante.model';
+import { SubmissaoRespostasModel } from 'src/database/config/models/submissao-respostas.model';
 
 @Injectable()
 export class AplicacaoService {
@@ -382,9 +384,43 @@ export class AplicacaoService {
   }
 
   async delete(id: number, avaliador: AvaliadorModel): Promise<void> {
-    await this.aplicacaoRepository.deleteAplicacao(id, avaliador);
-  }
+    const aplicacao = await this.aplicacaoRepository.findOne({
+      where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
+    });
 
+    if (!aplicacao) {
+      throw new NotFoundException(
+        'Aplicação não encontrada ou não pertence a este avaliador.',
+      );
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const submissoes = await manager.find(SubmissaoModel, {
+        where: { aplicacao: { id: id } },
+        select: ['id'],
+      });
+
+      if (submissoes.length > 0) {
+        const submissaoIds = submissoes.map((s) => s.id);
+
+        await manager.delete(RegistroPunicaoPorOcorrenciaModel, {
+          submissao: { id: In(submissaoIds) },
+        });
+
+        await manager.delete(SubmissaoRespostasModel, {
+          submissaoId: In(submissaoIds),
+        });
+
+        await manager.delete(EstudanteModel, {
+          id: In(submissaoIds),
+        });
+
+        await manager.delete(SubmissaoModel, { id: In(submissaoIds) });
+      }
+
+      await manager.delete(AplicacaoModel, { id: id });
+    });
+  }
   private async generateUniqueAccessCode(
     manager: EntityManager,
   ): Promise<string> {

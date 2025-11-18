@@ -3,6 +3,7 @@ import ExamHeader from "~/components/Aluno/Prova/ProvaHeader/index.vue";
 import ExamSidebar from "~/components/Aluno/Prova/Sidebar/index.vue";
 import QuestionCard from "~/components/Aluno/Prova/QuestionCard/index.vue";
 import MaterialsDialog from "~/components/Aluno/Prova/MaterialsDialog/index.vue";
+import ConfirmationDialog from "~/components/ui/ConfirmationDialog/index.vue";
 import {
   useStudentAssessmentStore,
   type StudentAnswerData,
@@ -50,6 +51,7 @@ const currentSubmissionStatus = ref<EstadoSubmissaoEnum | null>(null);
 const isMaterialsOpen = ref(false);
 const viewMode = ref<"single" | "paginated">("single");
 const dataFimRef = ref<string | null>(null);
+const isSubmitConfirmOpen = ref(false);
 const ajusteTempoPenalidade = ref(0);
 const isTimerActive = computed(
   () =>
@@ -216,15 +218,9 @@ function updateAnswer(questionId: number, answer: StudentAnswerData | null) {
   }
 }
 
-async function submitTest() {
-  const confirmSubmit = confirm(
-    "Tem certeza que deseja enviar suas respostas? Esta ação não pode ser desfeita."
-  );
-  if (!confirmSubmit) return;
-  const success = await studentAssessmentStore.submitStudentAnswers(respostas);
-  if (success && submissionDetails.value?.hash) {
-    router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
-  }
+async function submit() {
+  console.log('1')
+  isSubmitConfirmOpen.value = true;
 }
 
 function connectWebSocket(hash: string) {
@@ -489,6 +485,13 @@ onUnmounted(() => {
   document.removeEventListener("cut", handleClipboardEvent);
   document.removeEventListener("contextmenu", handleContextMenu);
 });
+
+async function onConfirmSubmit() {
+  const success = await studentAssessmentStore.submitStudentAnswers(respostas);
+  if (success && submissionDetails.value?.hash) {
+    router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
+  }
+}
 </script>
 
 <template>
@@ -518,7 +521,7 @@ onUnmounted(() => {
       :titulo-avaliacao="tituloAvaliacao"
       :tempo-restante-formatado="tempoRestanteFormatado"
       :is-submitting="isSubmitting"
-      @submit="submitTest"
+      @submit="submit"
     />
 
     <div class="flex pt-16">
@@ -579,6 +582,15 @@ onUnmounted(() => {
     </div>
 
     <MaterialsDialog v-model="isMaterialsOpen" :arquivos="submissionFiles" />
+
+    <ConfirmationDialog
+      v-model="isSubmitConfirmOpen"
+      title="Entregar Avaliação?"
+      description="Tem certeza que deseja enviar suas respostas? Esta ação não pode ser desfeita."
+      confirm-label="Sim, entregar"
+      confirm-color="secondary"
+      @confirm="onConfirmSubmit"
+    />
   </div>
   <div v-else class="flex items-center justify-center min-h-screen">
     <UAlert

@@ -181,11 +181,11 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         EstadoAplicacaoEnum.CANCELADA,
         EstadoAplicacaoEnum.CONCLUIDA,
       ];
+
       const estadosAtivosSubmissao: EstadoSubmissaoEnum[] = [
         EstadoSubmissaoEnum.INICIADA,
         EstadoSubmissaoEnum.REABERTA,
         EstadoSubmissaoEnum.PAUSADA,
-        EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
       ];
 
       if (

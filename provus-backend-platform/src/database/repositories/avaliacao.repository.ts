@@ -205,7 +205,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
       await manager.save(avaliacao);
 
       await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId: id });
-      await manager.delete(AplicacaoModel, { avaliacao: { id } });
       await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId: id });
 
       if (dto.questoes && dto.questoes.length > 0) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { z } from "zod";
+import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import { useStudentAssessmentStore } from "~/store/studentAssessmentStore";
 
 definePageMeta({
@@ -34,25 +35,46 @@ async function handleSubmit() {
     return;
   }
 
-  const submissionHash = await studentAssessmentStore.createStudentSubmission(
+  const submissionData = await studentAssessmentStore.createStudentSubmission(
     formState.nome,
     formState.email,
     formState.codigoAcesso
   );
 
-  if (submissionHash) {
-    toast.add({
-      title: "Identidade Verificada!",
-      description: "Você será redirecionado para a avaliação.",
-      icon: "i-lucide-check-circle",
-      color: "secondary",
-    });
+  if (submissionData && submissionData.submissao.hash) {
+    const hash = submissionData.submissao.hash;
+    const estado = submissionData.submissao.estado;
 
     localStorage.removeItem("student_name");
     localStorage.removeItem("student_email");
 
-    await router.push(`/aluno/submissao/${submissionHash}`);
-  } 
+    const estadosFinais = [
+      EstadoSubmissaoEnum.ENVIADA,
+      EstadoSubmissaoEnum.AVALIADA,
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
+      EstadoSubmissaoEnum.ENCERRADA,
+      EstadoSubmissaoEnum.CANCELADA,
+      EstadoSubmissaoEnum.ABANDONADA,
+    ];
+
+    if (estadosFinais.includes(estado)) {
+      toast.add({
+        title: "Avaliação já realizada!",
+        description: "Redirecionando para seus resultados.",
+        icon: "i-lucide-check-circle",
+        color: "info",
+      });
+      await router.push(`/aluno/avaliacao/${hash}/finalizado`);
+    } else {
+      toast.add({
+        title: "Identidade Verificada!",
+        description: "Você será redirecionado para a avaliação.",
+        icon: "i-lucide-check-circle",
+        color: "secondary",
+      });
+      await router.push(`/aluno/submissao/${hash}`);
+    }
+  }
 }
 </script>
 <template>

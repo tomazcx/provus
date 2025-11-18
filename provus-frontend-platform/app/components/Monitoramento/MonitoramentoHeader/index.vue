@@ -12,6 +12,8 @@ const emit = defineEmits<{
   (e: "finalizar" | "pausar" | "retomar" | "reiniciar"): void;
 }>();
 
+const toast = useToast();
+
 const isPaused = computed(
   () => props.aplicacao.estado === EstadoAplicacaoEnum.PAUSADA
 );
@@ -38,6 +40,17 @@ const handleTogglePause = () => {
 };
 
 const handleResetTimer = () => emit("reiniciar");
+
+function copyCode(code?: string) {
+  if (code) {
+    navigator.clipboard.writeText(code);
+    toast.add({
+      title: "Código copiado!",
+      icon: "i-lucide-copy-check",
+      color: "info",
+    });
+  }
+}
 </script>
 
 <template>
@@ -52,6 +65,25 @@ const handleResetTimer = () => emit("reiniciar");
         <p class="text-gray-600">
           Acompanhamento em tempo real de: {{ aplicacao.avaliacao.titulo }}
         </p>
+        <div
+          v-if="aplicacao.codigoAcesso"
+          class="flex items-center space-x-2 mt-4"
+        >
+          <span class="font-medium text-gray-700">Código de Acesso:</span>
+          <UBadge
+            color="primary"
+            variant="solid"
+            size="lg"
+            class="tracking-widest"
+            >{{ aplicacao.codigoAcesso }}</UBadge
+          >
+          <UButton
+            icon="i-lucide-copy"
+            size="sm"
+            variant="ghost"
+            @click="copyCode(aplicacao.codigoAcesso)"
+          />
+        </div>
       </div>
 
       <div class="flex items-center space-x-4">

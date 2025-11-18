@@ -16,6 +16,7 @@ import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.respon
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useTimer } from "~/composables/useTimer";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+import ConfirmationDialog from "~/components/ui/ConfirmationDialog/index.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +28,12 @@ const { $api } = nuxtApp;
 const $websocket = nuxtApp.$websocket as
   | ReturnType<typeof useWebSocket>
   | undefined;
+
+const isConfirmOpen = ref(false);
+const confirmAction = ref<"finalizar" | "reiniciar" | null>(null);
+const confirmTitle = ref("");
+const confirmDescription = ref("");
+const confirmColor = ref<"warning" | "error">("warning");
 
 const applicationId = parseInt(route.params.id as string, 10);
 const aplicacao = ref<AplicacaoEntity | null>(null);
@@ -153,15 +160,12 @@ function handleFinalizar() {
     });
     return;
   }
-  if (
-    confirm(
-      "Tem certeza que deseja finalizar esta aplicação para todos os alunos?"
-    )
-  ) {
-    const payload = { aplicacaoId: aplicacao.value.id };
-    console.log("Emitindo finalizar-aplicacao:", payload);
-    $websocket.emit("finalizar-aplicacao", payload);
-  }
+  confirmTitle.value = "Finalizar Aplicação?";
+  confirmDescription.value =
+    "Tem certeza que deseja finalizar esta aplicação para todos os alunos? Alunos que não enviaram terão suas provas encerradas.";
+  confirmAction.value = "finalizar";
+  confirmColor.value = "error";
+  isConfirmOpen.value = true;
 }
 
 function handlePausar() {
@@ -233,13 +237,12 @@ function handleReiniciar() {
     );
     return;
   }
-  const confirma = confirm(
-    "Tem certeza que deseja reiniciar o timer para TODOS os alunos nesta aplicação? O tempo será recalculado a partir de agora com a duração original."
-  );
-  if (!confirma) return;
-  const payload = { aplicacaoId: aplicacao.value.id };
-  console.log("Emitindo reiniciar-timer-aplicacao:", payload);
-  $websocket.emit("reiniciar-timer-aplicacao", payload);
+  confirmTitle.value = "Reiniciar Timer?";
+  confirmDescription.value =
+    "Tem certeza que deseja reiniciar o timer para TODOS os alunos nesta aplicação? O tempo será recalculado a partir de agora com a duração original.";
+  confirmAction.value = "reiniciar";
+  confirmColor.value = "warning";
+  isConfirmOpen.value = true;
 }
 
 const formatarTempo = (totalSegundos: number): string => {
@@ -258,16 +261,14 @@ const formatarTempo = (totalSegundos: number): string => {
 };
 
 function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
-  // *** INÍCIO DA CORREÇÃO ***
   const estadosFinaisOuInativos: EstadoSubmissaoEnum[] = [
     EstadoSubmissaoEnum.ENCERRADA,
     EstadoSubmissaoEnum.CANCELADA,
     EstadoSubmissaoEnum.ENVIADA,
     EstadoSubmissaoEnum.AVALIADA,
     EstadoSubmissaoEnum.ABANDONADA,
-    EstadoSubmissaoEnum.CODIGO_CONFIRMADO, // <-- ADICIONADO ESTE ESTADO
+    EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
   ];
-  // *** FIM DA CORREÇÃO ***
 
   if (estadosFinaisOuInativos.includes(aluno.estado)) {
     return "00:00:00";
@@ -281,6 +282,23 @@ function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
     return formatarTempo(tempoRestanteIndividual);
   }
   return formatarTempo(tempoRestanteIndividual);
+}
+
+function onConfirmDialog() {
+  if (!aplicacao.value || !$websocket) return;
+
+  const payload = { aplicacaoId: aplicacao.value.id };
+
+  if (confirmAction.value === "finalizar") {
+    console.log("Emitindo finalizar-aplicacao:", payload);
+    $websocket.emit("finalizar-aplicacao", payload);
+  } else if (confirmAction.value === "reiniciar") {
+    console.log("Emitindo reiniciar-timer-aplicacao:", payload);
+    $websocket.emit("reiniciar-timer-aplicacao", payload);
+  }
+
+  isConfirmOpen.value = false;
+  confirmAction.value = null;
 }
 </script>
 
@@ -338,6 +356,14 @@ function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
 
       <div><ActivityFeed :atividades="activityFeed" /></div>
     </div>
+    <ConfirmationDialog
+      v-model="isConfirmOpen"
+      :title="confirmTitle"
+      :description="confirmDescription"
+      :confirm-color="confirmColor"
+      confirm-label="Confirmar"
+      @confirm="onConfirmDialog"
+    />
   </div>
 
   <div v-else class="flex items-center justify-center min-h-[50vh]">
