@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import NotificationsDropdown from "~/components/ui/NotificationsDropdown/index.vue";
 
+const router = useRouter();
+
+function handleLogout() {
+  const token = useCookie("accessToken");
+  token.value = null;
+
+  router.push("/auth");
+}
+
 const userMenuItems = [
   [
     {
@@ -13,7 +22,9 @@ const userMenuItems = [
     {
       label: "Sair",
       icon: "i-heroicons-arrow-left-on-rectangle",
-      slot: "logout",
+      onSelect: handleLogout,
+      iconClass: "text-red-500",
+      class: "text-red-500 hover:bg-red-50 dark:hover:bg-red-950",
     },
   ],
 ];

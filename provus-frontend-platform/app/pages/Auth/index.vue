@@ -36,7 +36,10 @@
 <script setup lang="ts">
 import LoginForm from "~/components/Auth/LoginForm.vue";
 import RegisterForm from "~/components/Auth/RegisterForm.vue";
-import type { LoginFormData, RegisterFormData } from '../../utils/authValidation';
+import type {
+  LoginFormData,
+  RegisterFormData,
+} from "../../utils/authValidation";
 
 definePageMeta({
   layout: false,
@@ -69,7 +72,7 @@ async function handleLoginSubmit(userData: LoginFormData) {
   try {
     isLoading.value = true;
 
-    const response = await $api("/auth/sign-in", {
+    const response = await $api<{ token: string }>("/auth/sign-in", {
       method: "POST",
       body: {
         email: userData.email,
@@ -77,14 +80,26 @@ async function handleLoginSubmit(userData: LoginFormData) {
       },
     });
 
-    useCookie("accessToken", {
-      default: () => response.token,
-      watch: false,
+    const accessToken = useCookie("accessToken", {
+      maxAge: 60 * 60 * 24, // 24 horas
+      path: "/",
     });
-  } catch (error) {
+
+    accessToken.value = response.token;
+
+    toast.add({
+      title: "Login realizado com sucesso!",
+      color: "secondary",
+      icon: "i-lucide-check-circle",
+    });
+
+    await router.push("/home");
+  } catch {
+    const message = "Erro ao realizar login";
+
     toast.add({
       title: "Falha no login",
-      description: error._data.message,
+      description: message,
       icon: "i-lucide-x",
       color: "error",
     });
