@@ -3,6 +3,67 @@ import StatsSection from "~/components/Home/StatsSection/index.vue";
 import SchedulesSection from "~/components/Home/SchedulesSection/index.vue";
 import FiltersSection from "~/components/Home/FiltersSection/index.vue";
 import ExamsGrid from "~/components/Home/ExamsGrid/index.vue";
+import { useApplicationsStore } from "~/store/applicationsStore";
+import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
+
+const applicationsStore = useApplicationsStore();
+
+const filters = reactive({
+  search: "",
+  status: "Todos",
+  sortBy: "Mais Recente",
+});
+
+onMounted(() => {
+  applicationsStore.fetchApplications();
+});
+
+const filteredApplications = computed(() => {
+  let result = [...applicationsStore.applications];
+
+  if (filters.search) {
+    const lowerSearch = filters.search.toLowerCase();
+    result = result.filter(
+      (app) =>
+        app.avaliacao.titulo.toLowerCase().includes(lowerSearch) ||
+        (app.avaliacao.descricao &&
+          app.avaliacao.descricao.toLowerCase().includes(lowerSearch))
+    );
+  }
+
+  if (filters.status !== "Todos") {
+    const statusMap: Record<string, EstadoAplicacaoEnum> = {
+      "Em Andamento": EstadoAplicacaoEnum.EM_ANDAMENTO,
+      Agendada: EstadoAplicacaoEnum.AGENDADA,
+      Concluída: EstadoAplicacaoEnum.CONCLUIDA,
+      Finalizada: EstadoAplicacaoEnum.FINALIZADA,
+      Pausada: EstadoAplicacaoEnum.PAUSADA,
+      Cancelada: EstadoAplicacaoEnum.CANCELADA,
+      Criada: EstadoAplicacaoEnum.CRIADA,
+    };
+    const targetStatus = statusMap[filters.status];
+    if (targetStatus) {
+      result = result.filter((app) => app.estado === targetStatus);
+    }
+  }
+
+  result.sort((a, b) => {
+    switch (filters.sortBy) {
+      case "Mais Recente":
+        return b.dataInicio.getTime() - a.dataInicio.getTime();
+      case "Mais Antigo":
+        return a.dataInicio.getTime() - b.dataInicio.getTime();
+      case "Título A-Z":
+        return a.avaliacao.titulo.localeCompare(b.avaliacao.titulo);
+      case "Título Z-A":
+        return b.avaliacao.titulo.localeCompare(a.avaliacao.titulo);
+      default:
+        return 0;
+    }
+  });
+
+  return result;
+});
 </script>
 
 <template>
@@ -28,13 +89,20 @@ import ExamsGrid from "~/components/Home/ExamsGrid/index.vue";
     <StatsSection />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div class="lg:col-span-1 space-y-8">
+      <div class="lg:col-span-1 space-y-8 order-2 lg:order-1">
         <SchedulesSection />
       </div>
 
-      <div class="lg:col-span-2">
-        <FiltersSection />
-        <ExamsGrid />
+      <div class="lg:col-span-2 order-1 lg:order-2">
+        <FiltersSection
+          v-model:search="filters.search"
+          v-model:status="filters.status"
+          v-model:sort-by="filters.sortBy"
+        />
+        <ExamsGrid
+          :applications="filteredApplications"
+          :is-loading="applicationsStore.isLoading"
+        />
       </div>
     </div>
   </div>

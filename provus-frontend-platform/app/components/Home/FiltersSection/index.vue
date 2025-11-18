@@ -1,11 +1,25 @@
 <script setup lang="ts">
-const search = ref("");
-const status = ref("Todos");
-const sortBy = ref("Última Modificação");
+const search = defineModel<string>("search");
+const status = defineModel<string>("status");
+const sortBy = defineModel<string>("sortBy");
+
+const statusOptions = [
+  "Todos",
+  "Em Andamento",
+  "Agendada",
+  "Concluída",
+  "Finalizada",
+  "Pausada",
+  "Cancelada",
+  "Criada",
+];
+
+const sortOptions = ["Mais Recente", "Mais Antigo", "Título A-Z", "Título Z-A"];
 </script>
+
 <template>
   <UCard class="mb-6">
-    <div class="flex space-x-4">
+    <div class="flex flex-col md:flex-row gap-4">
       <UFormField label="Buscar Avaliações" class="w-full">
         <UInput
           v-model="search"
@@ -14,30 +28,11 @@ const sortBy = ref("Última Modificação");
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Filtrar por Status" class="w-full">
-        <USelect
-          v-model="status"
-          class="w-full"
-          :items="[
-            'Todos',
-            'Em Andamento',
-            'Agendada',
-            'Concluída',
-            'Cancelada',
-          ]"
-        />
+      <UFormField label="Filtrar por Status" class="w-full md:w-1/4">
+        <USelect v-model="status" class="w-full" :items="statusOptions" />
       </UFormField>
-      <UFormField label="Ordenar Por" class="w-full">
-        <USelect
-          v-model="sortBy"
-          class="w-full"
-          :items="[
-            'Última Modificação',
-            'Mais Recente',
-            'Mais Antigo',
-            'Título A-Z',
-          ]"
-        />
+      <UFormField label="Ordenar Por" class="w-full md:w-1/4">
+        <USelect v-model="sortBy" class="w-full" :items="sortOptions" />
       </UFormField>
     </div>
   </UCard>

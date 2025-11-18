@@ -30,8 +30,38 @@ export function mapAplicacaoApiResponseToEntity(
 export const useApplicationsStore = defineStore("applications", () => {
   const { $api } = useNuxtApp();
   const toast = useToast();
+
   const applications = ref<AplicacaoEntity[]>([]);
   const isLoading = ref(false);
+
+  const dashboardStats = computed(() => {
+    const total = applications.value.length;
+    const emAndamento = applications.value.filter(
+      (app) => app.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
+    ).length;
+    const concluidas = applications.value.filter(
+      (app) =>
+        app.estado === EstadoAplicacaoEnum.CONCLUIDA ||
+        app.estado === EstadoAplicacaoEnum.FINALIZADA
+    ).length;
+    const agendadas = applications.value.filter(
+      (app) => app.estado === EstadoAplicacaoEnum.AGENDADA
+    ).length;
+
+    return {
+      total,
+      emAndamento,
+      concluidas,
+      agendadas,
+    };
+  });
+
+  const upcomingSchedules = computed(() => {
+    return applications.value
+      .filter((app) => app.estado === EstadoAplicacaoEnum.AGENDADA)
+      .sort((a, b) => a.dataInicio.getTime() - b.dataInicio.getTime())
+      .slice(0, 5);
+  });
 
   async function fetchApplications() {
     isLoading.value = true;
@@ -61,6 +91,7 @@ export const useApplicationsStore = defineStore("applications", () => {
           ? EstadoAplicacaoEnum.AGENDADA
           : EstadoAplicacaoEnum.CRIADA,
       };
+
       const newApplicationResponse = await $api<AplicacaoApiResponse>(
         "/backoffice/aplicacao",
         {
@@ -68,25 +99,11 @@ export const useApplicationsStore = defineStore("applications", () => {
           body: payload,
         }
       );
+
       await fetchApplications();
       return mapAplicacaoApiResponseToEntity(newApplicationResponse);
-    } catch (error: unknown) {
-      let errorMessage = "Ocorreu um erro desconhecido.";
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof (error as { data?: { message?: string } }).data === "object" &&
-        (error as { data?: { message?: string } }).data !== null &&
-        "message" in (error as { data?: { message?: string } }).data!
-      ) {
-        errorMessage =
-          (
-            (error as { data?: { message?: string } }).data as {
-              message?: string;
-            }
-          ).message ?? "Ocorreu um erro desconhecido.";
-      }
+    } catch {
+      const errorMessage = "Ocorreu um erro desconhecido.";
       toast.add({
         title: "Erro ao criar aplicação",
         description: errorMessage,
@@ -111,14 +128,6 @@ export const useApplicationsStore = defineStore("applications", () => {
       if (updatedFields.dataFim !== undefined) {
         appToUpdate.dataFim = new Date(updatedFields.dataFim);
       }
-      console.log(
-        `ApplicationsStore: Dados da App ${applicationId} atualizados no estado:`,
-        updatedFields
-      );
-    } else {
-      console.warn(
-        `ApplicationsStore: Tentativa de atualizar App ${applicationId} não encontrada no estado local.`
-      );
     }
   }
 
@@ -137,7 +146,6 @@ export const useApplicationsStore = defineStore("applications", () => {
       );
 
       const updatedEntity = mapAplicacaoApiResponseToEntity(updatedResponse);
-
       updateApplicationData(applicationId, {
         estado: updatedEntity.estado,
         dataFim: updatedEntity.dataFim,
@@ -147,23 +155,8 @@ export const useApplicationsStore = defineStore("applications", () => {
         title: "Status da aplicação atualizado!",
         color: "secondary",
       });
-    } catch (error: unknown) {
-      let errorMessage = "Ocorreu um erro desconhecido.";
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof (error as { data?: { message?: string } }).data === "object" &&
-        (error as { data?: { message?: string } }).data !== null &&
-        "message" in (error as { data?: { message?: string } }).data!
-      ) {
-        errorMessage =
-          (
-            (error as { data?: { message?: string } }).data as {
-              message?: string;
-            }
-          ).message ?? "Ocorreu um erro desconhecido.";
-      }
+    } catch {
+      const errorMessage = "Ocorreu um erro desconhecido.";
       toast.add({
         title: "Erro ao atualizar status",
         description: errorMessage,
@@ -177,30 +170,17 @@ export const useApplicationsStore = defineStore("applications", () => {
       await $api(`/backoffice/aplicacao/${applicationId}`, {
         method: "DELETE",
       });
+
       applications.value = applications.value.filter(
         (a) => a.id !== applicationId
       );
+
       toast.add({
         title: "Aplicação deletada com sucesso!",
         color: "secondary",
       });
-    } catch (error: unknown) {
-      let errorMessage = "Ocorreu um erro desconhecido.";
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof (error as { data?: { message?: string } }).data === "object" &&
-        (error as { data?: { message?: string } }).data !== null &&
-        "message" in (error as { data?: { message?: string } }).data!
-      ) {
-        errorMessage =
-          (
-            (error as { data?: { message?: string } }).data as {
-              message?: string;
-            }
-          ).message ?? "Ocorreu um erro desconhecido.";
-      }
+    } catch {
+      const errorMessage = "Ocorreu um erro desconhecido.";
       toast.add({
         title: "Erro ao deletar aplicação",
         description: errorMessage,
@@ -212,6 +192,8 @@ export const useApplicationsStore = defineStore("applications", () => {
   return {
     applications,
     isLoading,
+    dashboardStats,
+    upcomingSchedules,
     fetchApplications,
     getApplicationById,
     createApplication,

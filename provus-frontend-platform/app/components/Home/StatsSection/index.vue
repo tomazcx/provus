@@ -1,70 +1,31 @@
 <script setup lang="ts">
 import { useApplicationsStore } from "~/store/applicationsStore";
-import { useExamBankStore } from "~/store/assessmentBankStore";
-import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
-import isFolder from "~/guards/isFolder";
 
 const applicationsStore = useApplicationsStore();
-const examBankStore = useExamBankStore();
-
-onMounted(() => {
-  applicationsStore.fetchItems();
-  examBankStore.fetchItems();
-});
-
-const totalAplicacoes = computed(() => {
-  return (
-    aplicacoesEmAndamento.value +
-    aplicacoesFinalizadas.value +
-    avaliacoesAgendadas.value
-  );
-});
-
-const aplicacoesEmAndamento = computed(
-  () =>
-    applicationsStore.applications.filter(
-      (app) => app.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
-    ).length
-);
-const aplicacoesFinalizadas = computed(
-  () =>
-    applicationsStore.applications.filter(
-      (app) => app.estado === EstadoAplicacaoEnum.CONCLUIDA
-    ).length
-);
-
-const avaliacoesAgendadas = computed(() => {
-  const agora = new Date();
-  return examBankStore.items.filter(
-    (item) =>
-      !isFolder(item) &&
-      item.configuracoes?.dataAgendada &&
-      new Date(item.configuracoes.dataAgendada) > agora
-  ).length;
-});
+const statsData = computed(() => applicationsStore.dashboardStats);
 
 const stats = computed(() => [
   {
     title: "Total de Aplicações",
-    value: totalAplicacoes.value,
+    value: statsData.value.total,
     icon: "i-lucide-file-text",
     color: "blue",
   },
   {
     title: "Em Andamento",
-    value: aplicacoesEmAndamento.value,
+    value: statsData.value.emAndamento,
     icon: "i-lucide-clock",
     color: "yellow",
   },
   {
     title: "Concluídas",
-    value: aplicacoesFinalizadas.value,
+    value: statsData.value.concluidas,
     icon: "i-lucide-check-circle",
     color: "green",
   },
   {
     title: "Agendadas",
-    value: avaliacoesAgendadas.value,
+    value: statsData.value.agendadas,
     icon: "i-lucide-calendar",
     color: "purple",
   },
