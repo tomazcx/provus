@@ -58,7 +58,7 @@ onMounted(async () => {
       },
     });
     console.log("Login bem-sucedido:", response);
-  } catch (error) {
+  } catch (error: any) {
     toast.add({
       title: "Falha no login",
       description: error._data.message,

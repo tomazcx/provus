@@ -61,13 +61,19 @@
           <Icon name="i-heroicons-arrow-right-20-solid" class="h-5 w-5" />
         </template>
       </UButton>
+
+      <NuxtLink
+        class="text-sm text-primary text-center w-full block"
+        href="/auth/recuperar-senha"
+        >Esqueceu sua senha?</NuxtLink
+      >
     </UForm>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
-import { loginSchema, type LoginFormData } from '../../utils/authValidation';
+import { ref, reactive, computed } from "vue";
+import { loginSchema, type LoginFormData } from "../../utils/authValidation";
 
 withDefaults(
   defineProps<{
@@ -79,14 +85,14 @@ withDefaults(
 );
 
 const emit = defineEmits<{
-  (e: 'submit', payload: LoginFormData): void;
+  (e: "submit", payload: LoginFormData): void;
 }>();
 
 const show = ref(false);
 
 const form = reactive({
-  email: '',
-  password: '',
+  email: "",
+  password: "",
 });
 
 const isFormValid = computed(() => {
@@ -95,6 +101,6 @@ const isFormValid = computed(() => {
 });
 
 function onSubmit(event: { data: LoginFormData }) {
-  emit('submit', event.data);
+  emit("submit", event.data);
 }
 </script>

@@ -1,37 +1,70 @@
 <script setup lang="ts">
+import { profileSchema } from "~/utils/profileValidation";
+
 definePageMeta({
   layout: "default",
 });
 
-const user = reactive({
-  firstName: "Michael",
-  lastName: "Johnson",
+const form = reactive({
+  name: "Michael Johnson",
   email: "m.johnson@university.edu",
-  phone: "+1 (555) 123-4567",
-  department: "Mathematics",
-});
-
-const passwords = reactive({
-  current: "",
-  new: "",
-  confirm: "",
+  currentPassword: "",
+  password: "",
+  confirmPassword: "",
 });
 
 const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
+const isLoading = ref(false);
 const toast = useToast();
 const router = useRouter();
+const { $api } = useNuxtApp();
 
-function handleSaveChanges() {
-  console.log("Saving data:", { user, passwords });
-
-  toast.add({
-    title: "Perfil Atualizado!",
-    description: "Suas informações foram salvas com sucesso.",
-    icon: "i-lucide-check-circle",
-    color: "secondary",
+const isFormValid = computed(() => {
+  const result = profileSchema.safeParse({
+    name: form.name,
+    password: form.password,
+    confirmPassword: form.confirmPassword,
   });
+
+  return result.success;
+});
+
+async function handleSaveChanges() {
+  if (isLoading.value || !isFormValid.value) return;
+
+  try {
+    isLoading.value = true;
+
+    await $api("/backoffice/avaliador/me", {
+      method: "PUT",
+      body: {
+        senha: form.currentPassword,
+        novaSenha: form.password,
+        nome: form.name,
+      },
+    });
+
+    toast.add({
+      title: "Perfil Atualizado!",
+      description: "Suas informações foram salvas com sucesso.",
+      icon: "i-lucide-check-circle",
+      color: "secondary",
+    });
+  } catch (error: any) {
+    const message =
+      error.response?._data?.message ?? "Ocorreu um erro desconhecido.";
+
+    toast.add({
+      title: "Falha no login",
+      description: message,
+      icon: "i-lucide-x",
+      color: "error",
+    });
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 function goBack() {
@@ -60,33 +93,28 @@ function goBack() {
 
     <div class="mx-auto">
       <UCard>
-        <form class="space-y-8" @submit.prevent="handleSaveChanges">
+        <UForm
+          :schema="profileSchema"
+          :state="form"
+          class="space-y-8"
+          @submit.prevent="handleSaveChanges"
+        >
           <div class="space-y-6">
             <h3 class="text-lg font-semibold text-gray-900 flex items-center">
               <Icon name="i-lucide-user" class="mr-2 text-primary" />
               Informações Pessoais
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormField label="Nome" class="w-full">
-                <UInput v-model="user.firstName" size="lg" class="w-full" />
-              </UFormField>
-              <UFormField label="Sobrenome" class="w-full">
-                <UInput v-model="user.lastName" size="lg" class="w-full" />
+              <UFormField label="Nome" name="name" required class="w-full">
+                <UInput v-model="form.name" size="lg" class="w-full" />
               </UFormField>
               <UFormField label="Endereço de E-mail">
                 <UInput
-                  v-model="user.email"
+                  v-model="form.email"
                   type="email"
+                  disabled
                   size="lg"
                   icon="i-lucide-mail"
-                  class="w-full"
-                />
-              </UFormField>
-              <UFormField label="Telefone">
-                <UInput
-                  v-model="user.phone"
-                  size="lg"
-                  icon="i-lucide-phone"
                   class="w-full"
                 />
               </UFormField>
@@ -101,7 +129,7 @@ function goBack() {
             <div class="space-y-4">
               <UFormField label="Senha Atual">
                 <UInput
-                  v-model="passwords.current"
+                  v-model="form.currentPassword"
                   :type="showCurrentPassword ? 'text' : 'password'"
                   placeholder="Digite sua senha atual"
                   size="lg"
@@ -121,9 +149,9 @@ function goBack() {
                   </template>
                 </UInput>
               </UFormField>
-              <UFormField label="Nova Senha">
+              <UFormField label="Nova Senha" name="password">
                 <UInput
-                  v-model="passwords.new"
+                  v-model="form.password"
                   :type="showNewPassword ? 'text' : 'password'"
                   placeholder="Digite a nova senha"
                   size="lg"
@@ -141,9 +169,9 @@ function goBack() {
                   </template>
                 </UInput>
               </UFormField>
-              <UFormField label="Confirme a Nova Senha">
+              <UFormField label="Confirme a Nova Senha" name="confirmPassword">
                 <UInput
-                  v-model="passwords.confirm"
+                  v-model="form.confirmPassword"
                   :type="showConfirmPassword ? 'text' : 'password'"
                   placeholder="Confirme a nova senha"
                   size="lg"
@@ -177,6 +205,7 @@ function goBack() {
               variant="subtle"
               class="w-full"
               icon="i-lucide-x"
+              :disabled="isLoading"
               @click="goBack"
             >
               Cancelar
@@ -187,11 +216,12 @@ function goBack() {
               size="lg"
               color="secondary"
               icon="i-lucide-save"
+              :disabled="isLoading || !isFormValid"
             >
               Salvar Alterações
             </UButton>
           </div>
-        </form>
+        </UForm>
       </UCard>
     </div>
   </div>

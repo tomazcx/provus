@@ -10,8 +10,8 @@ export default {
     },
 
     {
-      name: "aluno-submissao", 
-      path: "/aluno/submissao/:hash", 
+      name: "aluno-submissao",
+      path: "/aluno/submissao/:hash",
       component: () => import("~/pages/Aluno/Avaliacao/[hash].vue"),
       meta: { layout: "assessment-student" },
     },
@@ -19,8 +19,7 @@ export default {
     {
       name: "aluno-avaliacao-finalizado",
       path: "/aluno/avaliacao/:hash/finalizado",
-      component: () =>
-        import("~/pages/Aluno/Avaliacao/[hash]/finalizado.vue"),
+      component: () => import("~/pages/Aluno/Avaliacao/[hash]/finalizado.vue"),
       meta: { layout: false },
     },
 
@@ -37,7 +36,18 @@ export default {
       component: () => import("~/pages/Auth/index.vue"),
       meta: { layout: false },
     },
-
+    {
+      name: "recuperar-senha",
+      path: "/auth/recuperar-senha",
+      component: () => import("~/pages/Auth/RecuperarSenha.vue"),
+      meta: { layout: false },
+    },
+    {
+      name: "resetar-senha-hash",
+      path: "/auth/resetar-senha/:hash",
+      component: () => import("~/pages/Auth/ResetarSenha/[[hash]].vue"),
+      meta: { layout: false },
+    },
     {
       name: "confirmar-email",
       path: "/confirmar-email/:hash",

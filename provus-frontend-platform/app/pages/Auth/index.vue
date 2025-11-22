@@ -128,7 +128,7 @@ async function handleRegisterSubmit(userData: RegisterFormData) {
       icon: "i-lucide-at-sign",
       color: "secondary",
     });
-  } catch (error) {
+  } catch (error: any) {
     toast.add({
       title: "Falha no cadastro",
       description: error._data.message,
