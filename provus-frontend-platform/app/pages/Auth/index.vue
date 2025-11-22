@@ -12,13 +12,11 @@
           </div>
         </div>
       </div>
-
       <UCard>
         <UTabs v-model="active" :items="tabItems" class="w-full">
           <template #login="{}">
             <LoginForm :is-loading="isLoading" @submit="handleLoginSubmit" />
           </template>
-
           <template #cadastro="{}">
             <RegisterForm
               :is-loading="isLoading"
@@ -27,12 +25,10 @@
           </template>
         </UTabs>
       </UCard>
-
       <div class="mt-8 text-center" />
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import LoginForm from "~/components/Auth/LoginForm.vue";
 import RegisterForm from "~/components/Auth/RegisterForm.vue";
@@ -40,6 +36,7 @@ import type {
   LoginFormData,
   RegisterFormData,
 } from "../../utils/authValidation";
+import { useUserStore } from "~/store/userStore";
 
 definePageMeta({
   layout: false,
@@ -49,6 +46,7 @@ const toast = useToast();
 const route = useRoute();
 const router = useRouter();
 const { $api } = useNuxtApp();
+const userStore = useUserStore();
 const isLoading = ref(false);
 
 const tabItems = [
@@ -71,7 +69,6 @@ const active = computed({
 async function handleLoginSubmit(userData: LoginFormData) {
   try {
     isLoading.value = true;
-
     const response = await $api<{ token: string }>("/auth/sign-in", {
       method: "POST",
       body: {
@@ -87,16 +84,22 @@ async function handleLoginSubmit(userData: LoginFormData) {
 
     accessToken.value = response.token;
 
-    toast.add({
-      title: "Login realizado com sucesso!",
-      color: "secondary",
-      icon: "i-lucide-check-circle",
-    });
+    await nextTick();
 
-    await router.push("/home");
+    await userStore.fetchCurrentUser();
+
+    if (userStore.user) {
+      toast.add({
+        title: "Login realizado com sucesso!",
+        color: "secondary",
+        icon: "i-lucide-check-circle",
+      });
+      await router.push("/home");
+    } else {
+      throw new Error("Falha ao carregar dados do usuário");
+    }
   } catch {
     const message = "Erro ao realizar login";
-
     toast.add({
       title: "Falha no login",
       description: message,
@@ -119,19 +122,17 @@ async function handleRegisterSubmit(userData: RegisterFormData) {
         senha: userData.password,
       },
     });
-
     active.value = "0";
-
     toast.add({
       title: "Conta criada com sucesso!",
       description: "Verifique seu e-mail para ativar sua conta.",
       icon: "i-lucide-at-sign",
       color: "secondary",
     });
-  } catch (error) {
+  } catch {
     toast.add({
       title: "Falha no cadastro",
-      description: error._data.message,
+      description: "Erro desconhecido",
       icon: "i-lucide-x",
       color: "error",
     });

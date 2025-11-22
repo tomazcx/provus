@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import NotificationsDropdown from "~/components/ui/NotificationsDropdown/index.vue";
+import { useUserStore } from "~/store/userStore";
 
-const router = useRouter();
+const userStore = useUserStore();
+const user = computed(() => userStore.user);
+
+onMounted(() => {
+  if (!user.value) {
+    userStore.fetchCurrentUser();
+  }
+});
 
 function handleLogout() {
-  const token = useCookie("accessToken");
-  token.value = null;
-
-  router.push("/auth");
+  userStore.logout();
 }
 
 const userMenuItems = [
@@ -29,6 +34,7 @@ const userMenuItems = [
   ],
 ];
 </script>
+
 <template>
   <header class="bg-white shadow-sm border-b border-gray-200">
     <div
@@ -40,7 +46,6 @@ const userMenuItems = [
         </div>
         <span class="ml-3 text-2xl font-bold text-primary">Provus</span>
       </div>
-
       <nav class="space-x-8">
         <NuxtLink
           active-class="border-b-2 border-primary text-primary"
@@ -73,10 +78,8 @@ const userMenuItems = [
           >Banco de materiais</NuxtLink
         >
       </nav>
-
       <div class="flex items-center space-x-2">
         <NotificationsDropdown />
-
         <UDropdownMenu
           :items="userMenuItems"
           :popper="{ placement: 'bottom-end' }"
@@ -87,10 +90,13 @@ const userMenuItems = [
             class="flex items-center space-x-3"
           >
             <UAvatar
-              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
-              alt="User"
+              :alt="user?.nome?.toUpperCase() || 'U'"
+              size="sm"
+              class="bg-primary-100 text-primary-700"
             />
-            <span class="text-gray-700 font-medium">John Doe</span>
+            <span class="text-gray-700 font-medium">{{
+              user?.nome || "Carregando..."
+            }}</span>
             <Icon
               name="i-heroicons-chevron-down-20-solid"
               class="text-gray-400"
