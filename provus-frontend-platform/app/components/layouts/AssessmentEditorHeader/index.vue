@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { useAssessmentStore } from "~/store/assessmentStore";
 import { useEditorBridgeStore } from "~/store/editorBridgeStore";
+import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 
 const assessmentStore = useAssessmentStore();
 const editorBridgeStore = useEditorBridgeStore();
 
 const saveContext = computed(() => editorBridgeStore.context);
+
+// Verifica se a configuração atual é de agendamento
+const isScheduled = computed(() => {
+  return (
+    assessmentStore.assessmentState?.configuracao.configuracoesGerais
+      .tipoAplicacao === TipoAplicacaoEnum.AGENDADA
+  );
+});
 
 function handleSaveAction(option: { key: string }) {
   editorBridgeStore.triggerSave(option);
@@ -13,6 +22,8 @@ function handleSaveAction(option: { key: string }) {
 
 const saveOptions = computed(() => {
   const options = [];
+
+  // Opção padrão: Salvar apenas o modelo
   options.push([
     {
       label: "Salvar Modelo no Banco",
@@ -20,20 +31,46 @@ const saveOptions = computed(() => {
       icon: "i-lucide-save",
     },
   ]);
-  options.push([
-    {
-      label: "Salvar Modelo e Aplicar",
-      key: "save_and_apply",
-      icon: "i-lucide-send",
-    },
-    {
-      label: "Apenas Aplicar (sem salvar)",
-      key: "apply_only",
-      icon: "i-lucide-send-to-back",
-    },
-  ]);
+
+  // Opções Dinâmicas
+  if (isScheduled.value) {
+    options.push([
+      {
+        label: "Salvar Modelo e Agendar",
+        key: "save_and_schedule",
+        icon: "i-lucide-calendar-check-2",
+      },
+      {
+        label: "Apenas Agendar (sem salvar modelo)",
+        key: "schedule_only",
+        icon: "i-lucide-calendar-clock",
+      },
+    ]);
+  } else {
+    options.push([
+      {
+        label: "Salvar Modelo e Aplicar",
+        key: "save_and_apply",
+        icon: "i-lucide-send",
+      },
+      {
+        label: "Apenas Aplicar (sem salvar modelo)",
+        key: "apply_only",
+        icon: "i-lucide-send-to-back",
+      },
+    ]);
+  }
+
   return options;
 });
+
+const mainLabel = computed(() =>
+  isScheduled.value ? "Agendar Avaliação" : "Aplicar Agora"
+);
+
+const mainIcon = computed(() =>
+  isScheduled.value ? "i-lucide-calendar" : "i-lucide-send"
+);
 </script>
 
 <template>
@@ -69,13 +106,15 @@ const saveOptions = computed(() => {
           >
             <UButton
               color="secondary"
-              icon="i-heroicons-arrow-down-tray"
+              :icon="mainIcon"
               trailing-icon="i-heroicons-chevron-down-20-solid"
             >
-              Salvar e Aplicar
+              {{ mainLabel }}
             </UButton>
             <template #item="{ item }">
-              <span @click="handleSaveAction(item)">{{ item.label }}</span>
+              <span class="w-full text-left" @click="handleSaveAction(item)">
+                {{ item.label }}
+              </span>
             </template>
           </UDropdownMenu>
         </div>

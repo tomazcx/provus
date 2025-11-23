@@ -7,6 +7,7 @@ import type {
   UpdateAplicacaoRequest,
 } from "~/types/api/request/Aplicacao.request";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
+import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 
 export function mapAplicacaoApiResponseToEntity(
   apiResponse: AplicacaoApiResponse
@@ -27,12 +28,23 @@ export function mapAplicacaoApiResponseToEntity(
   };
 }
 
+interface EstadoAplicacaoPayload {
+  aplicacaoId: number;
+  novoEstado: EstadoAplicacaoEnum;
+  novaDataFimISO: string;
+}
+
 export const useApplicationsStore = defineStore("applications", () => {
   const { $api } = useNuxtApp();
   const toast = useToast();
-
   const applications = ref<AplicacaoEntity[]>([]);
   const isLoading = ref(false);
+
+  const nuxtApp = useNuxtApp();
+  const getWebsocket = () =>
+    nuxtApp.$websocket as ReturnType<typeof useWebSocket> | undefined;
+
+  const listenersInitialized = ref(false);
 
   const dashboardStats = computed(() => {
     const total = applications.value.length;
@@ -63,29 +75,57 @@ export const useApplicationsStore = defineStore("applications", () => {
       .slice(0, 5);
   });
 
+  function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
+    console.log(
+      `[ApplicationsStore] 🔔 Evento WS recebido: ${data.novoEstado} para App ${data.aplicacaoId}`
+    );
+    updateApplicationData(data.aplicacaoId, {
+      estado: data.novoEstado,
+      dataFim: new Date(data.novaDataFimISO),
+    });
+  }
+
+  function initializeWebSocketListeners() {
+    const ws = getWebsocket();
+    if (!ws || !ws.socket.value) {
+      console.warn(
+        "[ApplicationsStore] Tentativa de iniciar listeners falhou: Socket não disponível."
+      );
+      return;
+    }
+
+    if (listenersInitialized.value) {
+      ws.socket.value.off("estado-aplicacao-atualizado", onEstadoAtualizado);
+    }
+
+    ws.on<EstadoAplicacaoPayload>(
+      "estado-aplicacao-atualizado",
+      onEstadoAtualizado
+    );
+    listenersInitialized.value = true;
+    console.log(
+      "[ApplicationsStore] ✅ Listeners WebSocket conectados e ouvindo 'estado-aplicacao-atualizado'."
+    );
+  }
+
   async function fetchApplications() {
     isLoading.value = true;
-    console.log("🔄 [Store] Iniciando busca de aplicações...");
-
     try {
       const response = await $api<AplicacaoApiResponse[]>(
         "/backoffice/aplicacoes"
       );
-
-      console.log("✅ [Store] Resposta bruta da API:", response);
-
       if (!Array.isArray(response)) {
-        console.error("❌ [Store] A resposta da API não é um array!", response);
         applications.value = [];
         return;
       }
-
       applications.value = response.map(mapAplicacaoApiResponseToEntity);
-      console.log(
-        "📦 [Store] Aplicações mapeadas na Store:",
-        applications.value
-      );
-    } catch {
+
+      const ws = getWebsocket();
+      if (ws?.isConnected.value) {
+        initializeWebSocketListeners();
+      }
+    } catch (e) {
+      console.error(e);
       toast.add({
         title: "Erro ao buscar aplicações",
         description: "Erro de conexão",
@@ -96,6 +136,27 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  const ws = getWebsocket();
+  if (ws) {
+    watch(
+      ws.isConnected,
+      (connected) => {
+        console.log(
+          `[ApplicationsStore] Status de conexão alterado: ${connected}`
+        );
+        if (connected) {
+          initializeWebSocketListeners();
+        } else {
+          listenersInitialized.value = false;
+          console.log(
+            "[ApplicationsStore] Listeners marcados como desconectados."
+          );
+        }
+      },
+      { immediate: true }
+    );
+  }
+
   function getApplicationById(id: number) {
     return applications.value.find((app) => app.id === id);
   }
@@ -104,11 +165,20 @@ export const useApplicationsStore = defineStore("applications", () => {
     modelo: AvaliacaoEntity
   ): Promise<AplicacaoEntity | null> {
     try {
+      const configGerais = modelo.configuracao.configuracoesGerais;
+      const isAgendada =
+        configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA &&
+        configGerais.dataAgendamento;
+
       const payload: CreateAplicacaoRequest = {
         avaliacaoId: modelo.id,
-        estado: modelo.configuracao.configuracoesGerais.dataAgendamento
+        estado: isAgendada
           ? EstadoAplicacaoEnum.AGENDADA
           : EstadoAplicacaoEnum.CRIADA,
+        dataInicio:
+          isAgendada && configGerais.dataAgendamento
+            ? configGerais.dataAgendamento.toISOString()
+            : undefined,
       };
 
       const newApplicationResponse = await $api<AplicacaoApiResponse>(
@@ -118,7 +188,6 @@ export const useApplicationsStore = defineStore("applications", () => {
           body: payload,
         }
       );
-
       await fetchApplications();
       return mapAplicacaoApiResponseToEntity(newApplicationResponse);
     } catch {
@@ -145,12 +214,11 @@ export const useApplicationsStore = defineStore("applications", () => {
           body: payload,
         }
       );
-
       const updatedEntity = mapAplicacaoApiResponseToEntity(updatedResponse);
 
       const index = applications.value.findIndex((a) => a.id === applicationId);
       if (index !== -1) {
-        applications.value[index] = updatedEntity;
+        applications.value.splice(index, 1, updatedEntity);
       }
 
       toast.add({
@@ -174,14 +242,28 @@ export const useApplicationsStore = defineStore("applications", () => {
     const appIndex = applications.value.findIndex(
       (a) => a.id === applicationId
     );
+
     if (appIndex !== -1) {
-      const appToUpdate = applications.value[appIndex]!;
-      if (updatedFields.estado !== undefined) {
-        appToUpdate.estado = updatedFields.estado;
-      }
-      if (updatedFields.dataFim !== undefined) {
-        appToUpdate.dataFim = new Date(updatedFields.dataFim);
-      }
+      const currentApp = applications.value[appIndex];
+
+      if (!currentApp) return;
+
+      const updatedApp: AplicacaoEntity = {
+        ...currentApp,
+        estado: updatedFields.estado ?? currentApp.estado,
+        dataFim: updatedFields.dataFim
+          ? new Date(updatedFields.dataFim)
+          : currentApp.dataFim,
+      };
+
+      applications.value.splice(appIndex, 1, updatedApp);
+      console.log(
+        `[ApplicationsStore] Aplicação ${applicationId} atualizada localmente para ${updatedApp.estado}`
+      );
+    } else {
+      console.warn(
+        `[ApplicationsStore] Aplicação ${applicationId} não encontrada para atualização.`
+      );
     }
   }
 
@@ -190,20 +272,15 @@ export const useApplicationsStore = defineStore("applications", () => {
       await $api(`/backoffice/aplicacao/${applicationId}`, {
         method: "DELETE",
       });
-
       applications.value = applications.value.filter(
         (a) => a.id !== applicationId
       );
-
       toast.add({
         title: "Aplicação deletada com sucesso!",
         color: "secondary",
       });
-    } catch (error: any) {
-      let errorMessage = "Ocorreu um erro desconhecido.";
-      if (error?.data?.message) {
-        errorMessage = error.data.message;
-      }
+    } catch {
+      const errorMessage = "Ocorreu um erro desconhecido.";
       toast.add({
         title: "Erro ao deletar aplicação",
         description: errorMessage,

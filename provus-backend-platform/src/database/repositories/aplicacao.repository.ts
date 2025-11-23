@@ -42,8 +42,23 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const configGerais =
         avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais;
       const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+      const now = new Date();
 
-      if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
+      // --- INICIO ALTERACAO (Lógica de Criação Corrigida) ---
+
+      // Se uma data específica foi enviada no DTO (Agendamento via Dialog)
+      if (dto.dataInicio && dto.estado === EstadoAplicacaoEnum.AGENDADA) {
+        const dataInicio = new Date(dto.dataInicio);
+        if (isNaN(dataInicio.getTime())) {
+          throw new BadRequestException('Data de início inválida.');
+        }
+
+        aplicacao.estado = EstadoAplicacaoEnum.AGENDADA;
+        aplicacao.dataInicio = dataInicio;
+        aplicacao.dataFim = new Date(dataInicio.getTime() + tempoMaximoMs);
+      }
+      // Se a própria avaliação já é do tipo Agendada (Configuração do Modelo)
+      else if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
         if (!configGerais.dataAgendamento) {
           throw new BadRequestException(
             'A avaliação é do tipo "Agendada", mas não possui uma data de agendamento configurada.',
@@ -54,8 +69,9 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         aplicacao.dataFim = new Date(
           configGerais.dataAgendamento.getTime() + tempoMaximoMs,
         );
-      } else {
-        const now = new Date();
+      }
+      // Aplicação Manual (Agora ou Criada)
+      else {
         if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
           aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
           aplicacao.dataInicio = now;
@@ -66,6 +82,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
         }
       }
+      // --- FIM ALTERACAO ---
 
       const savedAplicacao = await manager.save(aplicacao);
       return savedAplicacao.id;
@@ -91,6 +108,10 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         ],
       });
 
+      if (!aplicacao) {
+        throw new BadRequestException('Aplicação não encontrada');
+      }
+
       const estadoAnterior = aplicacao.estado;
       const now = new Date();
       aplicacao.estado = estado;
@@ -115,16 +136,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
             const newEndTime = new Date(
               aplicacao.dataFim.getTime() + pauseDurationMs,
             );
-            console.log(
-              `Repositório: Aplicação ${id} retomada. Pausa durou ${
-                pauseDurationMs / 1000
-              }s. Data Fim original: ${aplicacao.dataFim.toISOString()}, Nova Data Fim: ${newEndTime.toISOString()}`,
-            );
             aplicacao.dataFim = newEndTime;
-          } else {
-            console.warn(
-              `Repositório: Aplicação ${id} estava marcada como PAUSADA, mas não tinha pausedAt registrado. Retomando sem ajustar tempo.`,
-            );
           }
         } else if (
           estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
@@ -134,50 +146,28 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
             estadoAnterior === EstadoAplicacaoEnum.CONCLUIDA ||
             estadoAnterior === EstadoAplicacaoEnum.CANCELADA)
         ) {
-          console.log(
-            `[CORREÇÃO] Repositório: Transição de ${estadoAnterior} para EM_ANDAMENTO detectada. Reiniciando o timer.`,
-          );
           const configGerais =
             aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
           const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
           aplicacao.dataInicio = now;
           aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-
-          console.log(
-            `[CORREÇÃO] Repositório: Novo dataInicio: ${aplicacao.dataInicio.toISOString()}, Novo dataFim: ${aplicacao.dataFim.toISOString()}`,
-          );
         } else if (
           estado === EstadoAplicacaoEnum.AGENDADA &&
           estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
         ) {
+          // Se for reagendada manualmente (menos comum neste fluxo, mas possível)
           const configGerais =
             aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-          if (!configGerais || !configGerais.dataAgendamento) {
-            throw new BadRequestException(
-              'Data de agendamento não configurada para avaliação agendada',
-            );
+          // Aqui idealmente deveríamos permitir atualizar a dataInicio também no update,
+          // mas para este fix focado, vamos manter a lógica original de ler da config
+          // ou manter a dataInicio atual se ela já foi definida no create
+          if (!aplicacao.dataInicio && configGerais.dataAgendamento) {
+            aplicacao.dataInicio = configGerais.dataAgendamento;
           }
-          const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
-          aplicacao.dataInicio = configGerais.dataAgendamento;
-          aplicacao.dataFim = new Date(
-            configGerais.dataAgendamento.getTime() + tempoMaximoMs,
-          );
-          console.log(
-            `Repositório: Aplicação ${id} agendada. Início: ${aplicacao.dataInicio.toISOString()}, Fim: ${aplicacao.dataFim.toISOString()}`,
-          );
         }
-
-        aplicacao.pausedAt = null;
       }
 
       const updatedAplicacao = await manager.save(aplicacao);
-      console.log(
-        `Repositório: Aplicação ${id} salva com estado ${
-          updatedAplicacao.estado
-        }, dataFim ${updatedAplicacao.dataFim.toISOString()}, pausedAt ${String(
-          updatedAplicacao.pausedAt,
-        )}`,
-      );
 
       const estadosFinaisAplicacao: EstadoAplicacaoEnum[] = [
         EstadoAplicacaoEnum.FINALIZADA,
@@ -195,11 +185,8 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         estadosFinaisAplicacao.includes(estado) &&
         !estadosFinaisAplicacao.includes(estadoAnterior)
       ) {
-        console.log(
-          `Repositório: Aplicação ${id} movida para estado final (${estado}). Atualizando submissões ativas para ENCERRADA.`,
-        );
         const submissaoRepo = manager.getRepository(SubmissaoModel);
-        const updateResult = await submissaoRepo.update(
+        await submissaoRepo.update(
           {
             aplicacao: { id: aplicacao.id },
             estado: In(estadosAtivosSubmissao),
@@ -208,11 +195,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
             estado: EstadoSubmissaoEnum.ENCERRADA,
             finalizadoEm: now,
           },
-        );
-        console.log(
-          `Repositório: ${
-            updateResult.affected ?? 0
-          } submissões atualizadas para ENCERRADA.`,
         );
       }
 

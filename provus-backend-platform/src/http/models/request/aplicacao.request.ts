@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import EstadoAplicacaoEnum from '../../../enums/estado-aplicacao.enum';
-import { IsEnum, IsInt, IsNotEmpty } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateAplicacaoRequest {
   @ApiProperty({
@@ -19,6 +25,10 @@ export class CreateAplicacaoRequest {
   @IsEnum(EstadoAplicacaoEnum)
   @IsNotEmpty()
   estado: EstadoAplicacaoEnum;
+
+  @IsOptional()
+  @IsDateString()
+  dataInicio?: string;
 }
 
 export class UpdateAplicacaoRequest {

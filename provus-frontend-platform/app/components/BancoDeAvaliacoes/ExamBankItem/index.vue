@@ -9,7 +9,9 @@ defineProps<{
   selectable?: boolean;
 }>();
 
-const emit = defineEmits(["edit", "delete", "apply", "select"]);
+// --- INICIO ALTERACAO (Adicionado 'schedule') ---
+const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
+// --- FIM ALTERACAO ---
 </script>
 
 <template>
@@ -33,7 +35,7 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
 
     <div class="flex-1 min-w-0 overflow-hidden">
       <div
-        class="font-medium text-gray-900 max-h-[2rem] overflow-hidden leading-snug"
+        class="font-medium text-gray-900 max-h-[1.5rem] overflow-hidden leading-snug"
       >
         <RichTextEditor
           :model-value="item.titulo"
@@ -42,9 +44,10 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
           class="!p-0 !border-none !bg-transparent pointer-events-none"
         />
       </div>
+
       <div
         v-if="item.descricao"
-        class="mt-1 max-h-[2rem] overflow-hidden opacity-75"
+        class="mt-1 max-h-[1.25rem] overflow-hidden opacity-75"
       >
         <RichTextEditor
           :model-value="item.descricao"
@@ -53,6 +56,7 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
           class="!p-0 !border-none !bg-transparent pointer-events-none text-sm"
         />
       </div>
+
       <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
         <div class="flex items-center gap-1">
           <Icon name="i-lucide-file-question" class="h-4 w-4" />
@@ -65,13 +69,22 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
       </div>
     </div>
 
-    <div class="ml-4 flex-shrink-0">
-      <UButton
-        label="Aplicar"
-        color="secondary"
-        icon="i-lucide-send"
-        @click.stop="emit('apply')"
-      />
+    <div class="ml-4 flex-shrink-0 flex flex-col sm:flex-row gap-2">
+      <UTooltip text="Agendar para depois">
+        <UButton
+          color="primary"
+          variant="soft"
+          icon="i-lucide-calendar-clock"
+          @click.stop="emit('schedule')"
+        />
+      </UTooltip>
+      <UTooltip text="Aplicar agora">
+        <UButton
+          color="secondary"
+          icon="i-lucide-send"
+          @click.stop="emit('apply')"
+        />
+      </UTooltip>
     </div>
   </Item>
 </template>

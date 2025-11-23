@@ -93,19 +93,71 @@ async function handleSave(action: { key: string }) {
   if (!assessmentStore.assessmentState) return;
 
   const isApply = action.key.includes("apply");
+  const isSchedule = action.key.includes("schedule"); // Nova verificação
   const shouldSaveAsModel = action.key.startsWith("save");
+
+  // --- INICIO ALTERACAO (Validação de Agendamento) ---
+  if (isSchedule) {
+    const configGerais =
+      assessmentStore.assessmentState.configuracao.configuracoesGerais;
+
+    if (!configGerais.dataAgendamento) {
+      toast.add({
+        title: "Data não definida",
+        description:
+          "Para agendar, você deve definir uma data nas configurações.",
+        color: "error",
+        icon: "i-lucide-calendar-x",
+      });
+      // Abre o dialog de configurações para ajudar o usuário
+      assessmentStore.openSettingsDialog();
+      return;
+    }
+
+    const agendamentoDate = new Date(configGerais.dataAgendamento);
+    if (agendamentoDate <= new Date()) {
+      toast.add({
+        title: "Data Inválida",
+        description: "A data de agendamento deve ser no futuro.",
+        color: "warning",
+        icon: "i-lucide-clock",
+      });
+      assessmentStore.openSettingsDialog();
+      return;
+    }
+  }
+  // --- FIM ALTERACAO ---
 
   assessmentStore.assessmentState.isModelo = shouldSaveAsModel;
 
   const savedAssessment = await assessmentStore.saveOrUpdateAssessment();
 
   if (savedAssessment) {
-    if (isApply) {
+    if (isApply || isSchedule) {
+      // Cria a aplicação (o backend decide se é CRIADA ou AGENDADA baseada nos dados enviados)
       const newApp = await applicationsStore.createApplication(savedAssessment);
+
       if (newApp) {
-        applicationToStart.value = newApp;
+        // --- INICIO ALTERACAO (Redirecionamento Diferenciado) ---
+        if (isApply) {
+          // Fluxo Manual: Abre modal para iniciar
+          applicationToStart.value = newApp;
+        } else {
+          // Fluxo Agendado: Redireciona para lista
+          toast.add({
+            title: "Agendamento Realizado",
+            description: `A avaliação foi agendada para ${new Date(
+              newApp.dataInicio
+            ).toLocaleString("pt-BR")}.`,
+            color: "success",
+            icon: "i-lucide-calendar-check",
+          });
+          router.push("/aplicacoes");
+        }
+        // --- FIM ALTERACAO ---
       }
     } else {
+      // Apenas salvou o modelo
       toast.add({
         title: "Sucesso",
         description: "Avaliação salva com sucesso.",
@@ -179,7 +231,7 @@ function handleMaterialsSelection(selection: { files: ArquivoEntity[] }) {
       if (!anexoExistente) {
         assessmentStore.assessmentState!.arquivos.push({
           arquivo: file,
-          permitirConsultaPorEstudante: false, 
+          permitirConsultaPorEstudante: false,
         });
       }
     });

@@ -4,6 +4,9 @@ import ExamBankFolder from "~/components/BancoDeAvaliacoes/ExamBankFolder/index.
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
+// --- INICIO ALTERACAO (Import) ---
+import ScheduleApplicationDialog from "@/components/Aplicacoes/ScheduleApplicationDialog/index.vue";
+// --- FIM ALTERACAO ---
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useExamBankStore } from "~/store/assessmentBankStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
@@ -13,6 +16,7 @@ import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { UpdateAvaliacaoRequest } from "~/types/api/request/Avaliacao.request";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import TipoItemEnum from "~/enums/TipoItemEnum";
+import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 
 function isFolder(item: AvaliacaoEntity | FolderEntity): item is FolderEntity {
   return item.tipo === TipoItemEnum.PASTA;
@@ -28,6 +32,7 @@ const props = defineProps({
 const examBankStore = useExamBankStore();
 const applicationsStore = useApplicationsStore();
 const router = useRouter();
+const toast = useToast();
 
 const showCreateFolder = ref(false);
 const editingItem = ref<AvaliacaoEntity | FolderEntity | null>(null);
@@ -37,12 +42,23 @@ const selectedItems = ref({
 });
 
 const applicationToStart = ref<AplicacaoEntity | null>(null);
+// --- INICIO ALTERACAO (Estado do Agendamento) ---
+const itemToSchedule = ref<AvaliacaoEntity | null>(null);
+
 const isDialogVisible = computed({
   get: () => !!applicationToStart.value,
   set: (value) => {
     if (!value) applicationToStart.value = null;
   },
 });
+
+const isScheduleDialogVisible = computed({
+  get: () => !!itemToSchedule.value,
+  set: (value) => {
+    if (!value) itemToSchedule.value = null;
+  },
+});
+// --- FIM ALTERACAO ---
 
 const filters = reactive({
   search: "",
@@ -66,6 +82,10 @@ const breadcrumbItems = computed(() =>
     label: crumb.titulo,
     click: () => examBankStore.navigateToBreadcrumb(index),
     disabled: index === examBankStore.breadcrumbs.length - 1,
+    class:
+      index !== examBankStore.breadcrumbs.length - 1
+        ? "cursor-pointer hover:text-primary"
+        : "",
   }))
 );
 
@@ -155,12 +175,47 @@ function handleCreateModelo() {
   });
 }
 
+// --- INICIO ALTERACAO (Lógica de Aplicação e Agendamento) ---
 async function handleApply(item: AvaliacaoEntity) {
-  const newApp = await applicationsStore.createApplication(item);
+  // Para aplicar agora, garantimos que não há data de agendamento
+  const modelToSave = JSON.parse(JSON.stringify(item));
+  modelToSave.configuracao.configuracoesGerais.tipoAplicacao =
+    TipoAplicacaoEnum.MANUAL;
+  modelToSave.configuracao.configuracoesGerais.dataAgendamento = null;
+
+  const newApp = await applicationsStore.createApplication(modelToSave);
   if (newApp) {
     applicationToStart.value = newApp;
   }
 }
+
+function handleSchedule(item: AvaliacaoEntity) {
+  itemToSchedule.value = item;
+}
+
+async function handleConfirmSchedule(payload: { date: Date }) {
+  if (!itemToSchedule.value) return;
+
+  const modelToSave = JSON.parse(JSON.stringify(itemToSchedule.value));
+  modelToSave.configuracao.configuracoesGerais.tipoAplicacao =
+    TipoAplicacaoEnum.AGENDADA;
+  modelToSave.configuracao.configuracoesGerais.dataAgendamento = payload.date;
+
+  const newApp = await applicationsStore.createApplication(modelToSave);
+  if (newApp) {
+    toast.add({
+      title: "Agendamento Realizado",
+      description: `Avaliação agendada para ${payload.date.toLocaleString(
+        "pt-BR"
+      )}`,
+      color: "success",
+      icon: "i-lucide-calendar-check",
+    });
+    router.push("/aplicacoes");
+  }
+  itemToSchedule.value = null;
+}
+// --- FIM ALTERACAO ---
 
 async function handleStartNow() {
   if (applicationToStart.value) {
@@ -217,6 +272,11 @@ function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
       @start-now="handleStartNow"
     />
 
+    <ScheduleApplicationDialog
+      v-model="isScheduleDialogVisible"
+      :avaliacao="itemToSchedule"
+      @schedule="handleConfirmSchedule"
+    />
     <CreateFolderDialog
       v-model="showCreateFolder"
       :current-path-label="currentPathLabel"
@@ -308,6 +368,7 @@ function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
           @edit="handleEdit(item)"
           @delete="handleDelete(item)"
           @apply="handleApply(item)"
+          @schedule="handleSchedule(item)"
         />
       </div>
     </div>
