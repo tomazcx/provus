@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionItem/index.vue";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import type { RandomizationRuleEntity } from "~/types/entities/Configuracoes.entity";
+import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 
 const questoes = defineModel<QuestaoEntity[]>("questoes", { required: true });
 
-defineProps<{
+const props = defineProps<{
   autocorrecaoAtiva?: boolean;
+  randomizationRules?: RandomizationRuleEntity[];
 }>();
 
 const emit = defineEmits([
@@ -15,12 +18,73 @@ const emit = defineEmits([
   "save-to-bank",
   "gerar-ia",
 ]);
+
+const isDynamicRandomization = computed(() => {
+  if (!props.randomizationRules || props.randomizationRules.length === 0)
+    return false;
+
+  return props.randomizationRules.some(
+    (r) =>
+      r.tipo === TipoRandomizacaoEnum.BANCO_SIMPLES ||
+      r.tipo === TipoRandomizacaoEnum.BANCO_CONFIGURAVEL
+  );
+});
+
+const totalDynamicQuestions = computed(() => {
+  if (!props.randomizationRules) return 0;
+  return props.randomizationRules.reduce(
+    (acc, r) => acc + (Number(r.quantidade) || 0),
+    0
+  );
+});
 </script>
 
 <template>
   <div class="space-y-4">
     <div
-      v-if="questoes?.length === 0"
+      v-if="isDynamicRandomization"
+      class="bg-blue-50 rounded-lg border border-blue-200 p-8 text-center"
+    >
+      <div
+        class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+      >
+        <UIcon name="i-lucide-shuffle" class="text-blue-600 text-3xl" />
+      </div>
+      <h3 class="text-lg font-bold text-blue-800 mb-2">
+        Modo de Randomização de Banco Ativo
+      </h3>
+      <p class="text-blue-600 mb-4 max-w-lg mx-auto">
+        Esta avaliação está configurada para selecionar questões dinamicamente
+        do banco de questões no momento da aplicação.
+      </p>
+
+      <div class="flex justify-center gap-4 text-sm">
+        <div
+          class="bg-white px-4 py-2 rounded-md border border-blue-100 shadow-sm"
+        >
+          <span class="block font-bold text-2xl text-blue-700">{{
+            totalDynamicQuestions
+          }}</span>
+          <span class="text-gray-500">Questões a gerar</span>
+        </div>
+        <div
+          class="bg-white px-4 py-2 rounded-md border border-blue-100 shadow-sm"
+        >
+          <span class="block font-bold text-2xl text-blue-700">{{
+            props.randomizationRules?.length || 0
+          }}</span>
+          <span class="text-gray-500">Regras ativas</span>
+        </div>
+      </div>
+
+      <p class="text-xs text-gray-500 mt-6">
+        Para editar as regras, acesse "Configurações Rápidas" ou o menu de
+        configurações completo.
+      </p>
+    </div>
+
+    <div
+      v-else-if="!questoes || questoes.length === 0"
       class="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center"
     >
       <div
@@ -37,7 +101,6 @@ const emit = defineEmits([
       <p class="text-gray-500 mb-4">
         Comece a montar sua prova adicionando questões
       </p>
-
       <div class="flex justify-center gap-3">
         <UButton
           label="Adicionar Nova Questão"
@@ -84,7 +147,6 @@ const emit = defineEmits([
           />
         </template>
       </draggable>
-
       <div class="flex flex-col sm:flex-row gap-3">
         <UButton
           block
@@ -103,7 +165,6 @@ const emit = defineEmits([
           @click="emit('adicionarDoBanco')"
         />
       </div>
-
       <div class="flex flex-col sm:flex-row gap-3">
         <UButton
           block

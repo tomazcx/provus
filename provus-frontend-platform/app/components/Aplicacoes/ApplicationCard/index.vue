@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   item: AplicacaoEntity;
@@ -36,9 +37,11 @@ const participantesInfo = computed(() => {
 });
 
 const mediaInfo = computed(() => {
-  return props.item.mediaGeralPercentual !== null
-    ? `${props.item.mediaGeralPercentual?.toFixed(0)}%`
-    : "-- %";
+  const media = props.item.mediaGeralPercentual;
+  if (media !== null && media !== undefined && !isNaN(media)) {
+    return `${media.toFixed(0)}%`;
+  }
+  return "-- %";
 });
 
 const isFinishedOrCancelled = computed(() =>
@@ -131,10 +134,15 @@ const formattedDate = computed(() => {
               class="text-xl"
             />
           </div>
-          <div>
-            <h3 class="font-semibold text-gray-900">
-              {{ props.item.avaliacao.titulo }}
-            </h3>
+          <div
+            class="font-semibold text-gray-900 max-h-[3rem] overflow-hidden relative"
+          >
+            <RichTextEditor
+              :model-value="item.avaliacao.titulo"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none"
+            />
           </div>
         </div>
       </div>

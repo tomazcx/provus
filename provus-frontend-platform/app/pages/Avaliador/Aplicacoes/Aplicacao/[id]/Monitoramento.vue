@@ -18,12 +18,19 @@ import { useTimer } from "~/composables/useTimer";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import ConfirmationDialog from "~/components/ui/ConfirmationDialog/index.vue";
 
+interface EstadoAplicacaoPayload {
+  aplicacaoId: number;
+  novoEstado: EstadoAplicacaoEnum;
+  novaDataFimISO: string;
+}
+
 const route = useRoute();
 const router = useRouter();
 const monitoringStore = useMonitoringStore();
 const applicationsStore = useApplicationsStore();
 const toast = useToast();
 const nuxtApp = useNuxtApp();
+
 const { $api } = nuxtApp;
 const $websocket = nuxtApp.$websocket as
   | ReturnType<typeof useWebSocket>
@@ -43,6 +50,15 @@ const error = ref<string | null>(null);
 const modeloDaAplicacao = computed<AvaliacaoEntity | null>(() => {
   return aplicacao.value?.avaliacao ?? null;
 });
+
+const breadcrumbs = computed(() => [
+  { label: "Aplicações", to: "/aplicacoes" },
+  {
+    label: modeloDaAplicacao.value?.titulo ?? "Detalhes",
+    to: `/aplicacoes/aplicacao/${applicationId}`,
+  },
+  { label: "Monitoramento" },
+]);
 
 const dataFimRef = computed(
   () => aplicacao.value?.dataFim.toISOString() ?? null
@@ -109,27 +125,69 @@ async function fetchMonitoringDetails() {
   }
 }
 
+function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
+  if (aplicacao.value && aplicacao.value.id === data.aplicacaoId) {
+    console.log(
+      `Monitoramento: Estado atualizado via WS para ${data.novoEstado}`
+    );
+
+    aplicacao.value.estado = data.novoEstado;
+
+    if (data.novaDataFimISO) {
+      aplicacao.value.dataFim = new Date(data.novaDataFimISO);
+    }
+
+    applicationsStore.updateApplicationData(data.aplicacaoId, {
+      estado: data.novoEstado,
+      dataFim: new Date(data.novaDataFimISO),
+    });
+
+    if (
+      data.novoEstado === EstadoAplicacaoEnum.FINALIZADA ||
+      data.novoEstado === EstadoAplicacaoEnum.CANCELADA
+    ) {
+      monitoringStore.fetchMonitoringData(applicationId);
+    }
+  }
+}
+
 onMounted(async () => {
   console.log("Monitoramento.vue: onMounted - Iniciando.");
   isLoading.value = true;
   error.value = null;
   monitoringStore.clearWebSocketListeners();
   monitoringStore.currentApplicationId = applicationId;
+
   aplicacao.value = applicationsStore.getApplicationById(applicationId) ?? null;
+
   const appLoadSuccess = await fetchApplicationIfNeeded();
   if (appLoadSuccess) {
     await fetchMonitoringDetails();
   }
+
   isLoading.value = false;
+
   if ($websocket) {
+    if ($websocket.socket.value) {
+      $websocket.on<EstadoAplicacaoPayload>(
+        "estado-aplicacao-atualizado",
+        onEstadoAtualizado
+      );
+    }
+
     watch(
       $websocket.isConnected,
       (connected) => {
         if (connected && !monitoringStore.listenersInitialized) {
           console.log(
-            "Monitoramento.vue: Watch detectou conexão, inicializando listeners (se necessário)."
+            "Monitoramento.vue: Watch detectou conexão, inicializando listeners."
           );
           monitoringStore.initializeWebSocketListeners();
+
+          $websocket.on<EstadoAplicacaoPayload>(
+            "estado-aplicacao-atualizado",
+            onEstadoAtualizado
+          );
         } else if (!connected) {
           console.log("Monitoramento.vue: Watch detectou desconexão.");
           monitoringStore.clearWebSocketListeners();
@@ -147,17 +205,20 @@ onMounted(async () => {
 onUnmounted(() => {
   console.log("Monitoramento.vue: onUnmounted - Limpando listeners e AppID.");
   monitoringStore.clearWebSocketListeners();
+
+  if ($websocket && $websocket.socket.value) {
+    $websocket.socket.value.off(
+      "estado-aplicacao-atualizado",
+      onEstadoAtualizado
+    );
+  }
+
   monitoringStore.currentApplicationId = null;
 });
 
 function handleFinalizar() {
   if (!$websocket || !$websocket.isConnected.value || !aplicacao.value) {
-    console.warn("WS não conectado ou aplicação não carregada.");
-    toast.add({
-      title: "Erro de Conexão",
-      description: "Verifique sua conexão WebSocket.",
-      color: "error",
-    });
+    toast.add({ title: "Erro de Conexão WS", color: "error" });
     return;
   }
   confirmTitle.value = "Finalizar Aplicação?";
@@ -170,12 +231,7 @@ function handleFinalizar() {
 
 function handlePausar() {
   if (!$websocket || !$websocket.isConnected.value || !aplicacao.value) {
-    console.warn("WS não conectado ou aplicação não carregada.");
-    toast.add({
-      title: "Erro de Conexão",
-      description: "Verifique sua conexão WebSocket.",
-      color: "error",
-    });
+    toast.add({ title: "Erro de Conexão WS", color: "error" });
     return;
   }
   const payload = { aplicacaoId: aplicacao.value.id };
@@ -185,12 +241,7 @@ function handlePausar() {
 
 function handleRetomar() {
   if (!$websocket || !$websocket.isConnected.value || !aplicacao.value) {
-    console.warn("WS não conectado ou aplicação não carregada.");
-    toast.add({
-      title: "Erro de Conexão",
-      description: "Verifique sua conexão WebSocket.",
-      color: "error",
-    });
+    toast.add({ title: "Erro de Conexão WS", color: "error" });
     return;
   }
   const payload = { aplicacaoId: aplicacao.value.id };
@@ -200,21 +251,15 @@ function handleRetomar() {
 
 function ajustarTempo(segundos: number) {
   if (!$websocket || !$websocket.isConnected.value) {
-    console.warn("WebSocket não conectado. Não é possível ajustar o tempo.");
     toast.add({
       title: "Erro de Conexão",
-      description: "Não foi possível ajustar o tempo. Verifique sua conexão.",
+      description: "Não foi possível ajustar o tempo.",
       color: "error",
       icon: "i-lucide-wifi-off",
     });
     return;
   }
-  if (!aplicacao.value) {
-    console.warn(
-      "Dados da aplicação não carregados. Não é possível ajustar o tempo."
-    );
-    return;
-  }
+  if (!aplicacao.value) return;
   const payload = { aplicacaoId: aplicacao.value.id, segundos: segundos };
   console.log("Emitindo ajustar-tempo-aplicacao:", payload);
   $websocket.emit("ajustar-tempo-aplicacao", payload);
@@ -222,21 +267,15 @@ function ajustarTempo(segundos: number) {
 
 function handleReiniciar() {
   if (!$websocket || !$websocket.isConnected.value) {
-    console.warn("WebSocket não conectado. Não é possível reiniciar o timer.");
     toast.add({
       title: "Erro de Conexão",
-      description: "Não foi possível reiniciar o timer. Verifique sua conexão.",
+      description: "Não foi possível reiniciar o timer.",
       color: "error",
       icon: "i-lucide-wifi-off",
     });
     return;
   }
-  if (!aplicacao.value) {
-    console.warn(
-      "Dados da aplicação não carregados. Não é possível reiniciar o timer."
-    );
-    return;
-  }
+  if (!aplicacao.value) return;
   confirmTitle.value = "Reiniciar Timer?";
   confirmDescription.value =
     "Tem certeza que deseja reiniciar o timer para TODOS os alunos nesta aplicação? O tempo será recalculado a partir de agora com a duração original.";
@@ -269,7 +308,6 @@ function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
     EstadoSubmissaoEnum.ABANDONADA,
     EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
   ];
-
   if (estadosFinaisOuInativos.includes(aluno.estado)) {
     return "00:00:00";
   }
@@ -278,15 +316,11 @@ function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
     0,
     tempoRestanteEmSegundos.value - penalidade
   );
-  if (!isApplicationActive.value) {
-    return formatarTempo(tempoRestanteIndividual);
-  }
   return formatarTempo(tempoRestanteIndividual);
 }
 
 function onConfirmDialog() {
   if (!aplicacao.value || !$websocket) return;
-
   const payload = { aplicacaoId: aplicacao.value.id };
 
   if (confirmAction.value === "finalizar") {
@@ -296,7 +330,6 @@ function onConfirmDialog() {
     console.log("Emitindo reiniciar-timer-aplicacao:", payload);
     $websocket.emit("reiniciar-timer-aplicacao", payload);
   }
-
   isConfirmOpen.value = false;
   confirmAction.value = null;
 }
@@ -309,13 +342,11 @@ function onConfirmDialog() {
         name="i-lucide-loader-2"
         class="animate-spin h-12 w-12 text-primary"
       />
-
       <p class="mt-4 text-lg text-gray-600">
         Carregando dados do monitoramento...
       </p>
     </div>
   </div>
-
   <div
     v-else-if="error"
     class="flex flex-col items-center justify-center min-h-[50vh] p-4"
@@ -328,14 +359,14 @@ function onConfirmDialog() {
       :description="error"
       class="mb-4 max-w-md text-center"
     />
-
     <UButton @click="router.push('/aplicacoes')"
       >Voltar para Aplicações</UButton
     >
   </div>
 
   <div v-else-if="aplicacao && modeloDaAplicacao">
-    <Breadcrumbs :aplicacao="aplicacao" level="monitoring" />
+    <Breadcrumbs :items="breadcrumbs" />
+
     <MonitoringHeader
       :aplicacao="aplicacao"
       :timer="tempoRestanteFormatado"
@@ -353,7 +384,6 @@ function onConfirmDialog() {
           :get-tempo-restante="getTempoRestanteAlunoFormatado"
         />
       </div>
-
       <div><ActivityFeed :atividades="activityFeed" /></div>
     </div>
     <ConfirmationDialog
@@ -365,7 +395,6 @@ function onConfirmDialog() {
       @confirm="onConfirmDialog"
     />
   </div>
-
   <div v-else class="flex items-center justify-center min-h-[50vh]">
     <UAlert
       icon="i-lucide-search-x"

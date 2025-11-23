@@ -1,31 +1,46 @@
 <script setup lang="ts">
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const model = defineModel<AvaliacaoEntity | null>({ required: true });
+
+const totalPontos = computed(() => {
+  if (!model.value || !model.value.questoes) return 0;
+  return model.value.questoes.reduce(
+    (acc, q) => acc + (Number(q.pontuacao) || 0),
+    0
+  );
+});
+
+watch(totalPontos, (newVal) => {
+  if (model.value) {
+    model.value.pontuacao = newVal;
+  }
+});
 </script>
 
 <template>
   <UCard v-if="model">
     <div class="space-y-4">
       <UFormField label="Título da Prova">
-        <UInput
+        <RichTextEditor
           v-model="model.titulo"
-          variant="none"
-          size="xl"
           placeholder="Digite o título da prova..."
-          class="font-bold text-primary"
+          min-height="min-h-[40px]"
         />
       </UFormField>
+
       <div class="flex flex-col lg:flex-row gap-4">
-        <UFormField label="Duração" class="w-full">
+        <UFormField label="Duração (minutos)" class="w-full">
           <UInputNumber
             v-model="model.configuracao.configuracoesGerais.tempoMaximo"
             class="w-full"
+            :min="1"
           />
         </UFormField>
         <UFormField label="Pontos Totais" class="w-full">
           <UInput
-            v-model.number="model.pontuacao"
+            :model-value="totalPontos"
             class="w-full"
             placeholder="Ex: 100"
             readonly
@@ -33,13 +48,11 @@ const model = defineModel<AvaliacaoEntity | null>({ required: true });
           />
         </UFormField>
       </div>
+
       <UFormField label="Instruções" class="w-full">
-        <UTextarea
+        <RichTextEditor
           v-model="model.descricao"
-          :rows="3"
-          class="w-full"
           placeholder="Digite as instruções para os alunos..."
-          autoresize
         />
       </UFormField>
     </div>

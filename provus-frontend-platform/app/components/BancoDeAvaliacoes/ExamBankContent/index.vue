@@ -4,6 +4,7 @@ import ExamBankFolder from "~/components/BancoDeAvaliacoes/ExamBankFolder/index.
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useExamBankStore } from "~/store/assessmentBankStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
 import type { FolderEntity } from "~/types/entities/Item.entity";
@@ -60,10 +61,11 @@ onMounted(() => {
   examBankStore.initialize();
 });
 
-const breadcrumbs = computed(() =>
+const breadcrumbItems = computed(() =>
   examBankStore.breadcrumbs.map((crumb, index) => ({
     label: crumb.titulo,
-    index,
+    click: () => examBankStore.navigateToBreadcrumb(index),
+    disabled: index === examBankStore.breadcrumbs.length - 1,
   }))
 );
 
@@ -82,6 +84,7 @@ const filteredItems = computed(() => {
   result.sort((a, b) => {
     const typeA = isFolder(a) ? 0 : 1;
     const typeB = isFolder(b) ? 0 : 1;
+
     if (typeA !== typeB) {
       return typeA - typeB;
     }
@@ -116,7 +119,14 @@ function handleItemClick(item: AvaliacaoEntity | FolderEntity) {
   } else if (props.mode === "select" && item.id) {
     handleSelectItem(item);
   } else {
-    router.push(`/avaliacao/editor/${item.id}`);
+    const origin = "bank";
+    const path = examBankStore.currentFolderId
+      ? String(examBankStore.currentFolderId)
+      : "";
+    router.push({
+      path: `/avaliacao/editor/${item.id}`,
+      query: { origin, path },
+    });
   }
 }
 
@@ -134,7 +144,15 @@ function handleSelectItem(item: AvaliacaoEntity | FolderEntity) {
 }
 
 function handleCreateModelo() {
-  router.push(`/avaliacao/editor?paiId=${examBankStore.currentFolderId || ""}`);
+  const paiId = examBankStore.currentFolderId;
+  router.push({
+    path: "/avaliacao/editor",
+    query: {
+      paiId: paiId ? String(paiId) : undefined,
+      origin: "bank",
+      path: paiId ? String(paiId) : undefined,
+    },
+  });
 }
 
 async function handleApply(item: AvaliacaoEntity) {
@@ -160,7 +178,14 @@ function handleEdit(item: AvaliacaoEntity | FolderEntity) {
   if (isFolder(item)) {
     editingItem.value = item;
   } else {
-    router.push(`/avaliacao/editor/${item.id}`);
+    const origin = "bank";
+    const path = examBankStore.currentFolderId
+      ? String(examBankStore.currentFolderId)
+      : "";
+    router.push({
+      path: `/avaliacao/editor/${item.id}`,
+      query: { origin, path },
+    });
   }
 }
 
@@ -191,6 +216,7 @@ function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
       :aplicacao="applicationToStart"
       @start-now="handleStartNow"
     />
+
     <CreateFolderDialog
       v-model="showCreateFolder"
       :current-path-label="currentPathLabel"
@@ -219,16 +245,7 @@ function handleDelete(itemToDelete: AvaliacaoEntity | FolderEntity) {
       </div>
     </div>
 
-    <div v-if="examBankStore.breadcrumbs.length > 1" class="mb-6">
-      <UBreadcrumb
-        :links="
-          breadcrumbs.map((b) => ({
-            label: b.label,
-            click: () => examBankStore.navigateToBreadcrumb(b.index),
-          }))
-        "
-      />
-    </div>
+    <Breadcrumbs :items="breadcrumbItems" />
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
       <div class="flex gap-4 w-full">

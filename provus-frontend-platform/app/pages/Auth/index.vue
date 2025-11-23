@@ -78,7 +78,7 @@ async function handleLoginSubmit(userData: LoginFormData) {
     });
 
     const accessToken = useCookie("accessToken", {
-      maxAge: 60 * 60 * 24, // 24 horas
+      maxAge: 60 * 60 * 24,
       path: "/",
     });
 

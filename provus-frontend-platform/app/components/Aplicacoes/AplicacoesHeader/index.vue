@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
+
 const props = defineProps<{
   titulo: string;
   descricao?: string;
@@ -24,12 +26,23 @@ const horaAplicacaoFormatada = computed(() => {
           <Icon name="i-lucide-file-text" class="text-blue-600 text-2xl" />
         </div>
 
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">
-            {{ titulo }}
-          </h1>
-
-          <p class="text-gray-600">{{ descricao }}</p>
+        <div class="flex-1 min-w-0">
+          <div class="text-2xl font-bold text-gray-900 leading-tight">
+            <RichTextEditor
+              :model-value="titulo"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none"
+            />
+          </div>
+          <div v-if="descricao" class="text-gray-600 mt-1 text-sm">
+            <RichTextEditor
+              :model-value="descricao"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none"
+            />
+          </div>
         </div>
       </div>
 

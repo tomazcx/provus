@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import Item from "@/components/ui/BankItem/index.vue";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 defineProps<{
   item: AvaliacaoEntity;
@@ -25,15 +26,33 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
       />
     </div>
     <div
-      class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"
+      class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center self-start mt-1"
     >
       <Icon name="i-lucide-clipboard-list" class="text-purple-600 text-lg" />
     </div>
-    <div class="flex-1 min-w-0">
-      <h3 class="font-medium text-gray-900 truncate">{{ item.titulo }}</h3>
-      <p v-if="item.descricao" class="text-sm text-gray-600 mt-1 truncate">
-        {{ item.descricao }}
-      </p>
+
+    <div class="flex-1 min-w-0 overflow-hidden">
+      <div
+        class="font-medium text-gray-900 max-h-[2rem] overflow-hidden leading-snug"
+      >
+        <RichTextEditor
+          :model-value="item.titulo"
+          disabled
+          min-height=""
+          class="!p-0 !border-none !bg-transparent pointer-events-none"
+        />
+      </div>
+      <div
+        v-if="item.descricao"
+        class="mt-1 max-h-[2rem] overflow-hidden opacity-75"
+      >
+        <RichTextEditor
+          :model-value="item.descricao"
+          disabled
+          min-height=""
+          class="!p-0 !border-none !bg-transparent pointer-events-none text-sm"
+        />
+      </div>
       <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
         <div class="flex items-center gap-1">
           <Icon name="i-lucide-file-question" class="h-4 w-4" />
@@ -45,6 +64,7 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
         </div>
       </div>
     </div>
+
     <div class="ml-4 flex-shrink-0">
       <UButton
         label="Aplicar"
@@ -55,3 +75,9 @@ const emit = defineEmits(["edit", "delete", "apply", "select"]);
     </div>
   </Item>
 </template>
+
+<style scoped>
+:deep(.prose p) {
+  margin: 0;
+}
+</style>

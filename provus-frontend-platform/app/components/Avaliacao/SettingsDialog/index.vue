@@ -5,13 +5,9 @@ import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/
 import GeneralSettings from "./GeneralSettings.vue";
 import SecuritySettings from "./SecuritySettings.vue";
 import IaSettings from "./IaSettings.vue";
-// import OpenMaterialsBankDialog from "~/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
-// import ViewAttachedMaterialsDialog from "~/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
-// import EditFileDialog from "~/components/BancoDeMateriais/EditFileDialog/index.vue";
 
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
-// import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 import type { RandomizationRuleEntity } from "~/types/entities/Configuracoes.entity";
 import type { UpdateQuestaoRequest } from "~/types/api/request/Questao.request";
 
@@ -24,11 +20,8 @@ const emit = defineEmits(["update:modelValue", "save"]);
 
 const isViewSelectionDialogOpen = ref(false);
 const isBankDialogOpen = ref(false);
-// const isMaterialsBankDialogOpen = ref(false);
-// const isViewMaterialsDialogOpen = ref(false);
 
 const editingPoolQuestion = ref<QuestaoEntity | null>(null);
-// const editingAttachedMaterial = ref<ArquivoEntity | null>(null);
 
 const configuringRule = ref<RandomizationRuleEntity | null>(null);
 const questionsToView = ref<QuestaoEntity[]>([]);
@@ -125,47 +118,9 @@ function handleUpdateInPool(updatedData: UpdateQuestaoRequest) {
   editingPoolQuestion.value = null;
 }
 
-// function handleEditMaterial(fileToEdit: ArquivoEntity) {
-//   editingAttachedMaterial.value = fileToEdit;
-// }
-
-// function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
-//   if (!editingAttachedMaterial.value || !formState.arquivos) return;
-//   const originalFileWrapper = formState.arquivos.find(
-//     (aw) => aw.arquivo.id === editingAttachedMaterial.value!.id
-//   );
-//   if (originalFileWrapper) {
-//     Object.assign(originalFileWrapper.arquivo, updatedData);
-//   }
-//   editingAttachedMaterial.value = null;
-// }
-
 function handleFormUpdate(updatedForm: Partial<AvaliacaoEntity>) {
   Object.assign(formState, updatedForm);
 }
-
-// function handleMaterialsBankSelection(selection: { files: ArquivoEntity[] }) {
-//   if (!formState.arquivos) {
-//     formState.arquivos = [];
-//   }
-//   const newFileWrappers = selection.files
-//     .filter(
-//       (file) => !formState.arquivos!.some((aw) => aw.arquivo.id === file.id)
-//     )
-//     .map((file) => ({
-//       arquivo: file,
-//       permitirConsultaPorEstudante: true,
-//     }));
-//   formState.arquivos.push(...newFileWrappers);
-// }
-
-// function handleRemoveMaterial(fileId: number) {
-//   if (!formState.arquivos) return;
-//   const index = formState.arquivos.findIndex((aw) => aw.arquivo.id === fileId);
-//   if (index > -1) {
-//     formState.arquivos.splice(index, 1);
-//   }
-// }
 </script>
 
 <template>
@@ -270,23 +225,4 @@ function handleFormUpdate(updatedForm: Partial<AvaliacaoEntity>) {
     @update:model-value="editingPoolQuestion = null"
     @update:question="handleUpdateInPool"
   />
-
-  <!-- <OpenMaterialsBankDialog
-    v-model="isMaterialsBankDialogOpen"
-    @add-materials="handleMaterialsBankSelection"
-  />
-
-  <ViewAttachedMaterialsDialog
-    v-model="isViewMaterialsDialogOpen"
-    :selected-materials="formState.arquivos || []"
-    @remove-material="handleRemoveMaterial"
-    @edit-material="handleEditMaterial"
-  />
-
-  <EditFileDialog
-    :model-value="!!editingAttachedMaterial"
-    :file="editingAttachedMaterial"
-    @update:model-value="editingAttachedMaterial = null"
-    @update:file="handleUpdateMaterial"
-  /> -->
 </template>

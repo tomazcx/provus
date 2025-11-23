@@ -1,13 +1,11 @@
 <script setup lang="ts">
-// import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import SubmissionHeader from "@/components/Submissao/SubmissaoHeader/index.vue";
 import SubmissionStats from "@/components/Submissao/SubmissaoStats/index.vue";
 import AnsweredQuestionCard from "@/components/Submissao/AnsweredQuestionCard/index.vue";
 import { useApplicationsStore } from "~/store/applicationsStore";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliadorSubmissaoDetalheApiResponse } from "~/types/api/response/AvaliadorSubmissaoDetalhe.response";
-// import type { AvaliadorQuestaoDetalheApiResponse } from "~/types/api/response/AvaliadorQuestaoDetalhe.response";
-// import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
@@ -24,8 +22,25 @@ const aplicacao = ref<AplicacaoEntity | null>(null);
 const submissionDetails = ref<AvaliadorSubmissaoDetalheApiResponse | null>(
   null
 );
+
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+
+const breadcrumbs = computed(() => [
+  { label: "Aplicações", to: "/aplicacoes" },
+  {
+    label: aplicacao.value?.avaliacao.titulo ?? "Detalhes",
+    to: `/aplicacoes/aplicacao/${applicationId}`,
+  },
+  {
+    label: "Resultados",
+    to: `/aplicacoes/aplicacao/${applicationId}/resultados`,
+  },
+  {
+    label: submissionDetails.value?.estudante.nome ?? "Submissão",
+    disabled: true,
+  },
+]);
 
 async function fetchData() {
   isLoading.value = true;
@@ -33,11 +48,13 @@ async function fetchData() {
   try {
     aplicacao.value =
       applicationsStore.getApplicationById(applicationId) ?? null;
+
     if (!aplicacao.value) {
       await applicationsStore.fetchApplications();
       aplicacao.value =
         applicationsStore.getApplicationById(applicationId) ?? null;
     }
+
     if (!aplicacao.value) {
       throw new Error("Aplicação não encontrada.");
     }
@@ -63,16 +80,6 @@ async function fetchData() {
 
 onMounted(fetchData);
 
-// function isQuestionPending(q: AvaliadorQuestaoDetalheApiResponse): boolean {
-//   return !!(
-//     q.tipo === TipoQuestaoEnum.DISCURSIVA &&
-//     (q.estadoCorrecao === EstadoQuestaoCorrigida.NAO_RESPONDIDA ||
-//       q.estadoCorrecao === null) &&
-//     q.dadosResposta &&
-//     "texto" in q.dadosResposta &&
-//     q.dadosResposta.texto
-//   );
-// }
 async function handleSaveCorrection(
   questaoId: number,
   correcaoData: { pontuacao: number; textoRevisao: string }
@@ -85,6 +92,7 @@ async function handleSaveCorrection(
     if (!questaoRef) throw new Error("Questão não encontrada localmente");
 
     let novoEstado: EstadoQuestaoCorrigida;
+
     if (correcaoData.pontuacao >= questaoRef.pontuacaoMaxima) {
       novoEstado = EstadoQuestaoCorrigida.CORRETA;
       correcaoData.pontuacao = questaoRef.pontuacaoMaxima;
@@ -199,6 +207,7 @@ async function checkAndFinalizeSubmission() {
       </p>
     </div>
   </div>
+
   <div
     v-else-if="error"
     class="flex flex-col items-center justify-center min-h-[50vh] p-4"
@@ -213,26 +222,22 @@ async function checkAndFinalizeSubmission() {
     />
     <UButton @click="router.back()">Voltar</UButton>
   </div>
+
   <div v-else-if="submissionDetails && aplicacao">
+    <Breadcrumbs :items="breadcrumbs" />
     <SubmissionHeader
       :submission="submissionDetails.submissao"
       :student="submissionDetails.estudante"
       :total-score="submissionDetails.pontuacaoTotalAvaliacao"
     />
+
     <SubmissionStats
       :questions="submissionDetails.questoes"
       :submission="submissionDetails.submissao"
     />
+
     <div class="space-y-6 mt-8">
       <h2 class="text-xl font-semibold text-gray-800">Respostas Detalhadas</h2>
-      <!-- <AnsweredQuestionCard
-        v-for="(questao, index) in submissionDetails.questoes"
-        :key="questao.id"
-        :questao="questao"
-        :numero="index + 1"
-        :is-pending="isQuestionPending(questao)"
-        @save-correction="handleSaveCorrection(questao.id, $event)"
-      /> -->
       <AnsweredQuestionCard
         v-for="(questao, index) in submissionDetails.questoes"
         :key="questao.id"
@@ -242,6 +247,7 @@ async function checkAndFinalizeSubmission() {
       />
     </div>
   </div>
+
   <div v-else class="flex items-center justify-center min-h-[50vh]">
     <UAlert
       icon="i-lucide-search-x"

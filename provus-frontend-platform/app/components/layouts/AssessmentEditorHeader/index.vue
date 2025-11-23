@@ -13,7 +13,6 @@ function handleSaveAction(option: { key: string }) {
 
 const saveOptions = computed(() => {
   const options = [];
-
   options.push([
     {
       label: "Salvar Modelo no Banco",
@@ -21,7 +20,6 @@ const saveOptions = computed(() => {
       icon: "i-lucide-save",
     },
   ]);
-
   options.push([
     {
       label: "Salvar Modelo e Aplicar",
@@ -34,7 +32,6 @@ const saveOptions = computed(() => {
       icon: "i-lucide-send-to-back",
     },
   ]);
-
   return options;
 });
 </script>
@@ -77,7 +74,6 @@ const saveOptions = computed(() => {
             >
               Salvar e Aplicar
             </UButton>
-
             <template #item="{ item }">
               <span @click="handleSaveAction(item)">{{ item.label }}</span>
             </template>

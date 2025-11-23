@@ -3,6 +3,7 @@ import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 import type { AvaliadorQuestaoDetalheApiResponse } from "~/types/api/response/AvaliadorQuestaoDetalhe.response";
 import { z } from "zod";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   questao: AvaliadorQuestaoDetalheApiResponse;
@@ -81,15 +82,18 @@ function isAlternativeSelected(alternativeId: number): boolean {
   const dados = props.questao.dadosResposta;
   if (!dados || typeof dados !== "object" || Object.keys(dados).length === 0)
     return false;
+
   if (
     "alternativa_id" in dados &&
     (typeof dados.alternativa_id === "number" || dados.alternativa_id === null)
   ) {
     return dados.alternativa_id === alternativeId;
   }
+
   if ("alternativas_id" in dados && Array.isArray(dados.alternativas_id)) {
     return dados.alternativas_id.includes(alternativeId);
   }
+
   return false;
 }
 
@@ -126,13 +130,22 @@ const getStudentDiscursiveAnswer = computed(() => {
       >
     </div>
 
-    <h3 class="text-lg font-semibold text-gray-900 mb-3">
-      {{ questao.titulo }}
-    </h3>
-    <p v-if="questao.descricao" class="text-sm text-gray-500 mb-4">
-      {{ questao.descricao }}
-    </p>
-
+    <div class="text-lg font-semibold text-gray-900 mb-3">
+      <RichTextEditor
+        :model-value="questao.titulo"
+        disabled
+        min-height=""
+        class="!p-0 !bg-transparent !border-none pointer-events-none"
+      />
+    </div>
+    <div v-if="questao.descricao" class="text-sm text-gray-500 mb-4">
+      <RichTextEditor
+        :model-value="questao.descricao"
+        disabled
+        min-height=""
+        class="!p-0 !bg-transparent !border-none pointer-events-none"
+      />
+    </div>
     <div class="space-y-3">
       <template v-if="questao.tipo === TipoQuestaoEnum.DISCURSIVA">
         <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg">
@@ -142,14 +155,18 @@ const getStudentDiscursiveAnswer = computed(() => {
               >Resposta do Aluno</span
             >
           </div>
-          <p
-            v-if="getStudentDiscursiveAnswer"
-            class="text-gray-900 whitespace-pre-wrap"
-          >
-            {{ getStudentDiscursiveAnswer }}
-          </p>
+
+          <div v-if="getStudentDiscursiveAnswer">
+            <RichTextEditor
+              :model-value="getStudentDiscursiveAnswer"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none"
+            />
+          </div>
           <p v-else class="text-gray-500 italic">Aluno não respondeu.</p>
         </div>
+
         <div
           v-if="questao.exemploRespostaIa"
           class="p-4 bg-blue-50 border border-blue-200 rounded-lg"
@@ -160,9 +177,13 @@ const getStudentDiscursiveAnswer = computed(() => {
               >Resposta Esperada / Gabarito</span
             >
           </div>
-          <p class="text-gray-700 whitespace-pre-wrap">
-            {{ questao.exemploRespostaIa }}
-          </p>
+
+          <RichTextEditor
+            :model-value="questao.exemploRespostaIa"
+            disabled
+            min-height=""
+            class="!p-0 !bg-transparent !border-none pointer-events-none text-gray-700"
+          />
         </div>
       </template>
 
@@ -172,7 +193,7 @@ const getStudentDiscursiveAnswer = computed(() => {
         <div
           v-for="alt in questao.alternativas"
           :key="alt.id"
-          class="flex items-center space-x-3 p-3 border rounded-lg"
+          class="flex items-start space-x-3 p-3 border rounded-lg"
           :class="{
             'bg-green-50 border-green-200': alt.isCorreto,
             'bg-red-50 border-red-200':
@@ -181,18 +202,28 @@ const getStudentDiscursiveAnswer = computed(() => {
               !alt.isCorreto && !isAlternativeSelected(alt.id),
           }"
         >
-          <Icon
-            v-if="alt.isCorreto"
-            name="i-lucide-check-circle-2"
-            class="text-green-600 shrink-0"
-          />
-          <Icon
-            v-else-if="!alt.isCorreto && isAlternativeSelected(alt.id)"
-            name="i-lucide-x-circle"
-            class="text-red-600 shrink-0"
-          />
-          <Icon v-else name="i-lucide-circle" class="text-gray-400 shrink-0" />
-          <span class="text-gray-900 flex-1">{{ alt.descricao }}</span>
+          <div class="mt-1 shrink-0">
+            <Icon
+              v-if="alt.isCorreto"
+              name="i-lucide-check-circle-2"
+              class="text-green-600"
+            />
+            <Icon
+              v-else-if="!alt.isCorreto && isAlternativeSelected(alt.id)"
+              name="i-lucide-x-circle"
+              class="text-red-600"
+            />
+            <Icon v-else name="i-lucide-circle" class="text-gray-400" />
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <RichTextEditor
+              :model-value="alt.descricao"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none text-gray-900"
+            />
+          </div>
           <UBadge
             v-if="isAlternativeSelected(alt.id)"
             color="info"
@@ -210,6 +241,7 @@ const getStudentDiscursiveAnswer = computed(() => {
             >Gabarito</UBadge
           >
         </div>
+
         <div
           v-if="questao.exemploRespostaIa"
           class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
@@ -220,9 +252,12 @@ const getStudentDiscursiveAnswer = computed(() => {
             <Icon name="i-lucide-info" class="h-4 w-4" /> Explicação do
             Gabarito:
           </h4>
-          <p class="text-sm text-blue-700 whitespace-pre-wrap">
-            {{ questao.exemploRespostaIa }}
-          </p>
+          <RichTextEditor
+            :model-value="questao.exemploRespostaIa"
+            disabled
+            min-height=""
+            class="!p-0 !bg-transparent !border-none pointer-events-none text-sm text-blue-700"
+          />
         </div>
       </template>
     </div>
@@ -250,17 +285,17 @@ const getStudentDiscursiveAnswer = computed(() => {
             :step="0.5"
           />
         </UFormField>
+
         <UFormField
           label="Feedback para o Aluno (Opcional)"
           name="textoRevisao"
         >
-          <UTextarea
+          <RichTextEditor
             v-model="formCorrecao.textoRevisao"
             placeholder="Digite seu feedback aqui..."
-            class="flex"
-            :rows="3"
           />
         </UFormField>
+
         <UButton
           type="submit"
           label="Salvar Correção"
@@ -271,3 +306,11 @@ const getStudentDiscursiveAnswer = computed(() => {
     </template>
   </UCard>
 </template>
+
+<style scoped>
+/* Remove margens padrão do editor para alinhar corretamente */
+:deep(.prose p) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+</style>

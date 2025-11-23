@@ -33,7 +33,7 @@ defineProps<{
       Nenhuma aplicação encontrada com os filtros atuais.
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 gap-4">
       <ExamCard v-for="app in applications" :key="app.id" :item="app" />
     </div>
   </UCard>

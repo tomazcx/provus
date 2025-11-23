@@ -13,13 +13,11 @@ import OpenMaterialsBankDialog from "@/components/Avaliacao/OpenMaterialsBankDia
 import ViewAttachedMaterialsDialog from "@/components/Avaliacao/ViewAttachedMaterialsDialog/index.vue";
 import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
 import { useExamBankStore } from "~/store/assessmentBankStore";
-
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
-
 import { useAssessmentStore } from "~/store/assessmentStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
 import { useEditorBridgeStore } from "~/store/editorBridgeStore";
@@ -28,7 +26,7 @@ import type DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 
 definePageMeta({
-  layout: false,
+  layout: "assessment-editor",
 });
 
 interface TemaForm {
@@ -43,10 +41,8 @@ const assessmentStore = useAssessmentStore();
 const applicationsStore = useApplicationsStore();
 const editorBridgeStore = useEditorBridgeStore();
 const examBankStore = useExamBankStore();
-
 const route = useRoute();
 const router = useRouter();
-
 const toast = useToast();
 
 const bancoDeQuestoesDialog = ref(false);
@@ -80,9 +76,11 @@ watch(
 );
 
 onMounted(() => {
-  editorBridgeStore.setContext(route.query);
-  const assessmentId = route.params.id as string | undefined;
+  editorBridgeStore.setContext({
+    origin: route.query.origin as string | null,
+  });
 
+  const assessmentId = route.params.id as string | undefined;
   if (assessmentId) {
     assessmentStore.fetchAssessmentForEdit(parseInt(assessmentId, 10));
   } else {
@@ -108,8 +106,20 @@ async function handleSave(action: { key: string }) {
         applicationToStart.value = newApp;
       }
     } else {
-      await examBankStore.fetchFolderContent(examBankStore.currentFolderId!);
-      router.push("/banco-de-avaliacoes");
+      toast.add({
+        title: "Sucesso",
+        description: "Avaliação salva com sucesso.",
+        color: "secondary",
+      });
+
+      if (editorBridgeStore.context.from === "bank") {
+        if (examBankStore.currentFolderId) {
+          await examBankStore.fetchFolderContent(examBankStore.currentFolderId);
+        }
+        router.push("/banco-de-avaliacoes");
+      } else {
+        router.push("/home");
+      }
     }
   }
 }
@@ -121,7 +131,6 @@ async function handleStartNowFromEditor() {
       appId,
       EstadoAplicacaoEnum.EM_ANDAMENTO
     );
-
     applicationToStart.value = null;
     router.push(`/aplicacoes/aplicacao/${appId}/monitoramento`);
   }
@@ -162,6 +171,7 @@ function handleMaterialsSelection(selection: { files: ArquivoEntity[] }) {
 
   if (configuringIaRule.value) {
     const selectedFileIds = selection.files.map((f) => f.id);
+
     selection.files.forEach((file) => {
       const anexoExistente = assessmentStore.assessmentState!.arquivos.some(
         (aw) => aw.arquivo.id === file.id
@@ -169,10 +179,11 @@ function handleMaterialsSelection(selection: { files: ArquivoEntity[] }) {
       if (!anexoExistente) {
         assessmentStore.assessmentState!.arquivos.push({
           arquivo: file,
-          permitirConsultaPorEstudante: false,
+          permitirConsultaPorEstudante: false, 
         });
       }
     });
+
     configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
     configuringIaRule.value = null;
   } else {
@@ -218,7 +229,6 @@ function openMaterialsBankForConsultation() {
 function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
   if (!editingAttachedMaterial.value || !assessmentStore.assessmentState)
     return;
-
   const originalFileWrapper = assessmentStore.assessmentState.arquivos.find(
     (aw) => aw.arquivo.id === editingAttachedMaterial.value!.id
   );
@@ -239,31 +249,37 @@ function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
       >
         <p>Carregando Editor...</p>
       </div>
+
       <div v-else-if="assessmentStore.assessmentState" class="h-full">
         <StartApplicationDialog
           v-model="isDialogVisible"
           :aplicacao="applicationToStart"
           @start-now="handleStartNowFromEditor"
         />
+
         <SaveToExamBankDialog
           v-model="isSaveToExamBankDialogOpen"
           @save-here="() => {}"
         />
+
         <SettingsDialog
           v-model="assessmentStore.isSettingsDialogOpen"
           :initial-data="assessmentStore.assessment"
           @save="handleSettingsUpdate"
         />
+
         <OpenQuestionBankDialog
           v-model="bancoDeQuestoesDialog"
           @add-questions="
             assessmentStore.addQuestionsFromBank($event.questions)
           "
         />
+
         <SaveToQuestionsBankDialog
           v-model="saveToBankDialog"
           :question-to-save="questionToSave"
         />
+
         <GenerateQuestionsIaDialog
           v-model="isGenerateAIDialogOpen"
           :materiais-anexados="
@@ -275,10 +291,12 @@ function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
           @open-materials-bank="handleOpenMaterialsBankForIa"
           @view-materials="handleViewMaterialsForIa"
         />
+
         <OpenMaterialsBankDialog
           v-model="isMaterialsBankDialogOpen"
           @add-materials="handleMaterialsSelection"
         />
+
         <ViewAttachedMaterialsDialog
           v-model="isViewMaterialsDialogOpen"
           :selected-materials="assessmentStore.assessmentState.arquivos"
@@ -305,6 +323,10 @@ function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
                   assessmentStore.assessmentState.configuracao
                     .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa
                 "
+                :randomization-rules="
+                  assessmentStore.assessmentState.configuracao
+                    .configuracoesGerais.configuracoesRandomizacao
+                "
                 @adicionar="assessmentStore.addQuestion"
                 @remover="assessmentStore.removeQuestion"
                 @adicionar-do-banco="bancoDeQuestoesDialog = true"
@@ -312,6 +334,7 @@ function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
                 @gerar-ia="isGenerateAIDialogOpen = true"
               />
             </div>
+
             <div class="sticky top-24 space-y-6 self-start">
               <Overview :prova="assessmentStore.assessment" />
               <QuickSettings v-model="assessmentStore.assessmentState" />
@@ -333,7 +356,6 @@ function handleUpdateMaterial(updatedData: Partial<ArquivoEntity>) {
                     block
                     @click="openMaterialsBankForConsultation"
                   />
-
                   <UButton
                     label="Gerenciar Materiais"
                     icon="i-lucide-file-cog"

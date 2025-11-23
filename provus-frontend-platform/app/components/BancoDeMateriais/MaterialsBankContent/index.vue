@@ -5,6 +5,7 @@ import EditFileDialog from "@/components/BancoDeMateriais/EditFileDialog/index.v
 import MaterialsBankFileItem from "@/components/BancoDeMateriais/MaterialsBankFileItem/index.vue";
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useMaterialsBankStore } from "~/store/materialsBankStore";
 import type { FolderEntity } from "~/types/entities/Item.entity";
 import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
@@ -65,6 +66,7 @@ function handleSelectItem(item: ArquivoEntity | FolderEntity) {
   const targetSet = isFolder(item)
     ? selectedItems.value.folders
     : selectedItems.value.files;
+
   if (targetSet.has(item.id)) {
     targetSet.delete(item.id);
   } else {
@@ -99,7 +101,8 @@ function handleDelete(itemToDelete: ArquivoEntity | FolderEntity) {
 const breadcrumbItems = computed(() =>
   materialsBankStore.breadcrumbs.map((crumb, index) => ({
     label: crumb.titulo,
-    index: index,
+    click: () => materialsBankStore.navigateToBreadcrumb(index),
+    disabled: index === materialsBankStore.breadcrumbs.length - 1,
   }))
 );
 
@@ -123,6 +126,7 @@ const filteredItems = computed(() => {
   result.sort((a, b) => {
     const typeA = isFolder(a) ? 0 : 1;
     const typeB = isFolder(b) ? 0 : 1;
+
     if (typeA !== typeB) {
       return typeA - typeB;
     }
@@ -197,18 +201,7 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="materialsBankStore.breadcrumbs.length > 0" class="mb-6">
-      <UBreadcrumb :links="breadcrumbItems">
-        <template #item="{ item, index }">
-          <span
-            class="cursor-pointer hover:underline"
-            @click.prevent="materialsBankStore.navigateToBreadcrumb(index)"
-          >
-            {{ item.label }}
-          </span>
-        </template>
-      </UBreadcrumb>
-    </div>
+    <Breadcrumbs :items="breadcrumbItems" />
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
       <div class="flex gap-4 w-full">
@@ -220,7 +213,6 @@ defineExpose({
             class="w-full"
           />
         </UFormField>
-
         <UFormField label="Ordenar por" class="w-full">
           <USelect v-model="filters.sort" :items="sortOptions" class="w-full" />
         </UFormField>

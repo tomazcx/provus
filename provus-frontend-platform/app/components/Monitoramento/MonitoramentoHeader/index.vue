@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   aplicacao: AplicacaoEntity;
@@ -21,7 +22,8 @@ const isPaused = computed(
 const isConcludedOrFinalized = computed(
   () =>
     props.aplicacao.estado === EstadoAplicacaoEnum.FINALIZADA ||
-    props.aplicacao.estado === EstadoAplicacaoEnum.CONCLUIDA
+    props.aplicacao.estado === EstadoAplicacaoEnum.CONCLUIDA ||
+    props.aplicacao.estado === EstadoAplicacaoEnum.CANCELADA
 );
 
 const isInProgress = computed(
@@ -58,13 +60,27 @@ function copyCode(code?: string) {
     <div
       class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
     >
-      <div>
+      <div class="flex-1 min-w-0">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
           Monitoramento da Avaliação
         </h1>
-        <p class="text-gray-600">
-          Acompanhamento em tempo real de: {{ aplicacao.avaliacao.titulo }}
-        </p>
+
+        <div
+          class="text-gray-600 flex flex-col sm:flex-row sm:items-center gap-1"
+        >
+          <span class="shrink-0">Acompanhamento em tempo real de:</span>
+          <div
+            class="font-medium text-gray-800 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 inline-block max-w-full"
+          >
+            <RichTextEditor
+              :model-value="aplicacao.avaliacao.titulo"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none"
+            />
+          </div>
+        </div>
+
         <div
           v-if="aplicacao.codigoAcesso"
           class="flex items-center space-x-2 mt-4"
@@ -86,13 +102,14 @@ function copyCode(code?: string) {
         </div>
       </div>
 
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-4 shrink-0">
         <UCard v-if="!isConcludedOrFinalized">
           <div class="flex items-center space-x-4">
             <div class="text-center">
               <p class="text-xs text-gray-500 mb-1">Tempo Restante</p>
               <div class="text-2xl font-bold text-primary">
-                <span v-if="!isInProgress">Pausado</span>
+                <span v-if="isPaused">Pausado</span>
+                <span v-else-if="!isInProgress">Não Iniciado</span>
                 <span v-else>{{ timer ?? "--:--:--" }}</span>
               </div>
             </div>
@@ -103,6 +120,7 @@ function copyCode(code?: string) {
                   variant="subtle"
                   icon="i-lucide-minus"
                   class="rounded-full"
+                  :disabled="!isInProgress"
                   @click="ajustarTempo(-60)"
                 />
               </UTooltip>
@@ -122,10 +140,10 @@ function copyCode(code?: string) {
                   variant="subtle"
                   icon="i-lucide-plus"
                   class="rounded-full"
+                  :disabled="!isInProgress"
                   @click="ajustarTempo(60)"
                 />
               </UTooltip>
-
               <UTooltip text="Reiniciar Timer">
                 <UButton
                   color="primary"
@@ -138,7 +156,6 @@ function copyCode(code?: string) {
             </div>
           </div>
         </UCard>
-
         <div class="flex flex-col gap-2">
           <UBadge
             v-if="isInProgress"
@@ -171,3 +188,9 @@ function copyCode(code?: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+:deep(.prose p) {
+  margin: 0;
+}
+</style>

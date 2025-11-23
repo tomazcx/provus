@@ -10,6 +10,7 @@ import type EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
 const route = useRoute();
 const applicationId = parseInt(route.params.id as string, 10);
+
 const submissionsStore = useSubmissionsStore();
 const applicationsStore = useApplicationsStore();
 
@@ -20,6 +21,15 @@ const statusFilter = ref<EstadoSubmissaoEnum | "Todos">("Todos");
 const isLoading = computed(
   () => submissionsStore.isLoading || applicationsStore.isLoading
 );
+
+const breadcrumbs = computed(() => [
+  { label: "Aplicações", to: "/aplicacoes" },
+  {
+    label: aplicacao.value?.avaliacao.titulo ?? "Detalhes",
+    to: `/aplicacoes/aplicacao/${applicationId}`,
+  },
+  { label: "Resultados", disabled: true },
+]);
 
 onMounted(async () => {
   await submissionsStore.fetchSubmissions(applicationId);
@@ -35,15 +45,15 @@ onMounted(async () => {
 
 const submissionsData = computed(() => submissionsStore.submissions);
 </script>
+
 <template>
   <div v-if="isLoading && !aplicacao" class="text-center p-8">
     <Icon name="i-lucide-loader-2" class="animate-spin h-8 w-8 text-primary" />
-
     <p class="text-gray-500 mt-2">Carregando dados da aplicação...</p>
   </div>
 
   <div v-else-if="aplicacao">
-    <Breadcrumbs :aplicacao="aplicacao" level="results" />
+    <Breadcrumbs :items="breadcrumbs" />
     <Header
       :titulo="aplicacao.avaliacao.titulo"
       :descricao="aplicacao.avaliacao.descricao"

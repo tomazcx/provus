@@ -2,14 +2,13 @@
 import type { RadioGroupItem } from "@nuxt/ui";
 import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 import type {
   QuestaoEntity,
   AlternativaEntity,
 } from "~/types/entities/Questao.entity";
-import type {
-  CreateQuestaoRequest,
-} from "~/types/api/request/Questao.request";
+import type { CreateQuestaoRequest } from "~/types/api/request/Questao.request";
 
 const props = defineProps<{
   initialData?: QuestaoEntity | null;
@@ -25,7 +24,7 @@ const getBlankForm = (): CreateQuestaoRequest => ({
   tipoQuestao: TipoQuestaoEnum.OBJETIVA,
   dificuldade: DificuldadeQuestaoEnum.FACIL,
   pontuacao: 5,
-  isModelo: true, 
+  isModelo: true,
   alternativas: [{ descricao: "", isCorreto: true }],
   exemploRespostaIa: "",
   textoRevisao: "",
@@ -148,9 +147,8 @@ function toggleCorrect(alternative: AlternativaEntity) {
           name="titulo"
           required
         >
-          <UInput
+          <RichTextEditor
             v-model="form.titulo"
-            class="w-full"
             placeholder="Digite o título da questão..."
           />
         </UFormField>
@@ -160,11 +158,9 @@ function toggleCorrect(alternative: AlternativaEntity) {
           label="Descrição (Opcional)"
           name="descricao"
         >
-          <UTextarea
+          <RichTextEditor
             v-model="form.descricao"
-            class="w-full"
-            :rows="4"
-            placeholder="Digite o enunciado ou uma descrição detalhada..."
+            placeholder="Digite uma descrição mais detalhada, se necessário..."
           />
         </UFormField>
 
@@ -196,43 +192,56 @@ function toggleCorrect(alternative: AlternativaEntity) {
           label="Alternativas de Resposta"
           name="alternativas"
         >
-          <div class="space-y-3">
+          <div class="space-y-4">
             <div
               v-for="(alt, index) in form.alternativas"
               :key="index"
-              class="flex items-center space-x-3 p-3 border rounded-lg transition-colors duration-200"
+              class="flex items-start space-x-3 p-3 border rounded-lg transition-colors duration-200 bg-gray-50 dark:bg-gray-800/30"
               :class="{
-                'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
+                'border-green-500 dark:border-green-700 ring-1 ring-green-500/20':
                   alt.isCorreto,
                 'border-gray-200 dark:border-gray-700': !alt.isCorreto,
               }"
             >
-              <UInput
-                v-model="alt.descricao"
-                :placeholder="
-                  isTrueFalse
-                    ? `Afirmativa ${index + 1}...`
-                    : `Texto da alternativa ${index + 1}...`
-                "
-                class="flex-1"
-              />
-              <UButton
-                icon="i-heroicons-check-circle-20-solid"
-                :color="alt.isCorreto ? 'primary' : 'neutral'"
-                :variant="alt.isCorreto ? 'solid' : 'ghost'"
-                @click="toggleCorrect(alt)"
-              />
-              <UButton
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                size="xl"
-                color="error"
-                :disabled="
-                  (form.alternativas?.length || 0) <= (isTrueFalse ? 1 : 2)
-                "
-                @click="removeAlternative(index)"
-              />
+              <div class="flex-1 min-w-0">
+                <RichTextEditor
+                  v-model="alt.descricao"
+                  :placeholder="
+                    isTrueFalse
+                      ? `Afirmativa ${index + 1}...`
+                      : `Texto da alternativa ${index + 1}...`
+                  "
+                />
+              </div>
+
+              <div class="flex flex-col gap-2 pt-1">
+                <UTooltip
+                  :text="alt.isCorreto ? 'Alternativa Correta' : 'Marcar como Correta'"
+                >
+                  <UButton
+                    icon="i-heroicons-check-circle-20-solid"
+                    :color="alt.isCorreto ? 'primary' : 'neutral'"
+                    :variant="alt.isCorreto ? 'solid' : 'ghost'"
+                    size="sm"
+                    @click="toggleCorrect(alt)"
+                  />
+                </UTooltip>
+                
+                <UTooltip text="Remover Alternativa">
+                  <UButton
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    size="sm"
+                    color="error"
+                    :disabled="
+                      (form.alternativas?.length || 0) <= (isTrueFalse ? 1 : 2)
+                    "
+                    @click="removeAlternative(index)"
+                  />
+                </UTooltip>
+              </div>
             </div>
+            
             <UButton
               variant="link"
               icon="i-lucide-plus"
@@ -251,11 +260,9 @@ function toggleCorrect(alternative: AlternativaEntity) {
             label="Resposta Modelo para I.A"
             name="exemploDeResposta"
           >
-            <UTextarea
+            <RichTextEditor
               v-model="form.exemploRespostaIa"
-              class="w-full"
-              :rows="3"
-              placeholder="Digite a resposta ideal..."
+              placeholder="Digite a resposta ideal para ajudar na correção..."
             />
           </UFormField>
         </div>
@@ -265,11 +272,9 @@ function toggleCorrect(alternative: AlternativaEntity) {
           label="Explicação da Resposta"
           name="explicacao"
         >
-          <UTextarea
+          <RichTextEditor
             v-model="form.textoRevisao"
-            class="w-full"
-            :rows="3"
-            placeholder="Explique por que a resposta está correta..."
+            placeholder="Digite a explicação para o aluno..."
           />
         </UFormField>
       </div>
@@ -279,12 +284,24 @@ function toggleCorrect(alternative: AlternativaEntity) {
         <div
           class="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm space-y-4"
         >
-          <h4 class="text-xl font-semibold">
-            {{ form.titulo || "Título da Questão" }}
-          </h4>
-          <p class="text-gray-600 dark:text-gray-300">
-            {{ form.descricao || "A descrição da questão aparecerá aqui..." }}
-          </p>
+          <div class="border-b pb-2 mb-2">
+            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Título</h4>
+            <div v-if="form.titulo">
+              <RichTextEditor :model-value="form.titulo" disabled />
+            </div>
+            <p v-else class="text-gray-400 italic">Sem título...</p>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Descrição</h4>
+            <div v-if="form.descricao">
+              <RichTextEditor :model-value="form.descricao" disabled />
+            </div>
+            <p v-else class="text-gray-400 italic">
+              Sem descrição...
+            </p>
+          </div>
+
           <div v-if="isFreeText">
             <UTextarea
               class="w-full"
@@ -293,14 +310,15 @@ function toggleCorrect(alternative: AlternativaEntity) {
               disabled
             />
           </div>
+
           <div
             v-else-if="form.alternativas && form.alternativas.length > 0"
-            class="space-y-2"
+            class="space-y-2 mt-4"
           >
             <label
               v-for="(alt, index) in form.alternativas"
               :key="index"
-              class="flex items-center space-x-3 p-3 border rounded-lg cursor-not-allowed opacity-75"
+              class="flex items-start space-x-3 p-3 border rounded-lg cursor-not-allowed opacity-75"
               :class="{
                 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-700':
                   alt.isCorreto,
@@ -308,7 +326,7 @@ function toggleCorrect(alternative: AlternativaEntity) {
               }"
             >
               <div
-                class="w-5 h-5 rounded-full flex items-center justify-center"
+                class="w-5 h-5 mt-1 rounded-full flex items-center justify-center flex-shrink-0"
                 :class="
                   alt.isCorreto
                     ? 'bg-green-500'
@@ -321,9 +339,19 @@ function toggleCorrect(alternative: AlternativaEntity) {
                   class="w-4 h-4 text-white"
                 />
               </div>
-              <span>{{ alt.descricao }}</span>
+              
+              <div class="flex-1 min-w-0">
+                 <RichTextEditor 
+                    v-if="alt.descricao" 
+                    :model-value="alt.descricao" 
+                    disabled 
+                    class="!p-0 !bg-transparent" 
+                  />
+                 <span v-else class="italic text-gray-400">Alternativa vazia...</span>
+              </div>
             </label>
           </div>
+
           <UCard
             v-if="form.textoRevisao"
             class="mt-4 bg-info-50 border-t border-gray-200 dark:border-gray-700"
@@ -333,11 +361,7 @@ function toggleCorrect(alternative: AlternativaEntity) {
             >
               Explicação:
             </h5>
-            <p
-              class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap"
-            >
-              {{ form.textoRevisao }}
-            </p>
+            <RichTextEditor :model-value="form.textoRevisao" disabled />
           </UCard>
         </div>
       </div>

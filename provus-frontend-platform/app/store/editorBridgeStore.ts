@@ -1,14 +1,17 @@
-type TSaveContext = { from: "bank" | "dashboard"; path: string | null };
+import { defineStore } from "pinia";
+
+type TSaveContext = { from: "bank" | "dashboard" };
 type TSaveAction = { key: string; timestamp: number };
 
 export const useEditorBridgeStore = defineStore("editorBridge", () => {
-  const context = ref<TSaveContext>({ from: "dashboard", path: null });
+  const context = ref<TSaveContext>({ from: "dashboard" });
 
-  function setContext(routeQuery: { path?: string | string[] }) {
-    if (routeQuery.path) {
-      context.value = { from: "bank", path: routeQuery.path as string };
+  // Configura o contexto baseado na query da URL (ex: ?origin=bank)
+  function setContext(routeQuery: { origin?: string | null }) {
+    if (routeQuery.origin === "bank") {
+      context.value = { from: "bank" };
     } else {
-      context.value = { from: "dashboard", path: null };
+      context.value = { from: "dashboard" };
     }
   }
 

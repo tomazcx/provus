@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   item: AplicacaoEntity;
@@ -82,7 +83,7 @@ const mediaLabel = computed(() => {
       class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer h-full"
     >
       <div class="flex items-start justify-between">
-        <div class="flex items-start space-x-4">
+        <div class="flex items-start space-x-4 w-full">
           <div
             :class="`bg-${visual.color}-100`"
             class="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
@@ -93,13 +94,29 @@ const mediaLabel = computed(() => {
               class="text-xl"
             />
           </div>
-          <div class="flex-1">
-            <h3 class="font-semibold text-gray-900">
-              {{ item.avaliacao.titulo }}
-            </h3>
-            <p class="text-sm text-gray-600 mt-1 line-clamp-1">
-              {{ item.avaliacao.descricao || "Sem descrição" }}
-            </p>
+          <div class="flex-1 min-w-0">
+            <div
+              class="font-semibold text-gray-900 max-h-[3rem] overflow-hidden relative"
+            >
+              <RichTextEditor
+                :model-value="item.avaliacao.titulo"
+                disabled
+                min-height=""
+                class="!p-0 !bg-transparent !border-none pointer-events-none"
+              />
+            </div>
+            <div
+              class="text-sm text-gray-600 mt-1 max-h-[3rem] overflow-hidden opacity-90"
+            >
+              <RichTextEditor
+                v-if="item.avaliacao.descricao"
+                :model-value="item.avaliacao.descricao"
+                disabled
+                min-height=""
+                class="!p-0 !bg-transparent !border-none pointer-events-none text-sm"
+              />
+              <span v-else>Sem descrição</span>
+            </div>
             <div class="flex items-center space-x-4 mt-2 flex-wrap gap-y-1">
               <UBadge :color="visual.color as any" variant="soft">{{
                 visual.status
@@ -109,10 +126,10 @@ const mediaLabel = computed(() => {
             </div>
           </div>
         </div>
-        <div class="flex flex-col items-end justify-between h-full">
+        <div class="flex flex-col items-end justify-between h-full ml-2">
           <span
             v-if="item.mediaGeralPercentual !== null"
-            class="text-xs font-bold text-gray-400"
+            class="text-xs font-bold text-gray-400 whitespace-nowrap"
           >
             {{ mediaLabel }}
           </span>
@@ -121,3 +138,10 @@ const mediaLabel = computed(() => {
     </div>
   </NuxtLink>
 </template>
+
+<style scoped>
+/* Remove margens padrão do editor para alinhar corretamente no card */
+:deep(.prose p) {
+  margin: 0;
+}
+</style>

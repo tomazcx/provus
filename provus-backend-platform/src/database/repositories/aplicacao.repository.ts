@@ -28,6 +28,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         },
         relations: ['configuracaoAvaliacao.configuracoesGerais'],
       });
+
       if (!avaliacaoEntity) {
         throw new BadRequestException(
           `Avaliação com ID ${dto.avaliacaoId} não encontrada.`,
@@ -37,6 +38,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const aplicacao = new AplicacaoModel();
       aplicacao.codigoAcesso = codigoAcesso;
       aplicacao.avaliacao = avaliacaoEntity;
+
       const configGerais =
         avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais;
       const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
@@ -78,7 +80,10 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       const aplicacao = await manager.findOne(AplicacaoModel, {
-        where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
+        where: {
+          id,
+          avaliacao: { item: { avaliador: { id: avaliador.id } } },
+        },
         relations: [
           'avaliacao',
           'avaliacao.configuracaoAvaliacao',
@@ -88,86 +93,84 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
 
       const estadoAnterior = aplicacao.estado;
       const now = new Date();
-
       aplicacao.estado = estado;
 
-      if (
-        estado === EstadoAplicacaoEnum.PAUSADA &&
-        estadoAnterior !== EstadoAplicacaoEnum.PAUSADA
-      ) {
-        aplicacao.pausedAt = now;
-        console.log(
-          `Repositório: Aplicação ${id} pausada em ${aplicacao.pausedAt.toISOString()}`,
-        );
-      } else if (
-        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
-        estadoAnterior === EstadoAplicacaoEnum.PAUSADA
-      ) {
-        if (aplicacao.pausedAt) {
-          const pauseDurationMs = now.getTime() - aplicacao.pausedAt.getTime();
-          const newEndTime = new Date(
-            aplicacao.dataFim.getTime() + pauseDurationMs,
+      if (estado === EstadoAplicacaoEnum.PAUSADA) {
+        if (estadoAnterior !== EstadoAplicacaoEnum.PAUSADA) {
+          aplicacao.pausedAt = now;
+          console.log(
+            `Repositório: Aplicação ${id} pausada em ${aplicacao.pausedAt.toISOString()}`,
+          );
+        }
+      } else {
+        aplicacao.pausedAt = null;
+
+        if (
+          estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+          estadoAnterior === EstadoAplicacaoEnum.PAUSADA
+        ) {
+          if (aplicacao.pausedAt) {
+            const pauseDurationMs =
+              now.getTime() - aplicacao.pausedAt.getTime();
+            const newEndTime = new Date(
+              aplicacao.dataFim.getTime() + pauseDurationMs,
+            );
+            console.log(
+              `Repositório: Aplicação ${id} retomada. Pausa durou ${
+                pauseDurationMs / 1000
+              }s. Data Fim original: ${aplicacao.dataFim.toISOString()}, Nova Data Fim: ${newEndTime.toISOString()}`,
+            );
+            aplicacao.dataFim = newEndTime;
+          } else {
+            console.warn(
+              `Repositório: Aplicação ${id} estava marcada como PAUSADA, mas não tinha pausedAt registrado. Retomando sem ajustar tempo.`,
+            );
+          }
+        } else if (
+          estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+          (estadoAnterior === EstadoAplicacaoEnum.CRIADA ||
+            estadoAnterior === EstadoAplicacaoEnum.AGENDADA ||
+            estadoAnterior === EstadoAplicacaoEnum.FINALIZADA ||
+            estadoAnterior === EstadoAplicacaoEnum.CONCLUIDA ||
+            estadoAnterior === EstadoAplicacaoEnum.CANCELADA)
+        ) {
+          console.log(
+            `[CORREÇÃO] Repositório: Transição de ${estadoAnterior} para EM_ANDAMENTO detectada. Reiniciando o timer.`,
+          );
+          const configGerais =
+            aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+          const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+          aplicacao.dataInicio = now;
+          aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+
+          console.log(
+            `[CORREÇÃO] Repositório: Novo dataInicio: ${aplicacao.dataInicio.toISOString()}, Novo dataFim: ${aplicacao.dataFim.toISOString()}`,
+          );
+        } else if (
+          estado === EstadoAplicacaoEnum.AGENDADA &&
+          estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
+        ) {
+          const configGerais =
+            aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+          if (!configGerais || !configGerais.dataAgendamento) {
+            throw new BadRequestException(
+              'Data de agendamento não configurada para avaliação agendada',
+            );
+          }
+          const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+          aplicacao.dataInicio = configGerais.dataAgendamento;
+          aplicacao.dataFim = new Date(
+            configGerais.dataAgendamento.getTime() + tempoMaximoMs,
           );
           console.log(
-            `Repositório: Aplicação ${id} retomada. Pausa durou ${
-              pauseDurationMs / 1000
-            }s. Data Fim original: ${aplicacao.dataFim.toISOString()}, Nova Data Fim: ${newEndTime.toISOString()}`,
-          );
-          aplicacao.dataFim = newEndTime;
-          aplicacao.pausedAt = null;
-        } else {
-          console.warn(
-            `Repositório: Aplicação ${id} estava marcada como PAUSADA, mas não tinha pausedAt registrado. Retomando sem ajustar tempo.`,
-          );
-          aplicacao.pausedAt = null;
-        }
-      } else if (
-        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
-        (estadoAnterior === EstadoAplicacaoEnum.CRIADA ||
-          estadoAnterior === EstadoAplicacaoEnum.AGENDADA ||
-          estadoAnterior === EstadoAplicacaoEnum.FINALIZADA ||
-          estadoAnterior === EstadoAplicacaoEnum.CONCLUIDA ||
-          estadoAnterior === EstadoAplicacaoEnum.CANCELADA)
-      ) {
-        console.log(
-          `[CORREÇÃO] Repositório: Transição de ${estadoAnterior} para EM_ANDAMENTO detectada. Reiniciando o timer.`,
-        );
-        const configGerais =
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-        const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
-
-        aplicacao.dataInicio = now;
-        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-        aplicacao.pausedAt = null;
-
-        console.log(
-          `[CORREÇÃO] Repositório: Novo dataInicio: ${aplicacao.dataInicio.toISOString()}, Novo dataFim: ${aplicacao.dataFim.toISOString()}`,
-        );
-      } else if (
-        estado === EstadoAplicacaoEnum.AGENDADA &&
-        estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
-      ) {
-        const configGerais =
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-
-        if (!configGerais || !configGerais.dataAgendamento) {
-          throw new BadRequestException(
-            'Data de agendamento não configurada para avaliação agendada',
+            `Repositório: Aplicação ${id} agendada. Início: ${aplicacao.dataInicio.toISOString()}, Fim: ${aplicacao.dataFim.toISOString()}`,
           );
         }
-        const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
-        aplicacao.dataInicio = configGerais.dataAgendamento;
-        aplicacao.dataFim = new Date(
-          configGerais.dataAgendamento.getTime() + tempoMaximoMs,
-        );
+
         aplicacao.pausedAt = null;
-        console.log(
-          `Repositório: Aplicação ${id} agendada. Início: ${aplicacao.dataInicio.toISOString()}, Fim: ${aplicacao.dataFim.toISOString()}`,
-        );
       }
 
       const updatedAplicacao = await manager.save(aplicacao);
-
       console.log(
         `Repositório: Aplicação ${id} salva com estado ${
           updatedAplicacao.estado
@@ -249,11 +252,16 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
   async deleteAplicacao(id: number, avaliador: AvaliadorModel): Promise<void> {
     return this.dataSource.transaction(async (manager) => {
       const aplicacao = await manager.findOne(AplicacaoModel, {
-        where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
+        where: {
+          id,
+          avaliacao: { item: { avaliador: { id: avaliador.id } } },
+        },
       });
+
       if (!aplicacao) {
         throw new BadRequestException('Aplicação não encontrada');
       }
+
       await manager.delete(AplicacaoModel, { id });
     });
   }

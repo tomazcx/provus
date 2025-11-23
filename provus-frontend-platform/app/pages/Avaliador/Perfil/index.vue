@@ -1,6 +1,6 @@
 <script setup lang="ts">
-
 import { useUserStore } from "~/store/userStore";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue"; 
 
 definePageMeta({
   layout: "default",
@@ -8,9 +8,10 @@ definePageMeta({
 
 const userStore = useUserStore();
 const toast = useToast();
-const router = useRouter();
-
-// Estado do formulário
+const breadcrumbs = [
+  { label: "Home", to: "/home" },
+  { label: "Perfil", disabled: true },
+];
 const form = reactive({
   nome: "",
   email: "",
@@ -26,7 +27,6 @@ const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-// Carrega dados do usuário
 onMounted(async () => {
   if (!userStore.user) {
     await userStore.fetchCurrentUser();
@@ -37,9 +37,7 @@ onMounted(async () => {
   }
 });
 
-// Validação simples
 const canSave = computed(() => {
-  // Nome obrigatório e Senha Atual obrigatória (exigência do backend)
   return (
     form.nome.length >= 3 &&
     passwords.current.length >= 6 &&
@@ -80,7 +78,6 @@ async function handleSaveChanges() {
       icon: "i-lucide-check-circle",
       color: "secondary",
     });
-    // Limpa campos de senha
     passwords.current = "";
     passwords.new = "";
     passwords.confirm = "";
@@ -106,24 +103,12 @@ async function handleSendResetEmail() {
     });
   }
 }
-
-function goBack() {
-  router.back();
-}
-// --- FIM ALTERACAO ---
 </script>
 
 <template>
   <div class="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Breadcrumbs :items="breadcrumbs" />
     <div class="flex items-center mb-8">
-      <UButton
-        variant="ghost"
-        color="primary"
-        icon="i-lucide-arrow-left"
-        class="mr-4"
-        size="xl"
-        @click="goBack"
-      />
       <div>
         <h1 class="text-3xl font-bold text-primary">Configurações do Perfil</h1>
         <p class="text-gray-600 mt-1">
@@ -282,7 +267,7 @@ function goBack() {
               variant="subtle"
               class="w-full"
               icon="i-lucide-x"
-              @click="goBack"
+              to="/home"
             >
               Cancelar
             </UButton>

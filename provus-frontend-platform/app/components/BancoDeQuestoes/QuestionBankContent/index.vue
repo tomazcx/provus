@@ -5,6 +5,7 @@ import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
+import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useQuestionBankStore } from "~/store/questionBankstore";
 import type {
   CreateQuestaoRequest,
@@ -13,7 +14,7 @@ import type {
 import type { FolderEntity } from "~/types/entities/Item.entity";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import TipoItemEnum from "~/enums/TipoItemEnum";
-import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum"; 
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 
 function isFolder(item: QuestaoEntity | FolderEntity): item is FolderEntity {
   return item.tipo === TipoItemEnum.PASTA;
@@ -114,14 +115,14 @@ function handleDelete(itemToDelete: QuestaoEntity | FolderEntity) {
 const breadcrumbItems = computed(() =>
   questionBankStore.breadcrumbs.map((crumb, index) => ({
     label: crumb.titulo,
-    index: index,
+    click: () => questionBankStore.navigateToBreadcrumb(index),
+    disabled: index === questionBankStore.breadcrumbs.length - 1,
   }))
 );
 
 const currentPathLabel = computed(() =>
   questionBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
 );
-
 
 const filteredItems = computed(() => {
   let result = [...questionBankStore.items];
@@ -138,7 +139,6 @@ const filteredItems = computed(() => {
       "Verdadeiro ou Falso": TipoQuestaoEnum.VERDADEIRO_FALSO,
       Discursiva: TipoQuestaoEnum.DISCURSIVA,
     };
-
     const targetType = typeMap[filters.type];
     if (targetType) {
       result = result.filter(
@@ -155,14 +155,14 @@ const filteredItems = computed(() => {
 
     switch (filters.sort) {
       case "Última modificação":
-        return dateUpdatedB - dateUpdatedA; 
+        return dateUpdatedB - dateUpdatedA;
       case "Ordem alfabética A-Z":
         return a.titulo.localeCompare(b.titulo);
       case "Ordem alfabética Z-A":
         return b.titulo.localeCompare(a.titulo);
-      case "Mais Recente": 
+      case "Mais Recente":
         return dateCreatedB - dateCreatedA;
-      case "Mais Antigo": 
+      case "Mais Antigo":
         return dateCreatedA - dateCreatedB;
       default:
         return 0;
@@ -194,7 +194,6 @@ defineExpose({
       :current-path-label="currentPathLabel"
       @create="handleCreateFolder"
     />
-
     <CreateQuestionDialog
       v-model="showCreateQuestion"
       @create="handleCreateQuestion"
@@ -232,18 +231,7 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="questionBankStore.breadcrumbs.length > 1" class="mb-6">
-      <UBreadcrumb :items="breadcrumbItems">
-        <template #item="{ item, index }">
-          <span
-            class="cursor-pointer hover:underline"
-            @click.prevent="questionBankStore.navigateToBreadcrumb(index)"
-          >
-            {{ item.label }}
-          </span>
-        </template>
-      </UBreadcrumb>
-    </div>
+    <Breadcrumbs :items="breadcrumbItems" />
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
       <div class="flex gap-4 w-full">
@@ -255,11 +243,9 @@ defineExpose({
             class="w-full"
           />
         </UFormField>
-
         <UFormField label="Tipo de questão" class="w-full">
           <USelect v-model="filters.type" :items="typeOptions" class="w-full" />
         </UFormField>
-
         <UFormField label="Ordenar por" class="w-full">
           <USelect v-model="filters.sort" :items="sortOptions" class="w-full" />
         </UFormField>

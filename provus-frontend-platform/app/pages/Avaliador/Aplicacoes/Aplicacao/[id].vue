@@ -15,6 +15,12 @@ import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
 import ConfirmationDialog from "~/components/ui/ConfirmationDialog/index.vue";
 
+interface EstadoAplicacaoPayload {
+  aplicacaoId: number;
+  novoEstado: EstadoAplicacaoEnum;
+  novaDataFimISO: string;
+}
+
 const applicationsStore = useApplicationsStore();
 const route = useRoute();
 const router = useRouter();
@@ -30,17 +36,28 @@ const confirmColor = ref<"warning" | "error">("warning");
 const $websocket = nuxtApp.$websocket as
   | ReturnType<typeof useWebSocket>
   | undefined;
+
 const aplicacao = ref<AplicacaoEntity | null>(null);
 const modeloDaAplicacao = computed<AvaliacaoEntity | null>(
   () => aplicacao.value?.avaliacao ?? null
 );
+
 const isLoadingData = ref(true);
 const isConfigDialogOpen = ref(false);
+
+const breadcrumbs = computed(() => [
+  { label: "Aplicações", to: "/aplicacoes" },
+  {
+    label: aplicacao.value?.avaliacao.titulo ?? "Carregando...",
+    disabled: true,
+  },
+]);
 
 async function fetchApplicationDetails() {
   isLoadingData.value = true;
   aplicacao.value = null;
   const applicationId = parseInt(route.params.id as string, 10);
+
   if (isNaN(applicationId)) {
     toast.add({ title: "ID da Aplicação inválido.", color: "error" });
     router.push("/aplicacoes");
@@ -48,9 +65,6 @@ async function fetchApplicationDetails() {
     return;
   }
 
-  console.log(
-    `Buscando detalhes completos da API para App ${applicationId}...`
-  );
   try {
     const response = await nuxtApp.$api<AplicacaoApiResponse>(
       `/backoffice/aplicacao/${applicationId}`
@@ -58,7 +72,6 @@ async function fetchApplicationDetails() {
     const entity = mapAplicacaoApiResponseToEntity(response);
     aplicacao.value = entity;
     applicationsStore.updateApplicationData(applicationId, entity);
-    console.log("Aplicação carregada da API com stats/violations:", entity);
   } catch (error) {
     console.error("Erro ao buscar detalhes da aplicação:", error);
     const errorMessage = "Não foi possível carregar os detalhes da aplicação.";
@@ -73,7 +86,61 @@ async function fetchApplicationDetails() {
   }
 }
 
-onMounted(fetchApplicationDetails);
+function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
+  if (aplicacao.value && aplicacao.value.id === data.aplicacaoId) {
+    console.log(`Atualizando estado da aplicação via WS: ${data.novoEstado}`);
+
+    aplicacao.value.estado = data.novoEstado;
+    if (data.novaDataFimISO) {
+      aplicacao.value.dataFim = new Date(data.novaDataFimISO);
+    }
+
+    applicationsStore.updateApplicationData(data.aplicacaoId, {
+      estado: data.novoEstado,
+      dataFim: new Date(data.novaDataFimISO),
+    });
+
+    if (data.novoEstado === EstadoAplicacaoEnum.PAUSADA) {
+      toast.add({
+        title: "Aplicação Pausada",
+        color: "warning",
+        icon: "i-lucide-pause",
+      });
+    } else if (data.novoEstado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
+      toast.add({
+        title: "Aplicação Retomada",
+        color: "secondary",
+        icon: "i-lucide-play",
+      });
+    } else if (data.novoEstado === EstadoAplicacaoEnum.FINALIZADA) {
+      toast.add({
+        title: "Aplicação Finalizada",
+        color: "info",
+        icon: "i-lucide-check-circle",
+      });
+    }
+  }
+}
+
+onMounted(() => {
+  fetchApplicationDetails();
+
+  if ($websocket && $websocket.socket.value) {
+    $websocket.on<EstadoAplicacaoPayload>(
+      "estado-aplicacao-atualizado",
+      onEstadoAtualizado
+    );
+  }
+});
+
+onUnmounted(() => {
+  if ($websocket && $websocket.socket.value) {
+    $websocket.socket.value.off(
+      "estado-aplicacao-atualizado",
+      onEstadoAtualizado
+    );
+  }
+});
 
 watch(
   () => route.params.id,
@@ -84,58 +151,38 @@ watch(
   }
 );
 
-watch(
-  () => aplicacao.value?.estado,
-  (newState, oldState) => {
-    if (newState !== oldState && aplicacao.value) {
-      console.log(
-        `Página [id].vue: Estado da aplicação ${aplicacao.value.id} mudou de ${oldState} para ${newState}`
-      );
-    }
-  },
-  { deep: true }
-);
-
-watch(
-  () => aplicacao.value?.dataFim,
-  (newDate, oldDate) => {
-    if (newDate?.toISOString() !== oldDate?.toISOString() && aplicacao.value) {
-      console.log(
-        `Página [id].vue: Data Fim da aplicação ${
-          aplicacao.value.id
-        } mudou para ${newDate?.toISOString()}`
-      );
-    }
-  },
-  { deep: true }
-);
-
 const podeIniciar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.CRIADA ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.AGENDADA
 );
+
 const podeMonitorar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podePausar = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
+
 const podeRetomar = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podeFinalizar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podeVerResultados = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.FINALIZADA ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.CONCLUIDA
 );
+
 const podeDeletar = computed(
   () =>
     aplicacao.value?.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO &&
@@ -172,7 +219,6 @@ function handleFinish() {
     toast.add({ title: "Erro de Conexão WS", color: "error" });
     return;
   }
-
   confirmTitle.value = "Finalizar Aplicação?";
   confirmDescription.value =
     "Tem certeza que deseja finalizar esta aplicação para todos os alunos? Alunos que não enviaram terão suas provas encerradas.";
@@ -214,7 +260,6 @@ const statusVisuals = computed(() => {
 
 async function handleDelete() {
   if (!aplicacao.value) return;
-
   confirmTitle.value = "Deletar Aplicação?";
   confirmDescription.value = `Tem certeza que deseja deletar a aplicação '${aplicacao.value.avaliacao.titulo}'? Esta ação não pode ser desfeita.`;
   confirmAction.value = "deletar";
@@ -237,18 +282,20 @@ async function onConfirmDialog() {
     }
     $websocket.emit("finalizar-aplicacao", { aplicacaoId: aplicacao.value.id });
   }
-
   isConfirmOpen.value = false;
   confirmAction.value = null;
 }
 </script>
+
 <template>
   <div v-if="isLoadingData" class="text-center p-8">
     <Icon name="i-lucide-loader-2" class="animate-spin h-8 w-8 text-primary" />
     <p class="text-gray-500 mt-2">Carregando dados da aplicação...</p>
   </div>
+
   <div v-else-if="aplicacao && modeloDaAplicacao">
-    <Breadcrumbs :aplicacao="aplicacao" level="details" />
+    <Breadcrumbs :items="breadcrumbs" />
+
     <Header
       :titulo="modeloDaAplicacao.titulo"
       :descricao="modeloDaAplicacao.descricao"
@@ -263,6 +310,7 @@ async function onConfirmDialog() {
             aplicacao.estado
           }}</UBadge>
         </div>
+
         <div v-if="aplicacao.codigoAcesso" class="flex items-center space-x-2">
           <span class="font-medium text-gray-700">Código de Acesso:</span>
           <UBadge
@@ -279,6 +327,7 @@ async function onConfirmDialog() {
             @click="copyCode(aplicacao.codigoAcesso)"
           />
         </div>
+
         <UButton
           label="Ver Configuração"
           icon="i-lucide-settings-2"
@@ -386,6 +435,7 @@ async function onConfirmDialog() {
       @confirm="onConfirmDialog"
     />
   </div>
+
   <div v-else class="text-center p-8">
     <p class="text-red-500 font-medium">
       Não foi possível carregar os dados da aplicação.
