@@ -44,7 +44,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
       const now = new Date();
 
-
       if (dto.dataInicio && dto.estado === EstadoAplicacaoEnum.AGENDADA) {
         const dataInicio = new Date(dto.dataInicio);
         if (isNaN(dataInicio.getTime())) {
@@ -54,8 +53,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         aplicacao.estado = EstadoAplicacaoEnum.AGENDADA;
         aplicacao.dataInicio = dataInicio;
         aplicacao.dataFim = new Date(dataInicio.getTime() + tempoMaximoMs);
-      }
-      else if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
+      } else if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
         if (!configGerais.dataAgendamento) {
           throw new BadRequestException(
             'A avaliação é do tipo "Agendada", mas não possui uma data de agendamento configurada.',
@@ -66,8 +64,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         aplicacao.dataFim = new Date(
           configGerais.dataAgendamento.getTime() + tempoMaximoMs,
         );
-      }
-      else {
+      } else {
         if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
           aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
           aplicacao.dataInicio = now;
