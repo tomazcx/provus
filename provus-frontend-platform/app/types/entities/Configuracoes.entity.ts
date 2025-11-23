@@ -50,17 +50,13 @@ export interface ConfiguracoesGeraisEntity {
 
 export interface ConfiguracoesSegurancaEntity {
   proibirTrocarAbas: boolean;
-  proibirPrintScreen: boolean;
   proibirCopiarColar: boolean;
-  proibirDevtools: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  ativarControleIp: boolean;
   duracaoAlertas: number;
   permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaEntity[];
-  ipsPermitidos: string[];
   notificacoes: TipoNotificacaoEnum[];
 }
 

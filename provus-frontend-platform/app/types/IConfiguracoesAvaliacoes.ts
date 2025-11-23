@@ -74,8 +74,6 @@ export interface IConfiguracoes {
   tipoNotificacao: TipoNotificacaoEnum[] | null;
 
   quantidadeAcessosSimultaneos: number;
-  ativarControleIp: boolean;
-  ipsPermitidos: string[];
 
   regrasDeSeguranca: Record<TipoInfracaoEnum, IRegraSeguranca>;
 

@@ -71,13 +71,6 @@ export const mockApplicationsResponse: Aplicacao[] = [
         penalidade: TipoPenalidadeEnum.ALERTAR_ESTUDANTE,
         hora: '2024-03-13T14:15:00Z',
       },
-      {
-        estudante: 'Maria Santos',
-        email: 'maria.santos@escola.edu.br',
-        infracao: TipoInfracaoEnum.DEV_TOOLS,
-        penalidade: TipoPenalidadeEnum.REDUZIR_PONTOS,
-        hora: '2024-03-13T14:22:00Z',
-      },
     ],
     avaliacaoModeloId: 103,
   },

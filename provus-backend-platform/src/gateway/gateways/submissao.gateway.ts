@@ -97,7 +97,6 @@ export class SubmissaoGateway
           'aplicacao.avaliacao.item',
           'aplicacao.avaliacao.configuracaoAvaliacao',
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
-          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         ],
       });
       if (!submissaoData) {

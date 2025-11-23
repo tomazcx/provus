@@ -197,28 +197,12 @@ export class CreateConfiguracoesSegurancaRequest {
   proibirTrocarAbas: boolean;
 
   @ApiProperty({
-    description: 'Proibir print screen',
-    example: true,
-  })
-  @IsBoolean()
-  @IsNotEmpty()
-  proibirPrintScreen: boolean;
-
-  @ApiProperty({
     description: 'Proibir copiar colar',
     example: true,
   })
   @IsBoolean()
   @IsNotEmpty()
   proibirCopiarColar: boolean;
-
-  @ApiProperty({
-    description: 'Proibir devtools',
-    example: true,
-  })
-  @IsBoolean()
-  @IsNotEmpty()
-  proibirDevtools: boolean;
 
   @ApiProperty({
     description: 'Quantidade de tentativas',
@@ -235,14 +219,6 @@ export class CreateConfiguracoesSegurancaRequest {
   @IsInt()
   @IsNotEmpty()
   quantidadeAcessosSimultaneos: number;
-
-  @ApiProperty({
-    description: 'Ativar controle de IP',
-    example: true,
-  })
-  @IsBoolean()
-  @IsNotEmpty()
-  ativarControleIp: boolean;
 
   @ApiProperty({
     description: 'Duração dos alertas',
@@ -275,15 +251,6 @@ export class CreateConfiguracoesSegurancaRequest {
   @ValidateNested()
   @Type(() => CreatePunicaoPorOcorrenciaRequest)
   punicoes: CreatePunicaoPorOcorrenciaRequest[];
-
-  @ApiProperty({
-    description: 'IPs permitidos',
-    example: ['127.0.0.1'],
-  })
-  @IsArray()
-  @IsNotEmpty()
-  @IsString({ each: true })
-  ipsPermitidos: string[];
 
   @ApiProperty({
     description: 'Notificações',

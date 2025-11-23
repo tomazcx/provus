@@ -40,9 +40,7 @@ const columns: TableColumn<AplicacaoViolationEntity>[] = [
       const infracao = row.getValue("tipoInfracao") as TipoInfracaoEnum;
       const colorMap: Partial<Record<TipoInfracaoEnum, string>> = {
         [TipoInfracaoEnum.TROCA_ABAS]: "warning",
-        [TipoInfracaoEnum.PRINT_SCREEN]: "error",
         [TipoInfracaoEnum.COPIAR_COLAR]: "error",
-        [TipoInfracaoEnum.DEV_TOOLS]: "purple",
       };
       return h(
         UBadge,

@@ -42,9 +42,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
   const nomeAvaliador = ref<string | null>(null);
 
   const proibirTrocarAbas = ref(false);
-  const proibirPrintScreen = ref(false);
   const proibirCopiarColar = ref(false);
-  const proibirDevtools = ref(false);
   const pontosPerdidos = ref(0);
 
   async function createStudentSubmission(
@@ -110,9 +108,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     nomeAvaliador.value = null;
 
     proibirTrocarAbas.value = false;
-    proibirPrintScreen.value = false;
     proibirCopiarColar.value = false;
-    proibirDevtools.value = false;
     pontosPerdidos.value = 0;
 
     isLoading.value = true;
@@ -135,9 +131,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         nomeAvaliador.value = response.nomeAvaliador;
         quantidadeTentativas.value = response.quantidadeTentativas ?? null;
         proibirTrocarAbas.value = response.proibirTrocarAbas ?? false;
-        proibirPrintScreen.value = response.proibirPrintScreen ?? false;
         proibirCopiarColar.value = response.proibirCopiarColar ?? false;
-        proibirDevtools.value = response.proibirDevtools ?? false;
         pontosPerdidos.value = response.pontosPerdidos ?? 0;
       } else {
         throw new Error(
@@ -407,9 +401,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     reviewQuestions,
     quantidadeTentativas,
     proibirTrocarAbas,
-    proibirPrintScreen,
     proibirCopiarColar,
-    proibirDevtools,
     pontosPerdidos,
     aplicarPenalidadePontos,
     createStudentSubmission,

@@ -114,17 +114,13 @@ export const getBlankAssessment = (): AvaliacaoEntity => ({
     },
     configuracoesSeguranca: {
       proibirTrocarAbas: false,
-      proibirPrintScreen: false,
       proibirCopiarColar: false,
-      proibirDevtools: false,
       quantidadeTentativas: 1,
       quantidadeAcessosSimultaneos: 1,
-      ativarControleIp: false,
       duracaoAlertas: 5,
       permitirFecharAlertas: true,
       ativarCorrecaoDiscursivaViaIa: false,
       punicoes: [],
-      ipsPermitidos: [],
       notificacoes: [],
     },
   },
@@ -298,7 +294,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
   }
 
   async function generateQuestionsByTopic(regra: TemaForm) {
-    console.log('oi???')
+    console.log("oi???");
     if (!assessmentState.value) return;
 
     isSaving.value = true;

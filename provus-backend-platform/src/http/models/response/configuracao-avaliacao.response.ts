@@ -60,22 +60,10 @@ class ConfiguracaoSegurancaResponse {
   proibirTrocarAbas: boolean;
 
   @ApiProperty({
-    description: 'Proibir print screen',
-    example: true,
-  })
-  proibirPrintScreen: boolean;
-
-  @ApiProperty({
     description: 'Proibir copiar colar',
     example: true,
   })
   proibirCopiarColar: boolean;
-
-  @ApiProperty({
-    description: 'Proibir devtools',
-    example: true,
-  })
-  proibirDevtools: boolean;
 
   @ApiProperty({
     description: 'Quantidade de tentativas',
@@ -88,12 +76,6 @@ class ConfiguracaoSegurancaResponse {
     example: 3,
   })
   quantidadeAcessosSimultaneos: number;
-
-  @ApiProperty({
-    description: 'Ativar controle de IP',
-    example: true,
-  })
-  ativarControleIp: boolean;
 
   @ApiProperty({
     description: 'Duração dos alertas',
@@ -119,11 +101,6 @@ class ConfiguracaoSegurancaResponse {
   })
   punicoes: PunicaoPorOcorrenciaResponse[];
 
-  @ApiProperty({
-    description: 'IPs permitidos',
-    example: ['127.0.0.1'],
-  })
-  ipsPermitidos: string[];
   notificacoes: TipoNotificacaoEnum[];
 
   static fromModel(
@@ -131,12 +108,9 @@ class ConfiguracaoSegurancaResponse {
   ): ConfiguracaoSegurancaResponse {
     const response = new ConfiguracaoSegurancaResponse();
     response.proibirTrocarAbas = model.proibirTrocarAbas;
-    response.proibirPrintScreen = model.proibirPrintScreen;
     response.proibirCopiarColar = model.proibirCopiarColar;
-    response.proibirDevtools = model.proibirDevtools;
     response.quantidadeTentativas = model.quantidadeTentativas;
     response.quantidadeAcessosSimultaneos = model.quantidadeAcessosSimultaneos;
-    response.ativarControleIp = model.ativarControleIp;
     response.duracaoAlertas = model.duracaoAlertas;
     response.permitirFecharAlertas = model.permitirFecharAlertas;
     response.ativarCorrecaoDiscursivaViaIa =
@@ -144,7 +118,6 @@ class ConfiguracaoSegurancaResponse {
     response.punicoes =
       model.punicoes?.map((p) => PunicaoPorOcorrenciaResponse.fromModel(p)) ||
       [];
-    response.ipsPermitidos = model.ipsPermitidos?.map((ip) => ip.ip) || [];
     response.notificacoes =
       model.notificacoes?.map((n) => n.tipoNotificacao) || [];
     return response;

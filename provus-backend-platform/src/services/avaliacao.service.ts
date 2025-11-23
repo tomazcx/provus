@@ -44,7 +44,6 @@ export class AvaliacaoService {
         'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'configuracaoAvaliacao.configuracoesSeguranca',
         'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
       ],
     });
@@ -110,7 +109,6 @@ export class AvaliacaoService {
         'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'configuracaoAvaliacao.configuracoesSeguranca',
         'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
       ],
     });
@@ -200,26 +198,6 @@ export class AvaliacaoService {
     }
 
     if (
-      !dto.configuracoesAvaliacao.configuracoesSeguranca.ativarControleIp &&
-      dto.configuracoesAvaliacao.configuracoesSeguranca.ipsPermitidos.length > 0
-    ) {
-      throw new BadRequestException(
-        'IPs permitidos não podem ser configurados sem ativar controle de IP',
-      );
-    }
-
-    if (
-      !dto.configuracoesAvaliacao.configuracoesSeguranca.proibirPrintScreen &&
-      dto.configuracoesAvaliacao.configuracoesSeguranca.punicoes.find(
-        (p) => p.tipoInfracao === TipoInfracaoEnum.PRINT_SCREEN,
-      )
-    ) {
-      throw new BadRequestException(
-        'Punições para print screen não podem ser configuradas sem proibir print screen',
-      );
-    }
-
-    if (
       !dto.configuracoesAvaliacao.configuracoesSeguranca.proibirCopiarColar &&
       dto.configuracoesAvaliacao.configuracoesSeguranca.punicoes.find(
         (p) => p.tipoInfracao === TipoInfracaoEnum.COPIAR_COLAR,
@@ -227,17 +205,6 @@ export class AvaliacaoService {
     ) {
       throw new BadRequestException(
         'Punições para copiar colar não podem ser configuradas sem proibir copiar colar',
-      );
-    }
-
-    if (
-      !dto.configuracoesAvaliacao.configuracoesSeguranca.proibirDevtools &&
-      dto.configuracoesAvaliacao.configuracoesSeguranca.punicoes.find(
-        (p) => p.tipoInfracao === TipoInfracaoEnum.DEV_TOOLS,
-      )
-    ) {
-      throw new BadRequestException(
-        'Punições para devtools não podem ser configuradas sem proibir devtools',
       );
     }
 

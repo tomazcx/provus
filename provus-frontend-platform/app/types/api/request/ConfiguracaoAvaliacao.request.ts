@@ -35,17 +35,13 @@ interface CreateConfiguracoesGeraisRequest {
 
 interface CreateConfiguracoesSegurancaRequest {
   proibirTrocarAbas: boolean;
-  proibirPrintScreen: boolean;
   proibirCopiarColar: boolean;
-  proibirDevtools: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  ativarControleIp: boolean;
   duracaoAlertas: number;
   permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaRequest[];
-  ipsPermitidos: string[];
   notificacoes: TipoNotificacaoEnum[];
 }
 

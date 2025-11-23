@@ -75,34 +75,26 @@ export class PunicaoPorOcorrenciaDto {
 
 export class ConfiguracaoSegurancaDto {
   proibirTrocarAbas: boolean;
-  proibirPrintScreen: boolean;
   proibirCopiarColar: boolean;
-  proibirDevtools: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  ativarControleIp: boolean;
   duracaoAlertas: number;
   permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaDto[];
-  ipsPermitidos: string[];
   notificacoes: TipoNotificacaoEnum[];
 
   constructor(model: ConfiguracoesSegurancaModel) {
     this.proibirTrocarAbas = model.proibirTrocarAbas;
-    this.proibirPrintScreen = model.proibirPrintScreen;
     this.proibirCopiarColar = model.proibirCopiarColar;
-    this.proibirDevtools = model.proibirDevtools;
     this.quantidadeTentativas = model.quantidadeTentativas;
     this.quantidadeAcessosSimultaneos = model.quantidadeAcessosSimultaneos;
-    this.ativarControleIp = model.ativarControleIp;
     this.duracaoAlertas = model.duracaoAlertas;
     this.permitirFecharAlertas = model.permitirFecharAlertas;
     this.ativarCorrecaoDiscursivaViaIa = model.ativarCorrecaoDiscursivaViaIa;
     this.punicoes = model.punicoes.map(
       (punicao) => new PunicaoPorOcorrenciaDto(punicao),
     );
-    this.ipsPermitidos = model.ipsPermitidos.map((ip) => ip.ip);
     this.notificacoes = model.notificacoes.map(
       (notificacao) => notificacao.tipoNotificacao,
     );
