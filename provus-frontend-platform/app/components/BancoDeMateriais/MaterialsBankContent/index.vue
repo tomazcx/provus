@@ -103,17 +103,16 @@ const breadcrumbItems = computed(() =>
     label: crumb.titulo,
     click: () => materialsBankStore.navigateToBreadcrumb(index),
     disabled: index === materialsBankStore.breadcrumbs.length - 1,
+    class:
+      index !== materialsBankStore.breadcrumbs.length - 1
+        ? "cursor-pointer hover:text-primary"
+        : "",
   }))
 );
 
 const currentPathLabel = computed(() =>
   materialsBankStore.breadcrumbs.map((c) => c.titulo).join(" > ")
 );
-
-function getChildCount(folder: FolderEntity): number {
-  return materialsBankStore.items.filter((item) => item.paiId === folder.id)
-    .length;
-}
 
 const filteredItems = computed(() => {
   let result = [...materialsBankStore.items];
@@ -244,7 +243,7 @@ defineExpose({
           :item="item"
           :selectable="mode === 'select'"
           :is-selected="selectedItems.folders.has(item.id!)"
-          :child-count="getChildCount(item)"
+          :child-count="item.childCount || 0"
           @select="handleSelectItem(item)"
           @edit="editingItem = item"
           @delete="handleDelete(item)"
