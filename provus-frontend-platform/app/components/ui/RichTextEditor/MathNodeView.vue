@@ -49,7 +49,7 @@ function onInput(event: Event) {
         @input="onInput"
         @blur="disableEditing"
         @keydown.enter.prevent="disableEditing"
-      />
+      >
       <span class="text-gray-400 font-mono text-xs ml-1">$</span>
     </div>
 

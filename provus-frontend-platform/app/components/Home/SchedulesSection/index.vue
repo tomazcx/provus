@@ -37,7 +37,7 @@ function formatScheduleTime(date: Date): string {
         </div>
         <div class="flex-1 min-w-0">
           <div
-            class="font-medium text-gray-900 max-h-[1.5rem] overflow-hidden relative"
+            class="font-medium text-gray-900 max-h-[2rem] overflow-hidden relative"
           >
             <RichTextEditor
               :model-value="app.avaliacao.titulo"

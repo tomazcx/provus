@@ -33,7 +33,7 @@ const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
 
     <div class="flex-1 min-w-0 overflow-hidden">
       <div
-        class="font-medium text-gray-900 max-h-[1.5rem] overflow-hidden leading-snug"
+        class="font-medium text-gray-900 max-h-[2rem] overflow-hidden leading-snug"
       >
         <RichTextEditor
           :model-value="item.titulo"
@@ -45,7 +45,7 @@ const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
 
       <div
         v-if="item.descricao"
-        class="mt-1 max-h-[1.25rem] overflow-hidden opacity-75"
+        class="mt-1 max-h-[2rem] overflow-hidden opacity-75"
       >
         <RichTextEditor
           :model-value="item.descricao"

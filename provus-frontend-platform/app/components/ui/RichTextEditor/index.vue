@@ -25,11 +25,12 @@ const editor = useEditor({
   editable: !props.disabled,
   editorProps: {
     attributes: {
-class: `prose prose-sm max-w-none w-full focus:outline-none px-3 py-2 rounded-b-md ${
+      class: `prose prose-sm max-w-none w-full focus:outline-none rounded-b-md ${
         props.disabled
           ? ""
           : `${props.minHeight} resize-y overflow-auto max-h-[600px]`
-      }`,    },
+      }`,
+    },
   },
   onUpdate: ({ editor }) => {
     emit("update:modelValue", editor.getHTML());
