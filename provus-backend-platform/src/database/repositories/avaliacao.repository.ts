@@ -13,7 +13,6 @@ import { ConfiguracaoAvaliacaoModel } from '../config/models/configuracao-avalia
 import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.model';
 import { ConfiguracoesSegurancaModel } from '../config/models/configuracoes-seguranca.model';
 import { PunicaoPorOcorrenciaModel } from '../config/models/punicao-por-ocorrencia.model';
-import { IpsPermitidosModel } from '../config/models/ips-permitidos.model';
 import { ConfiguracaoNotificacaoModel } from '../config/models/configuracao-notificacao.model';
 import { QuestoesAvaliacoesModel } from '../config/models/questoes-avaliacoes.model';
 import { ArquivosAvaliacoesModel } from '../config/models/arquivos-avaliacoes.model';
@@ -23,7 +22,6 @@ import { AlternativaModel } from '../config/models/alternativa.model';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BancoDeConteudoModel } from '../config/models/banco-de-conteudo.model';
 import { TipoBancoEnum } from 'src/enums/tipo-banco';
-import { AplicacaoModel } from '../config/models/aplicacao.model';
 
 @Injectable()
 export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
@@ -330,9 +328,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
         await manager.delete(PunicaoPorOcorrenciaModel, {
           configuracoesSegurancaId: configSegurancaId,
         });
-        await manager.delete(IpsPermitidosModel, {
-          configuracoesSegurancaId: configSegurancaId,
-        });
         await manager.delete(ConfiguracaoNotificacaoModel, {
           configuracoesSegurancaId: configSegurancaId,
         });
@@ -395,7 +390,7 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
     }
 
     const configuracoesSeguranca = new ConfiguracoesSegurancaModel();
-    const { punicoes, ipsPermitidos, notificacoes, ...configSegurancaFields } =
+    const { punicoes, notificacoes, ...configSegurancaFields } =
       dto.configuracoesAvaliacao.configuracoesSeguranca;
     Object.assign(configuracoesSeguranca, configSegurancaFields);
     const savedConfigSeguranca = await manager.save(configuracoesSeguranca);
@@ -411,16 +406,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
       });
 
       await manager.save(punicoesEntities);
-    }
-
-    if (ipsPermitidos && ipsPermitidos.length > 0) {
-      const ipsPermitidosEntities = ipsPermitidos.map((ip) => {
-        const ipPermitido = new IpsPermitidosModel();
-        ipPermitido.ip = ip;
-        ipPermitido.configuracaoSeguranca = savedConfigSeguranca;
-        return ipPermitido;
-      });
-      await manager.save(ipsPermitidosEntities);
     }
 
     if (notificacoes && notificacoes.length > 0) {

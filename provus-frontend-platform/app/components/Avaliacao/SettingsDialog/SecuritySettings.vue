@@ -17,22 +17,11 @@ const infracoesDisponiveis = {
     description: "Detecte se o estudante sair da aba da avaliação.",
     flag: "proibirTrocarAbas" as const,
   },
-  [TipoInfracaoEnum.PRINT_SCREEN]: {
-    label: "Print Screen",
-    description: "Detecte se o estudante tirar um print da tela.",
-    flag: "proibirPrintScreen" as const,
-  },
   [TipoInfracaoEnum.COPIAR_COLAR]: {
     label: "Copiar e Colar",
     description:
       "Detecte se o estudante tentar copiar ou colar algum conteúdo.",
     flag: "proibirCopiarColar" as const,
-  },
-  [TipoInfracaoEnum.DEV_TOOLS]: {
-    label: "Ferramentas de Desenvolvedor",
-    description:
-      "Detecte se o estudante abrir as ferramentas de desenvolvedor da página.",
-    flag: "proibirDevtools" as const,
   },
 };
 
@@ -42,16 +31,6 @@ const formState = computed({
     emit("update:form", value);
   },
 });
-
-function addIpField() {
-  formState.value.configuracao.configuracoesSeguranca.ipsPermitidos.push("");
-}
-function removeIpField(index: number) {
-  formState.value.configuracao.configuracoesSeguranca.ipsPermitidos.splice(
-    index,
-    1
-  );
-}
 
 const punitionOptions = Object.values(TipoPenalidadeEnum);
 
@@ -286,49 +265,6 @@ onMounted(() => {
             "
           />
         </UFormField>
-        <div class="space-y-2">
-          <USwitch
-            v-model="
-              formState.configuracao.configuracoesSeguranca.ativarControleIp
-            "
-            label="Ativar controle de acesso por IP"
-            description="Apenas os endereços de IP listados poderão acessar a avaliação."
-          />
-          <div
-            v-if="
-              formState.configuracao.configuracoesSeguranca.ativarControleIp
-            "
-            class="pl-8 space-y-3"
-          >
-            <div
-              v-for="(ip, index) in formState.configuracao
-                .configuracoesSeguranca.ipsPermitidos"
-              :key="index"
-              class="flex items-center gap-2"
-            >
-              <UInput
-                v-model="
-                  formState.configuracao.configuracoesSeguranca.ipsPermitidos[
-                    index
-                  ]
-                "
-                placeholder="Ex: 192.168.1.1"
-              />
-              <UButton
-                color="error"
-                variant="solid"
-                icon="i-lucide-trash-2"
-                @click="removeIpField(index)"
-              />
-            </div>
-            <UButton
-              label="Adicionar IP"
-              variant="outline"
-              icon="i-lucide-plus"
-              @click="addIpField"
-            />
-          </div>
-        </div>
       </div>
     </UCard>
     <UCard variant="subtle">

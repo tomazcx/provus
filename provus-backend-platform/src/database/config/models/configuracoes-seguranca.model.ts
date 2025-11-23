@@ -1,14 +1,6 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { PunicaoPorOcorrenciaModel } from './punicao-por-ocorrencia.model';
 import { ConfiguracaoNotificacaoModel } from './configuracao-notificacao.model';
-import { IpsPermitidosModel } from './ips-permitidos.model';
 
 @Entity('configuracoes_seguranca')
 export class ConfiguracoesSegurancaModel {
@@ -18,23 +10,14 @@ export class ConfiguracoesSegurancaModel {
   @Column({ name: 'proibir_trocar_abas' })
   proibirTrocarAbas: boolean;
 
-  @Column({ name: 'proibir_print_screen' })
-  proibirPrintScreen: boolean;
-
   @Column({ name: 'proibir_copiar_colar' })
   proibirCopiarColar: boolean;
-
-  @Column({ name: 'proibir_devtools' })
-  proibirDevtools: boolean;
 
   @Column({ name: 'quantidade_tentativas' })
   quantidadeTentativas: number;
 
   @Column({ name: 'quantidade_acessos_simultaneos' })
   quantidadeAcessosSimultaneos: number;
-
-  @Column({ name: 'ativar_controle_ip' })
-  ativarControleIp: boolean;
 
   @Column({ name: 'duracao_alertas' })
   duracaoAlertas: number;
@@ -51,12 +34,6 @@ export class ConfiguracoesSegurancaModel {
     { cascade: true },
   )
   punicoes: PunicaoPorOcorrenciaModel[];
-
-  @OneToMany(() => IpsPermitidosModel, (ip) => ip.configuracaoSeguranca, {
-    cascade: true,
-    eager: true,
-  })
-  ipsPermitidos: IpsPermitidosModel[];
 
   @OneToMany(
     () => ConfiguracaoNotificacaoModel,

@@ -8,12 +8,8 @@ const mapInfracaoToVisuals = (tipoInfracao: string) => {
         icon: "i-lucide-arrow-right-left",
         iconColor: "text-orange-500",
       };
-    case "Print Screen":
-      return { icon: "i-lucide-camera", iconColor: "text-red-500" };
     case "Copiar e Colar":
       return { icon: "i-lucide-copy", iconColor: "text-red-500" };
-    case "Ferramentas de Desenvolvedor":
-      return { icon: "i-lucide-terminal-square", iconColor: "text-purple-500" };
     default:
       return { icon: "i-lucide-shield-alert", iconColor: "text-gray-500" };
   }

@@ -106,7 +106,6 @@ const proibirTrocarAbas = computed(
 const proibirCopiarColar = computed(
   () => studentAssessmentStore.proibirCopiarColar
 );
-const proibirDevtools = computed(() => studentAssessmentStore.proibirDevtools);
 
 const { tempoRestanteFormatado } = useTimer({
   dataFimISO: dataFimRef,
@@ -303,10 +302,7 @@ function handleClipboardEvent(event: ClipboardEvent) {
 }
 
 function handleContextMenu(event: MouseEvent) {
-  if (
-    isTimerActive.value &&
-    (proibirCopiarColar.value || proibirDevtools.value)
-  ) {
+  if (isTimerActive.value && proibirCopiarColar.value) {
     event.preventDefault();
   }
 }

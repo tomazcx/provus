@@ -73,10 +73,6 @@ export function mapAvaliacaoApiResponseToEntity(
       },
       configuracoesSeguranca: {
         ...apiResponse.configuracaoAvaliacao.configuracoesSeguranca,
-        ipsPermitidos:
-          apiResponse.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos.map(
-            (ipObj) => ipObj.ip
-          ),
         notificacoes:
           apiResponse.configuracaoAvaliacao.configuracoesSeguranca.notificacoes.map(
             (nObj) => nObj.tipoNotificacao

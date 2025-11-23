@@ -344,13 +344,7 @@ export class FindSubmissaoByHashResponse {
   proibirTrocarAbas: boolean | null;
 
   @ApiProperty({ nullable: true })
-  proibirPrintScreen: boolean | null;
-
-  @ApiProperty({ nullable: true })
   proibirCopiarColar: boolean | null;
-
-  @ApiProperty({ nullable: true })
-  proibirDevtools: boolean | null;
 
   @ApiProperty({
     description: 'Total de pontos perdidos por infrações até o momento.',
@@ -385,9 +379,7 @@ export class FindSubmissaoByHashResponse {
       nomeAvaliador: model.aplicacao.avaliacao.item.avaliador.nome ?? null,
       quantidadeTentativas: configSeguranca?.quantidadeTentativas ?? null,
       proibirTrocarAbas: configSeguranca?.proibirTrocarAbas ?? null,
-      proibirPrintScreen: configSeguranca?.proibirPrintScreen ?? null,
       proibirCopiarColar: configSeguranca?.proibirCopiarColar ?? null,
-      proibirDevtools: configSeguranca?.proibirDevtools ?? null,
       pontosPerdidos: totalPontosPerdidos,
     };
   }

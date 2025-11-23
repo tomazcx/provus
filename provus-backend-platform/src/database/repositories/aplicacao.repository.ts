@@ -240,7 +240,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         'avaliacao.configuracaoAvaliacao.configuracoesGerais',
         'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.ipsPermitidos',
         'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
         'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
         'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
