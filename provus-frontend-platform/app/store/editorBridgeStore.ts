@@ -6,7 +6,6 @@ type TSaveAction = { key: string; timestamp: number };
 export const useEditorBridgeStore = defineStore("editorBridge", () => {
   const context = ref<TSaveContext>({ from: "dashboard" });
 
-  // Configura o contexto baseado na query da URL (ex: ?origin=bank)
   function setContext(routeQuery: { origin?: string | null }) {
     if (routeQuery.origin === "bank") {
       context.value = { from: "bank" };

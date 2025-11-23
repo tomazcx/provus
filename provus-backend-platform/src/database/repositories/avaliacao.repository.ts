@@ -118,7 +118,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
               titulo: questaoDto.titulo,
               tipo: TipoItemEnum.QUESTAO,
               avaliador: avaliador,
-              // pai: { id: ID_PASTA_RAIZ_QUESTOES }, // Definir onde salvar
             });
             await manager.save(novoItemQuestao);
             const novaQuestao = manager.create(QuestaoModel, {
@@ -236,7 +235,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
               titulo: questaoDto.titulo,
               tipo: TipoItemEnum.QUESTAO,
               avaliador: avaliador,
-              // pai: { id: ID_PASTA_RAIZ_QUESTOES },
             });
             await manager.save(novoItemQuestao);
             const novaQuestao = manager.create(QuestaoModel, {

@@ -4,9 +4,7 @@ import ExamBankFolder from "~/components/BancoDeAvaliacoes/ExamBankFolder/index.
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import StartApplicationDialog from "@/components/Aplicacoes/StartApplicationDialog/index.vue";
-// --- INICIO ALTERACAO (Import) ---
 import ScheduleApplicationDialog from "@/components/Aplicacoes/ScheduleApplicationDialog/index.vue";
-// --- FIM ALTERACAO ---
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useExamBankStore } from "~/store/assessmentBankStore";
 import { useApplicationsStore } from "~/store/applicationsStore";
@@ -42,7 +40,6 @@ const selectedItems = ref({
 });
 
 const applicationToStart = ref<AplicacaoEntity | null>(null);
-// --- INICIO ALTERACAO (Estado do Agendamento) ---
 const itemToSchedule = ref<AvaliacaoEntity | null>(null);
 
 const isDialogVisible = computed({
@@ -58,7 +55,6 @@ const isScheduleDialogVisible = computed({
     if (!value) itemToSchedule.value = null;
   },
 });
-// --- FIM ALTERACAO ---
 
 const filters = reactive({
   search: "",
@@ -175,9 +171,7 @@ function handleCreateModelo() {
   });
 }
 
-// --- INICIO ALTERACAO (Lógica de Aplicação e Agendamento) ---
 async function handleApply(item: AvaliacaoEntity) {
-  // Para aplicar agora, garantimos que não há data de agendamento
   const modelToSave = JSON.parse(JSON.stringify(item));
   modelToSave.configuracao.configuracoesGerais.tipoAplicacao =
     TipoAplicacaoEnum.MANUAL;
@@ -215,7 +209,6 @@ async function handleConfirmSchedule(payload: { date: Date }) {
   }
   itemToSchedule.value = null;
 }
-// --- FIM ALTERACAO ---
 
 async function handleStartNow() {
   if (applicationToStart.value) {

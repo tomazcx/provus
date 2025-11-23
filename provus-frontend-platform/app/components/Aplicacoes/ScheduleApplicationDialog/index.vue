@@ -19,7 +19,6 @@ watch(
   () => props.modelValue,
   (isOpen) => {
     if (isOpen) {
-      // Reseta a data ou define um padrão sugerido (ex: amanhã às 08:00)
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(8, 0, 0, 0);

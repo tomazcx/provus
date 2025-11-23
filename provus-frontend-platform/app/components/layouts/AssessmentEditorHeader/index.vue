@@ -8,7 +8,6 @@ const editorBridgeStore = useEditorBridgeStore();
 
 const saveContext = computed(() => editorBridgeStore.context);
 
-// Verifica se a configuração atual é de agendamento
 const isScheduled = computed(() => {
   return (
     assessmentStore.assessmentState?.configuracao.configuracoesGerais
@@ -23,7 +22,6 @@ function handleSaveAction(option: { key: string }) {
 const saveOptions = computed(() => {
   const options = [];
 
-  // Opção padrão: Salvar apenas o modelo
   options.push([
     {
       label: "Salvar Modelo no Banco",
@@ -32,7 +30,6 @@ const saveOptions = computed(() => {
     },
   ]);
 
-  // Opções Dinâmicas
   if (isScheduled.value) {
     options.push([
       {

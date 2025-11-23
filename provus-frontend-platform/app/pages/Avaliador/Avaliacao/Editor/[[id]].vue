@@ -93,10 +93,9 @@ async function handleSave(action: { key: string }) {
   if (!assessmentStore.assessmentState) return;
 
   const isApply = action.key.includes("apply");
-  const isSchedule = action.key.includes("schedule"); // Nova verificação
+  const isSchedule = action.key.includes("schedule"); 
   const shouldSaveAsModel = action.key.startsWith("save");
 
-  // --- INICIO ALTERACAO (Validação de Agendamento) ---
   if (isSchedule) {
     const configGerais =
       assessmentStore.assessmentState.configuracao.configuracoesGerais;
@@ -109,7 +108,6 @@ async function handleSave(action: { key: string }) {
         color: "error",
         icon: "i-lucide-calendar-x",
       });
-      // Abre o dialog de configurações para ajudar o usuário
       assessmentStore.openSettingsDialog();
       return;
     }
@@ -126,7 +124,6 @@ async function handleSave(action: { key: string }) {
       return;
     }
   }
-  // --- FIM ALTERACAO ---
 
   assessmentStore.assessmentState.isModelo = shouldSaveAsModel;
 
@@ -134,16 +131,12 @@ async function handleSave(action: { key: string }) {
 
   if (savedAssessment) {
     if (isApply || isSchedule) {
-      // Cria a aplicação (o backend decide se é CRIADA ou AGENDADA baseada nos dados enviados)
       const newApp = await applicationsStore.createApplication(savedAssessment);
 
       if (newApp) {
-        // --- INICIO ALTERACAO (Redirecionamento Diferenciado) ---
         if (isApply) {
-          // Fluxo Manual: Abre modal para iniciar
           applicationToStart.value = newApp;
         } else {
-          // Fluxo Agendado: Redireciona para lista
           toast.add({
             title: "Agendamento Realizado",
             description: `A avaliação foi agendada para ${new Date(
@@ -154,10 +147,8 @@ async function handleSave(action: { key: string }) {
           });
           router.push("/aplicacoes");
         }
-        // --- FIM ALTERACAO ---
       }
     } else {
-      // Apenas salvou o modelo
       toast.add({
         title: "Sucesso",
         description: "Avaliação salva com sucesso.",

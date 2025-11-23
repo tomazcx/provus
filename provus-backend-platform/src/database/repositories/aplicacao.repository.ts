@@ -44,9 +44,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
       const now = new Date();
 
-      // --- INICIO ALTERACAO (Lógica de Criação Corrigida) ---
 
-      // Se uma data específica foi enviada no DTO (Agendamento via Dialog)
       if (dto.dataInicio && dto.estado === EstadoAplicacaoEnum.AGENDADA) {
         const dataInicio = new Date(dto.dataInicio);
         if (isNaN(dataInicio.getTime())) {
@@ -57,7 +55,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         aplicacao.dataInicio = dataInicio;
         aplicacao.dataFim = new Date(dataInicio.getTime() + tempoMaximoMs);
       }
-      // Se a própria avaliação já é do tipo Agendada (Configuração do Modelo)
       else if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
         if (!configGerais.dataAgendamento) {
           throw new BadRequestException(
@@ -70,7 +67,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           configGerais.dataAgendamento.getTime() + tempoMaximoMs,
         );
       }
-      // Aplicação Manual (Agora ou Criada)
       else {
         if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
           aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
@@ -82,7 +78,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
         }
       }
-      // --- FIM ALTERACAO ---
 
       const savedAplicacao = await manager.save(aplicacao);
       return savedAplicacao.id;
@@ -155,12 +150,8 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           estado === EstadoAplicacaoEnum.AGENDADA &&
           estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
         ) {
-          // Se for reagendada manualmente (menos comum neste fluxo, mas possível)
           const configGerais =
             aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-          // Aqui idealmente deveríamos permitir atualizar a dataInicio também no update,
-          // mas para este fix focado, vamos manter a lógica original de ler da config
-          // ou manter a dataInicio atual se ela já foi definida no create
           if (!aplicacao.dataInicio && configGerais.dataAgendamento) {
             aplicacao.dataInicio = configGerais.dataAgendamento;
           }

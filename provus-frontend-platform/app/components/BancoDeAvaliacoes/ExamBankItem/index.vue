@@ -9,9 +9,7 @@ defineProps<{
   selectable?: boolean;
 }>();
 
-// --- INICIO ALTERACAO (Adicionado 'schedule') ---
 const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
-// --- FIM ALTERACAO ---
 </script>
 
 <template>
