@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DateTimePicker from "@/components/ui/DateTimePicker/index.vue";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -18,12 +19,7 @@ const selectedDate = ref<Date | null>(null);
 watch(
   () => props.modelValue,
   (isOpen) => {
-    if (isOpen) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(8, 0, 0, 0);
-      selectedDate.value = tomorrow;
-    }
+    if (isOpen) selectedDate.value = new Date();
   }
 );
 
@@ -38,7 +34,8 @@ function handleConfirm() {
     return;
   }
 
-  if (selectedDate.value <= new Date()) {
+  const now = new Date();
+  if (selectedDate.value.getTime() < now.getTime() - 60000) {
     toast.add({
       title: "Data Inválida",
       description: "A data de agendamento deve ser no futuro.",
@@ -81,9 +78,16 @@ function handleConfirm() {
             <span class="text-xs font-bold text-gray-500 uppercase mb-1"
               >Avaliação Selecionada</span
             >
-            <span class="font-medium text-gray-900">{{
-              avaliacao?.titulo || "Carregando..."
-            }}</span>
+            <div class="font-medium text-gray-900 max-h-[4rem] overflow-hidden">
+              <RichTextEditor
+                v-if="avaliacao?.titulo"
+                :model-value="avaliacao.titulo"
+                disabled
+                min-height=""
+                class="!p-0 !bg-transparent !border-none pointer-events-none"
+              />
+              <span v-else>Carregando...</span>
+            </div>
           </div>
         </UCard>
 
@@ -122,3 +126,9 @@ function handleConfirm() {
     </template>
   </UModal>
 </template>
+
+<style scoped>
+:deep(.prose p) {
+  margin: 0;
+}
+</style>
