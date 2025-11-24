@@ -8,6 +8,7 @@ import { Env } from 'src/shared/env';
 import GeminiProvider from './ai/gemini.provider';
 import { GatewayModule } from 'src/gateway/gateway.module';
 import { AbstractAiProvider } from './ai/interface/ai-provider.abstract';
+import { FileConverterProvider } from './file-converter.provider';
 
 export const AI_PROVIDER = 'AI_PROVIDER';
 
@@ -17,6 +18,7 @@ export const AI_PROVIDER = 'AI_PROVIDER';
     JwtProvider,
     EmailTemplatesProvider,
     StorageProvider,
+    FileConverterProvider,
     {
       provide: NotificationProvider,
       useFactory: () => {
@@ -41,6 +43,7 @@ export const AI_PROVIDER = 'AI_PROVIDER';
     StorageProvider,
     NotificationProvider,
     AbstractAiProvider,
+    FileConverterProvider,
   ],
 })
 export class ProvidersModule {}

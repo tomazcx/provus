@@ -14,6 +14,7 @@ import { StorageProvider } from 'src/providers/storage.provider';
 import { CreateAndUploadArquivoDto } from 'src/dto/request/arquivo/create-and-upload-arquivo.dto';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import TipoItemEnum from 'src/enums/tipo-item.enum';
+import { FileConverterProvider } from 'src/providers/file-converter.provider';
 
 @Injectable()
 export class ArquivoService {
@@ -22,6 +23,7 @@ export class ArquivoService {
     private readonly arquivoRepository: ArquivoRepository,
     private readonly dataSource: DataSource,
     private readonly storageProvider: StorageProvider,
+    private readonly fileConverterProvider: FileConverterProvider,
   ) {}
 
   async findById(id: number, avaliador: AvaliadorModel): Promise<ArquivoDto> {
@@ -77,14 +79,34 @@ export class ArquivoService {
       );
     }
 
+    let finalBuffer = dto.file;
+    let finalContentType = dto.contentType;
+    let finalExtension = this._getExtensionFromMime(dto.contentType);
+    let finalTitulo = dto.titulo;
+
+    if (this.fileConverterProvider.isConvertible(dto.contentType)) {
+      finalBuffer = await this.fileConverterProvider.convertToPdf(
+        dto.file,
+        finalExtension,
+      );
+
+      finalContentType = 'application/pdf';
+      finalExtension = 'pdf';
+
+      if (!finalTitulo.toLowerCase().endsWith('.pdf')) {
+        finalTitulo = finalTitulo.replace(/\.[^/.]+$/, '') + '.pdf';
+      }
+    }
+
     const timestamp = Date.now();
-    const fileName = `${timestamp}-${dto.titulo}`;
+    const sanitizedTitle = finalTitulo.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `${timestamp}-${sanitizedTitle}`;
 
     const uploadResult = await this.storageProvider.uploadFile(
-      dto.file,
+      finalBuffer,
       fileName,
       {
-        contentType: dto.contentType,
+        contentType: finalContentType,
       },
     );
 
@@ -96,16 +118,36 @@ export class ArquivoService {
 
     const newArquivoId = await this.arquivoRepository.createArquivo(
       {
-        titulo: dto.titulo,
+        titulo: finalTitulo,
         url: uploadResult.url,
         descricao: dto.descricao,
-        tamanhoEmBytes: dto.file.length,
+        tamanhoEmBytes: finalBuffer.length,
         paiId: dto.paiId,
       },
       avaliador,
     );
 
     return this.findById(newArquivoId, avaliador);
+  }
+
+  private _getExtensionFromMime(mimeType: string): string {
+    const map: Record<string, string> = {
+      'application/msword': 'doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        'docx',
+      'application/vnd.ms-powerpoint': 'ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+        'pptx',
+      'text/plain': 'txt',
+      'application/rtf': 'rtf',
+      'application/pdf': 'pdf',
+      'application/vnd.oasis.opendocument.text': 'odt',
+      'application/vnd.oasis.opendocument.presentation': 'odp',
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+    };
+    return map[mimeType] || 'bin';
   }
 
   async update(

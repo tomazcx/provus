@@ -306,13 +306,6 @@ function handleFullscreenChange() {
   ) {
     console.log("[Proctoring] Violação: Saiu do modo Tela Cheia.");
 
-
-    toast.add({
-      title: "Atenção!",
-      description: "Você saiu do modo tela cheia. Isso foi registrado.",
-      color: "warning",
-    });
-
     if (studentWebSocket.isConnected.value) {
       studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
         tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
@@ -329,12 +322,6 @@ function onVisibilityViolation() {
     studentWebSocket.isConnected.value
   ) {
 
-    toast.add({
-      title: "Atenção!",
-      description: "Você saiu da aba da prova. Isso foi registrado.",
-      color: "warning",
-    });
-
     studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
       tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
     });
@@ -345,13 +332,6 @@ usePageVisibility(onVisibilityViolation);
 function handleClipboardEvent(event: ClipboardEvent) {
   if (proibirCopiarColar.value && isTimerActive.value) {
     event.preventDefault();
-
-
-    toast.add({
-      title: "Ação Bloqueada",
-      description: "Copiar e colar não é permitido nesta avaliação.",
-      color: "error",
-    });
 
     if (studentWebSocket.isConnected.value) {
       studentWebSocket.emit("registrar-punicao-por-ocorrencia", {

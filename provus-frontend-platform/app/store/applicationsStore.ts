@@ -267,6 +267,15 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  function addOrUpdateApplication(app: AplicacaoEntity) {
+    const index = applications.value.findIndex((a) => a.id === app.id);
+    if (index !== -1) {
+      applications.value.splice(index, 1, app);
+    } else {
+      applications.value.push(app);
+    }
+  }
+
   async function deleteApplication(applicationId: number) {
     try {
       await $api(`/backoffice/aplicacao/${applicationId}`, {
@@ -298,6 +307,7 @@ export const useApplicationsStore = defineStore("applications", () => {
     getApplicationById,
     createApplication,
     updateApplicationStatus,
+    addOrUpdateApplication,
     updateApplicationData,
     deleteApplication,
   };

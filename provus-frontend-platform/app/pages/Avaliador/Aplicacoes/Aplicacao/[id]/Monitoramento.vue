@@ -11,23 +11,11 @@ import {
 import type { IProgressoAluno } from "~/types/IMonitoring";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
-import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useTimer } from "~/composables/useTimer";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import ConfirmationDialog from "~/components/ui/ConfirmationDialog/index.vue";
-
-interface EstadoAplicacaoPayload {
-  aplicacaoId: number;
-  novoEstado: EstadoAplicacaoEnum;
-  novaDataFimISO: string;
-}
-
-interface TempoAjustadoPayload {
-  aplicacaoId: number;
-  novaDataFimISO: string;
-}
 
 const route = useRoute();
 const router = useRouter();
@@ -48,13 +36,16 @@ const confirmDescription = ref("");
 const confirmColor = ref<"warning" | "error">("warning");
 
 const applicationId = parseInt(route.params.id as string, 10);
-const aplicacao = ref<AplicacaoEntity | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
 const modeloDaAplicacao = computed<AvaliacaoEntity | null>(() => {
   return aplicacao.value?.avaliacao ?? null;
 });
+
+const aplicacao = computed(
+  () => applicationsStore.getApplicationById(applicationId) ?? null
+);
 
 const breadcrumbs = computed(() => [
   { label: "Aplicações", to: "/aplicacoes" },
@@ -91,10 +82,11 @@ async function fetchApplicationIfNeeded() {
         `/backoffice/aplicacao/${applicationId}`
       );
       const entity = mapAplicacaoApiResponseToEntity(response);
-      aplicacao.value = entity;
-      applicationsStore.updateApplicationData(applicationId, entity);
+
+      applicationsStore.addOrUpdateApplication(entity);
+
       console.log(
-        `Monitoramento.vue: Aplicação ${applicationId} carregada da API.`
+        `Monitoramento.vue: Aplicação ${applicationId} carregada da API e salva na Store.`
       );
       return true;
     } catch (error) {
@@ -106,13 +98,13 @@ async function fetchApplicationIfNeeded() {
         color: "error",
       });
       router.push("/aplicacoes");
+      return false; 
     } finally {
       isLoading.value = false;
     }
   }
   return true;
 }
-
 async function fetchMonitoringDetails() {
   try {
     await monitoringStore.fetchMonitoringData(applicationId);
@@ -130,52 +122,19 @@ async function fetchMonitoringDetails() {
   }
 }
 
-function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
-  if (aplicacao.value && aplicacao.value.id === data.aplicacaoId) {
-    console.log(
-      `Monitoramento: Estado atualizado via WS para ${data.novoEstado}`
-    );
-
-    aplicacao.value.estado = data.novoEstado;
-
-    if (data.novaDataFimISO) {
-      aplicacao.value.dataFim = new Date(data.novaDataFimISO);
-    }
-
-    applicationsStore.updateApplicationData(data.aplicacaoId, {
-      estado: data.novoEstado,
-      dataFim: new Date(data.novaDataFimISO),
-    });
-
-    if (
-      data.novoEstado === EstadoAplicacaoEnum.FINALIZADA ||
-      data.novoEstado === EstadoAplicacaoEnum.CANCELADA
-    ) {
-      monitoringStore.fetchMonitoringData(applicationId);
+watch(
+  () => aplicacao.value?.dataFim,
+  (newVal, oldVal) => {
+    if (newVal && oldVal && newVal.getTime() !== oldVal.getTime()) {
+      toast.add({
+        title: "Tempo Atualizado",
+        description: "O cronômetro foi sincronizado com o servidor.",
+        color: "info",
+        icon: "i-lucide-clock",
+      });
     }
   }
-}
-
-function onTempoAjustado(data: TempoAjustadoPayload) {
-  if (aplicacao.value && aplicacao.value.id === data.aplicacaoId) {
-    console.log(
-      `Monitoramento: Tempo ajustado via WS para ${data.novaDataFimISO}`
-    );
-
-    aplicacao.value.dataFim = new Date(data.novaDataFimISO);
-
-    applicationsStore.updateApplicationData(data.aplicacaoId, {
-      dataFim: new Date(data.novaDataFimISO),
-    });
-
-    toast.add({
-      title: "Tempo Atualizado",
-      description: "O cronômetro foi sincronizado.",
-      color: "info",
-      icon: "i-lucide-clock",
-    });
-  }
-}
+);
 
 onMounted(async () => {
   console.log("Monitoramento.vue: onMounted - Iniciando.");
@@ -183,8 +142,6 @@ onMounted(async () => {
   error.value = null;
   monitoringStore.clearWebSocketListeners();
   monitoringStore.currentApplicationId = applicationId;
-
-  aplicacao.value = applicationsStore.getApplicationById(applicationId) ?? null;
 
   const appLoadSuccess = await fetchApplicationIfNeeded();
   if (appLoadSuccess) {
@@ -194,61 +151,27 @@ onMounted(async () => {
   isLoading.value = false;
 
   if ($websocket) {
-    if ($websocket.socket.value) {
-      $websocket.on<EstadoAplicacaoPayload>(
-        "estado-aplicacao-atualizado",
-        onEstadoAtualizado
-      );
-
-      $websocket.on<TempoAjustadoPayload>("tempo-ajustado", onTempoAjustado);
+    if (!monitoringStore.listenersInitialized) {
+      monitoringStore.initializeWebSocketListeners();
     }
 
     watch(
       $websocket.isConnected,
       (connected) => {
         if (connected && !monitoringStore.listenersInitialized) {
-          console.log(
-            "Monitoramento.vue: Watch detectou conexão, inicializando listeners."
-          );
           monitoringStore.initializeWebSocketListeners();
-
-          $websocket.on<EstadoAplicacaoPayload>(
-            "estado-aplicacao-atualizado",
-            onEstadoAtualizado
-          );
-
-          $websocket.on<TempoAjustadoPayload>(
-            "tempo-ajustado",
-            onTempoAjustado
-          );
-        } else if (!connected) {
-          console.log("Monitoramento.vue: Watch detectou desconexão.");
-          monitoringStore.clearWebSocketListeners();
         }
       },
       { immediate: $websocket.isConnected.value }
-    );
-  } else {
-    console.error(
-      "Monitoramento.vue: onMounted - $websocket não está disponível."
     );
   }
 });
 
 onUnmounted(() => {
-  console.log("Monitoramento.vue: onUnmounted - Limpando listeners e AppID.");
-  monitoringStore.clearWebSocketListeners();
-
-  if ($websocket && $websocket.socket.value) {
-    $websocket.socket.value.off(
-      "estado-aplicacao-atualizado",
-      onEstadoAtualizado
-    );
-
-    $websocket.on<TempoAjustadoPayload>("tempo-ajustado", onTempoAjustado);
-  }
-
+  console.log("Monitoramento.vue: onUnmounted.");
   monitoringStore.currentApplicationId = null;
+
+  monitoringStore.clearWebSocketListeners();
 });
 
 function handleFinalizar() {
