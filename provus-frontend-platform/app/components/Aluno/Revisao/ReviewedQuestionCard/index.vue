@@ -5,6 +5,7 @@ import type {
 } from "~/types/api/response/Revisao.response";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   questao: QuestaoRevisaoResponse;
@@ -47,15 +48,18 @@ const status = computed(() => {
 function isAlternativeSelected(alternativeId: number): boolean {
   const dados = props.questao.dadosResposta;
   if (!dados) return false;
+
   if (
     "alternativa_id" in dados &&
     (typeof dados.alternativa_id === "number" || dados.alternativa_id === null)
   ) {
     return dados.alternativa_id === alternativeId;
   }
+
   if ("alternativas_id" in dados && Array.isArray(dados.alternativas_id)) {
     return dados.alternativas_id.includes(alternativeId);
   }
+
   return false;
 }
 
@@ -100,14 +104,22 @@ function getAlternativeStatus(
       </div>
     </div>
 
-    <p class="text-lg text-gray-800 mb-2 font-medium">{{ questao.titulo }}</p>
-    <p
-      v-if="questao.descricao"
-      class="text-sm text-gray-600 mb-6 prose max-w-none"
-    >
-      {{ questao.descricao }}
-    </p>
-
+    <div class="text-lg text-gray-800 mb-2 font-medium">
+      <RichTextEditor
+        :model-value="questao.titulo"
+        disabled
+        min-height=""
+        class="!p-0 !bg-transparent !border-none pointer-events-none"
+      />
+    </div>
+    <div v-if="questao.descricao" class="text-sm text-gray-600 mb-6">
+      <RichTextEditor
+        :model-value="questao.descricao"
+        disabled
+        min-height=""
+        class="!p-0 !bg-transparent !border-none pointer-events-none"
+      />
+    </div>
     <div class="space-y-4">
       <template v-if="questao.tipo === TipoQuestaoEnum.DISCURSIVA">
         <div class="mb-4">
@@ -119,21 +131,26 @@ function getAlternativeStatus(
           <div
             class="bg-gray-100 border border-gray-200 rounded-lg p-4 text-gray-800 text-sm"
           >
-            <p
+            <div
               v-if="
                 questao.dadosResposta &&
                 'texto' in questao.dadosResposta &&
                 questao.dadosResposta.texto
               "
-              class="whitespace-pre-wrap"
             >
-              {{ questao.dadosResposta.texto }}
-            </p>
+              <RichTextEditor
+                :model-value="questao.dadosResposta.texto"
+                disabled
+                min-height=""
+                class="!p-0 !bg-transparent !border-none pointer-events-none"
+              />
+            </div>
             <p v-else class="text-gray-500 italic">
               Você não respondeu a esta questão.
             </p>
           </div>
         </div>
+
         <div v-if="questao.exemploRespostaIa">
           <h4
             class="font-semibold text-gray-700 mb-2 text-sm flex items-center gap-1.5"
@@ -144,9 +161,12 @@ function getAlternativeStatus(
           <div
             class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm"
           >
-            <p class="whitespace-pre-wrap">
-              {{ questao.exemploRespostaIa }}
-            </p>
+            <RichTextEditor
+              :model-value="questao.exemploRespostaIa"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none text-blue-800"
+            />
           </div>
         </div>
       </template>
@@ -156,7 +176,7 @@ function getAlternativeStatus(
           <div
             v-for="alt in questao.alternativas"
             :key="alt.id"
-            class="flex items-center space-x-3 p-3 border-2 rounded-lg text-sm"
+            class="flex items-start space-x-3 p-3 border-2 rounded-lg text-sm"
             :class="{
               'border-green-500 bg-green-50':
                 getAlternativeStatus(alt) === 'correct-selected' ||
@@ -168,7 +188,7 @@ function getAlternativeStatus(
             }"
           >
             <div
-              class="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
+              class="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0 mt-0.5"
               :class="{
                 'bg-green-500':
                   getAlternativeStatus(alt) === 'correct-selected',
@@ -197,8 +217,14 @@ function getAlternativeStatus(
               />
             </div>
 
-            <span class="text-gray-800 flex-1">{{ alt.descricao }}</span>
-
+            <div class="flex-1 min-w-0">
+              <RichTextEditor
+                :model-value="alt.descricao"
+                disabled
+                min-height=""
+                class="!p-0 !bg-transparent !border-none pointer-events-none text-gray-800"
+              />
+            </div>
             <span
               v-if="isAlternativeSelected(alt.id)"
               class="text-xs font-medium text-blue-600 ml-auto mr-2 shrink-0"
@@ -211,6 +237,7 @@ function getAlternativeStatus(
             >
           </div>
         </div>
+
         <div
           v-if="questao.exemploRespostaIa"
           class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6"
@@ -221,9 +248,12 @@ function getAlternativeStatus(
             <Icon name="i-lucide-info" class="h-4 w-4" /> Explicação da Resposta
             Correta:
           </h4>
-          <p class="text-blue-800 text-sm whitespace-pre-wrap">
-            {{ questao.exemploRespostaIa }}
-          </p>
+          <RichTextEditor
+            :model-value="questao.exemploRespostaIa"
+            disabled
+            min-height=""
+            class="!p-0 !bg-transparent !border-none pointer-events-none text-blue-800"
+          />
         </div>
       </template>
 
@@ -237,10 +267,19 @@ function getAlternativeStatus(
           <Icon name="i-lucide-message-square-quote" class="h-4 w-4" /> Feedback
           do Professor:
         </h4>
-        <p class="text-amber-800 text-sm whitespace-pre-wrap">
-          {{ questao.textoRevisao }}
-        </p>
+        <RichTextEditor
+          :model-value="questao.textoRevisao"
+          disabled
+          min-height=""
+          class="!p-0 !bg-transparent !border-none pointer-events-none text-amber-800"
+        />
       </div>
     </div>
   </UCard>
 </template>
+
+<style scoped>
+:deep(.prose p) {
+  margin: 0;
+}
+</style>

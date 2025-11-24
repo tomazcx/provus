@@ -2,11 +2,13 @@
 import type { QuestaoSubmissaoResponse } from "~/types/api/response/Submissao.response";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import type { StudentAnswerData } from "~/store/studentAssessmentStore";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   questao: QuestaoSubmissaoResponse;
   numero: number;
   isAnswered: boolean;
+  currentAnswer?: StudentAnswerData | null;
 }>();
 
 const emit = defineEmits<{
@@ -22,8 +24,57 @@ const objectiveAnswer = ref<number | undefined>(undefined);
 const multipleChoiceAnswer = ref<number[]>([]);
 const trueFalseAnswers = ref<Record<number, boolean | undefined>>({});
 
+function syncStateFromProp(answer: StudentAnswerData | null | undefined) {
+  if (!answer) {
+    discursiveAnswer.value = "";
+    objectiveAnswer.value = undefined;
+    multipleChoiceAnswer.value = [];
+    trueFalseAnswers.value = {};
+    return;
+  }
+
+  if ("texto" in answer && answer.texto) {
+    discursiveAnswer.value = answer.texto;
+  } else if (
+    "alternativaId" in answer &&
+    typeof answer.alternativaId === "number"
+  ) {
+    objectiveAnswer.value = answer.alternativaId;
+  } else if (
+    "alternativasId" in answer &&
+    Array.isArray(answer.alternativasId)
+  ) {
+    if (props.questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA) {
+      multipleChoiceAnswer.value = [...answer.alternativasId];
+    } else if (props.questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) {
+      trueFalseAnswers.value = {};
+      answer.alternativasId.forEach((id) => {
+        trueFalseAnswers.value[id] = true;
+      });
+    }
+  }
+}
+
+onMounted(() => {
+  syncStateFromProp(props.currentAnswer);
+});
+
+watch(
+  () => props.currentAnswer,
+  (newVal) => {
+    syncStateFromProp(newVal);
+  }
+);
+
 watch(discursiveAnswer, (newValue) => {
   if (props.questao.tipo === TipoQuestaoEnum.DISCURSIVA) {
+    if (
+      props.currentAnswer &&
+      "texto" in props.currentAnswer &&
+      props.currentAnswer.texto === newValue
+    )
+      return;
+
     if (!newValue || newValue.trim() === "") {
       emit("update:answer", props.questao.id, null);
       return;
@@ -32,46 +83,46 @@ watch(discursiveAnswer, (newValue) => {
   }
 });
 
-watch(objectiveAnswer, (newValue) => {
-  if (props.questao.tipo === TipoQuestaoEnum.OBJETIVA) {
-    if (newValue === undefined || newValue === null) {
-      emit("update:answer", props.questao.id, { alternativaId: null });
-    } else {
-      emit("update:answer", props.questao.id, {
-        alternativaId: Number(newValue),
-      });
-    }
-  }
-});
+function handleObjectiveSelection(id: number) {
+  objectiveAnswer.value = id;
+  emit("update:answer", props.questao.id, { alternativaId: id });
+}
 
 watch(
-  [multipleChoiceAnswer, trueFalseAnswers],
-  () => {
+  multipleChoiceAnswer,
+  (newVal) => {
     if (props.questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA) {
-      if (multipleChoiceAnswer.value.length === 0) {
+      if (newVal.length === 0) {
         emit("update:answer", props.questao.id, null);
       } else {
         emit("update:answer", props.questao.id, {
-          alternativasId: multipleChoiceAnswer.value.map(Number),
+          alternativasId: [...newVal],
         });
       }
-    } else if (props.questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) {
-      const answeredAlternativeIds = Object.entries(trueFalseAnswers.value)
-        .filter(([, value]) => value !== undefined)
-        .map(([key]) => Number(key));
+    }
+  },
+  { deep: true }
+);
 
-      if (answeredAlternativeIds.length === 0) {
-        emit("update:answer", props.questao.id, null);
-        return;
-      }
-
-      const trueAnswerIds = Object.entries(trueFalseAnswers.value)
+watch(
+  trueFalseAnswers,
+  (newVal) => {
+    if (props.questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) {
+      const trueAnswerIds = Object.entries(newVal)
         .filter(([, value]) => value === true)
         .map(([key]) => Number(key));
 
-      emit("update:answer", props.questao.id, {
-        alternativasId: trueAnswerIds,
-      });
+      const answeredCount = Object.values(newVal).filter(
+        (v) => v !== undefined
+      ).length;
+
+      if (answeredCount === 0) {
+        emit("update:answer", props.questao.id, null);
+      } else {
+        emit("update:answer", props.questao.id, {
+          alternativasId: trueAnswerIds,
+        });
+      }
     }
   },
   { deep: true }
@@ -84,10 +135,23 @@ function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
     trueFalseAnswers.value[alternativeId] = choice;
   }
 }
+
+function toggleMultipleChoice(id: number) {
+  const index = multipleChoiceAnswer.value.indexOf(id);
+  if (index === -1) {
+    multipleChoiceAnswer.value.push(id);
+  } else {
+    multipleChoiceAnswer.value.splice(index, 1);
+  }
+}
 </script>
 
 <template>
-  <UCard v-id="questao" class="question-card shadow-sm">
+  <UCard
+    v-if="questao"
+    :id="`question-${questao.id}`"
+    class="question-card shadow-sm"
+  >
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center space-x-3">
         <span
@@ -103,12 +167,24 @@ function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
         :class="isAnswered ? 'bg-secondary' : 'bg-gray-300'"
       />
     </div>
-    <h3 class="text-lg font-semibold text-gray-900 mb-3">
-      {{ questao.titulo }}
-    </h3>
-    <p v-if="questao.descricao" class="text-gray-600 mb-4">
-      {{ questao.descricao }}
-    </p>
+
+    <div class="text-lg font-semibold text-gray-900 mb-3">
+      <RichTextEditor
+        :model-value="questao.titulo"
+        disabled
+        min-height=""
+        class="!p-0 !bg-transparent !border-none pointer-events-none"
+      />
+    </div>
+
+    <div v-if="questao.descricao" class="text-gray-600 mb-4 text-sm">
+      <RichTextEditor
+        :model-value="questao.descricao"
+        disabled
+        min-height=""
+        class="!p-0 !bg-transparent !border-none pointer-events-none"
+      />
+    </div>
 
     <div
       v-if="questao.tipo === TipoQuestaoEnum.DISCURSIVA"
@@ -123,32 +199,84 @@ function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
     </div>
 
     <div v-else class="space-y-3">
-      <URadioGroup
-        v-if="questao.tipo === TipoQuestaoEnum.OBJETIVA"
-        v-model="objectiveAnswer"
-        :items="
-          (questao.alternativas || []).map((alt) => ({
-            value: alt.id !== undefined ? String(alt.id) : undefined,
-            label: alt.descricao,
-            description: alt.descricao,
-          }))
-        "
-        color="primary"
-        variant="table"
-      />
-      <UCheckboxGroup
+      <div v-if="questao.tipo === TipoQuestaoEnum.OBJETIVA" class="space-y-2">
+        <div
+          v-for="alt in questao.alternativas"
+          :key="alt.id"
+          class="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200"
+          :class="
+            objectiveAnswer === alt.id
+              ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+              : 'border-gray-200'
+          "
+          @click="handleObjectiveSelection(alt.id)"
+        >
+          <div class="mt-1 mr-3 shrink-0">
+            <Icon
+              :name="
+                objectiveAnswer === alt.id
+                  ? 'i-lucide-circle-dot'
+                  : 'i-lucide-circle'
+              "
+              class="w-5 h-5 transition-colors"
+              :class="
+                objectiveAnswer === alt.id
+                  ? 'text-primary-600'
+                  : 'text-gray-400'
+              "
+            />
+          </div>
+          <div class="flex-1 min-w-0">
+            <RichTextEditor
+              :model-value="alt.descricao"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none cursor-pointer"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div
         v-else-if="questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA"
-        v-model="multipleChoiceAnswer"
-        :items="
-          (questao.alternativas || []).map((alt) => ({
-            value: alt.id !== undefined ? String(alt.id) : undefined,
-            label: alt.descricao,
-            description: alt.descricao,
-          }))
-        "
-        color="primary"
-        variant="table"
-      />
+        class="space-y-2"
+      >
+        <div
+          v-for="alt in questao.alternativas"
+          :key="alt.id"
+          class="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200"
+          :class="
+            multipleChoiceAnswer.includes(alt.id)
+              ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+              : 'border-gray-200'
+          "
+          @click="toggleMultipleChoice(alt.id)"
+        >
+          <div class="mt-1 mr-3 shrink-0">
+            <Icon
+              :name="
+                multipleChoiceAnswer.includes(alt.id)
+                  ? 'i-lucide-check-square'
+                  : 'i-lucide-square'
+              "
+              class="w-5 h-5 transition-colors"
+              :class="
+                multipleChoiceAnswer.includes(alt.id)
+                  ? 'text-primary-600'
+                  : 'text-gray-400'
+              "
+            />
+          </div>
+          <div class="flex-1 min-w-0">
+            <RichTextEditor
+              :model-value="alt.descricao"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none cursor-pointer"
+            />
+          </div>
+        </div>
+      </div>
 
       <div
         v-else-if="questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO"
@@ -157,20 +285,29 @@ function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
         <div
           v-for="alt in questao.alternativas"
           :key="alt.id"
-          class="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+          class="flex items-start justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
         >
-          <span class="text-gray-800 flex-1 mr-4">{{ alt.descricao }}</span>
-          <div class="flex items-center space-x-2">
+          <div class="flex-1 mr-4 min-w-0">
+            <RichTextEditor
+              :model-value="alt.descricao"
+              disabled
+              min-height=""
+              class="!p-0 !bg-transparent !border-none pointer-events-none"
+            />
+          </div>
+          <div class="flex items-center space-x-2 shrink-0 mt-1">
             <UButton
               label="V"
               :variant="trueFalseAnswers[alt.id!] === true ? 'solid' : 'outline'"
               color="secondary"
+              size="sm"
               @click="handleTrueFalseSelection(alt.id!, true)"
             />
             <UButton
               label="F"
               :variant="trueFalseAnswers[alt.id!] === false ? 'solid' : 'outline'"
               color="error"
+              size="sm"
               @click="handleTrueFalseSelection(alt.id!, false)"
             />
           </div>
@@ -179,3 +316,9 @@ function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
     </div>
   </UCard>
 </template>
+
+<style scoped>
+:deep(.prose p) {
+  margin: 0;
+}
+</style>

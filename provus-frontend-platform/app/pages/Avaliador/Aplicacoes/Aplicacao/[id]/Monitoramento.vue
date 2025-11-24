@@ -24,6 +24,11 @@ interface EstadoAplicacaoPayload {
   novaDataFimISO: string;
 }
 
+interface TempoAjustadoPayload {
+  aplicacaoId: number;
+  novaDataFimISO: string;
+}
+
 const route = useRoute();
 const router = useRouter();
 const monitoringStore = useMonitoringStore();
@@ -151,6 +156,27 @@ function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
   }
 }
 
+function onTempoAjustado(data: TempoAjustadoPayload) {
+  if (aplicacao.value && aplicacao.value.id === data.aplicacaoId) {
+    console.log(
+      `Monitoramento: Tempo ajustado via WS para ${data.novaDataFimISO}`
+    );
+
+    aplicacao.value.dataFim = new Date(data.novaDataFimISO);
+
+    applicationsStore.updateApplicationData(data.aplicacaoId, {
+      dataFim: new Date(data.novaDataFimISO),
+    });
+
+    toast.add({
+      title: "Tempo Atualizado",
+      description: "O cronômetro foi sincronizado.",
+      color: "info",
+      icon: "i-lucide-clock",
+    });
+  }
+}
+
 onMounted(async () => {
   console.log("Monitoramento.vue: onMounted - Iniciando.");
   isLoading.value = true;
@@ -173,6 +199,8 @@ onMounted(async () => {
         "estado-aplicacao-atualizado",
         onEstadoAtualizado
       );
+
+      $websocket.on<TempoAjustadoPayload>("tempo-ajustado", onTempoAjustado);
     }
 
     watch(
@@ -187,6 +215,11 @@ onMounted(async () => {
           $websocket.on<EstadoAplicacaoPayload>(
             "estado-aplicacao-atualizado",
             onEstadoAtualizado
+          );
+
+          $websocket.on<TempoAjustadoPayload>(
+            "tempo-ajustado",
+            onTempoAjustado
           );
         } else if (!connected) {
           console.log("Monitoramento.vue: Watch detectou desconexão.");
@@ -211,6 +244,8 @@ onUnmounted(() => {
       "estado-aplicacao-atualizado",
       onEstadoAtualizado
     );
+
+    $websocket.on<TempoAjustadoPayload>("tempo-ajustado", onTempoAjustado);
   }
 
   monitoringStore.currentApplicationId = null;
@@ -333,6 +368,12 @@ function onConfirmDialog() {
   isConfirmOpen.value = false;
   confirmAction.value = null;
 }
+
+function handleViewSubmission(aluno: IProgressoAluno) {
+  router.push(
+    `/aplicacoes/aplicacao/${applicationId}/resultados/${aluno.submissaoId}`
+  );
+}
 </script>
 
 <template>
@@ -382,6 +423,7 @@ function onConfirmDialog() {
         <StudentProgressGrid
           :progresso-alunos="studentProgress"
           :get-tempo-restante="getTempoRestanteAlunoFormatado"
+          @view-submission="handleViewSubmission"
         />
       </div>
       <div><ActivityFeed :atividades="activityFeed" /></div>

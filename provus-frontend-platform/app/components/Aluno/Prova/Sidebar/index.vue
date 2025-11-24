@@ -4,6 +4,7 @@ import type {
   ArquivoSubmissaoResponse,
 } from "~/types/api/response/Submissao.response";
 import { useStudentAssessmentStore } from "~/store/studentAssessmentStore";
+import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 const props = defineProps<{
   questoes: QuestaoSubmissaoResponse[] | null;
@@ -17,7 +18,6 @@ const props = defineProps<{
 const emit = defineEmits(["goToQuestion", "openMaterials", "toggleView"]);
 const studentAssessmentStore = useStudentAssessmentStore();
 const pontosPerdidos = computed(() => studentAssessmentStore.pontosPerdidos);
-
 const totalQuestoes = computed(() => props.questoes?.length ?? 0);
 const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
 </script>
@@ -51,13 +51,21 @@ const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
             <span class="font-medium">{{ totalQuestoes }} questões</span>
           </div>
         </div>
-        <UAlert
+
+        <div
           v-if="descricaoAvaliacao"
-          :description="descricaoAvaliacao"
-          class="mt-4"
-          variant="subtle"
-          dense
-        />
+          class="mt-4 bg-primary-50 rounded-md p-3 border border-primary-100"
+        >
+          <h4 class="text-xs font-bold text-primary-700 uppercase mb-1">
+            Instruções
+          </h4>
+          <RichTextEditor
+            :model-value="descricaoAvaliacao"
+            disabled
+            min-height=""
+            class="!p-0 !bg-transparent !border-none pointer-events-none text-sm text-gray-700"
+          />
+        </div>
       </div>
 
       <div class="mb-6">
@@ -73,7 +81,6 @@ const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
             @click="emit('goToQuestion', index)"
           />
         </div>
-
         <div class="mt-3 text-xs text-gray-500">
           <div class="flex items-center space-x-4">
             <div class="flex items-center space-x-1.5">
@@ -87,7 +94,6 @@ const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
           </div>
         </div>
       </div>
-
       <div class="space-y-3">
         <UButton
           block
@@ -109,3 +115,9 @@ const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
     </div>
   </div>
 </template>
+
+<style scoped>
+:deep(.prose p) {
+  margin: 0;
+}
+</style>

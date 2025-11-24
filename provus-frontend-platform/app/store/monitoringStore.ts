@@ -137,11 +137,12 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       (s) => s.aluno.email === data.estudanteEmail
     );
     if (aluno) {
-      aluno.alertas = data.quantidadeOcorrencias;
+      aluno.alertas += 1;
+
       addActivityLog(
         TipoAtividadeEnum.PENALIDADE,
         aluno.aluno.nome,
-        `recebeu um alerta por ${data.tipoInfracao}. Total: ${aluno.alertas}`
+        `recebeu um alerta por ${data.tipoInfracao}. (Ocorrência #${data.quantidadeOcorrencias})`
       );
     } else {
       addActivityLog(
@@ -533,6 +534,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     fetchMonitoringData,
     initializeWebSocketListeners,
     clearWebSocketListeners,
-    confirmarCodigo
+    confirmarCodigo,
   };
 });

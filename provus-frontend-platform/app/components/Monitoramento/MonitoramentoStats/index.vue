@@ -19,7 +19,10 @@ const alunosFinalizaram = computed(
       (p) =>
         p.estado === EstadoSubmissaoEnum.AVALIADA ||
         p.estado === EstadoSubmissaoEnum.ENVIADA ||
-        p.estado === EstadoSubmissaoEnum.ENCERRADA
+        p.estado === EstadoSubmissaoEnum.ENCERRADA ||
+        p.estado === EstadoSubmissaoEnum.CODIGO_CONFIRMADO ||
+        p.estado === EstadoSubmissaoEnum.CANCELADA ||
+        p.estado === EstadoSubmissaoEnum.ABANDONADA
     ).length
 );
 const totalAlertas = computed(() =>

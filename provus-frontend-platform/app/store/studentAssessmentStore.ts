@@ -44,6 +44,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
   const proibirTrocarAbas = ref(false);
   const proibirCopiarColar = ref(false);
   const pontosPerdidos = ref(0);
+  const tempoPenalidade = ref(0);
 
   async function createStudentSubmission(
     nome: string,
@@ -384,6 +385,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     }
   }
 
+  function aplicarPenalidadeTempo(segundos: number) {
+    if (segundos > 0) {
+      tempoPenalidade.value += segundos;
+    }
+  }
+
   return {
     submissionDetails,
     submissionQuestions,
@@ -403,10 +410,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     proibirTrocarAbas,
     proibirCopiarColar,
     pontosPerdidos,
+    tempoPenalidade,
     aplicarPenalidadePontos,
     createStudentSubmission,
     fetchSubmissionDataByHash,
     submitStudentAnswers,
     fetchSubmissionReviewData,
+    aplicarPenalidadeTempo
   };
 });

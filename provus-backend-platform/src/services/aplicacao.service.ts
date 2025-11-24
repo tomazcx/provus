@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { EntityManager, DataSource, In, Repository } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
@@ -471,6 +471,11 @@ export class AplicacaoService {
       EstadoSubmissaoEnum.PAUSADA,
       EstadoSubmissaoEnum.REABERTA,
       EstadoSubmissaoEnum.ENCERRADA,
+      EstadoSubmissaoEnum.ENVIADA,
+      EstadoSubmissaoEnum.AVALIADA,
+      EstadoSubmissaoEnum.CANCELADA,
+      EstadoSubmissaoEnum.ABANDONADA,
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
     ];
 
     const submissoes = await this.submissaoRepository.find({
@@ -484,7 +489,7 @@ export class AplicacaoService {
       },
     });
 
-    const registrosPunicao = await this.registroPunicaoRepository.find({
+    const registrosFeed = await this.registroPunicaoRepository.find({
       where: {
         submissao: { aplicacao: { id: aplicacaoId } },
       },
@@ -492,6 +497,19 @@ export class AplicacaoService {
       order: { criadoEm: 'DESC' },
       take: 50,
     });
+
+    const contagemAlertasRaw = await this.registroPunicaoRepository
+      .createQueryBuilder('registro')
+      .select('registro.submissao_id', 'subId')
+      .addSelect('COUNT(registro.id)', 'total')
+      .innerJoin('registro.submissao', 'submissao')
+      .where('submissao.aplicacao_id = :aplicacaoId', { aplicacaoId })
+      .groupBy('registro.submissao_id')
+      .getRawMany();
+
+    const alertasMap = new Map<number, number>(
+      contagemAlertasRaw.map((row) => [row.subId, parseInt(row.total, 10)]),
+    );
 
     const totalQuestoesAplicacao = aplicacao.avaliacao?.questoes?.length ?? 0;
 
@@ -523,9 +541,7 @@ export class AplicacaoService {
             ? Math.round((questoesRespondidas / totalQuestoesAplicacao) * 100)
             : 0;
 
-        const alertasCount = registrosPunicao.filter(
-          (rp) => rp.submissao.id === sub.id,
-        ).length;
+        const alertasCount = alertasMap.get(sub.id) || 0;
 
         return {
           submissaoId: sub.id,
@@ -544,7 +560,7 @@ export class AplicacaoService {
       }),
     );
 
-    const atividadesRecentes = registrosPunicao.map((rp) => ({
+    const atividadesRecentes = registrosFeed.map((rp) => ({
       id: rp.id,
       tipo: TipoAtividadeEnum.PENALIDADE,
       alunoNome: rp.submissao?.estudante?.nome ?? 'Aluno Desconhecido',

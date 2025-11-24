@@ -256,12 +256,51 @@ export class SubmissaoGateway
               });
               break;
 
-            case TipoPenalidadeEnum.ENCERRAR_AVALIACAO:
+            case TipoPenalidadeEnum.ENCERRAR_AVALIACAO: {
               this.emitSubmissaoCancelada(client, {
                 tipoInfracao: registroPunicao.tipoInfracao,
                 quantidadeOcorrencias: registroPunicao.quantidadeOcorrencias,
               });
+
+              const submissaoAtualizada =
+                await this.submissaoRepository.findOne({
+                  where: { id: registroPunicao.submissao.id },
+                  relations: [
+                    'aplicacao',
+                    'aplicacao.avaliacao',
+                    'aplicacao.avaliacao.item',
+                    'aplicacao.avaliacao.item.avaliador',
+                    'estudante',
+                  ],
+                });
+
+              if (
+                submissaoAtualizada &&
+                submissaoAtualizada.aplicacao?.avaliacao?.item?.avaliador?.id
+              ) {
+                const avaliadorId =
+                  submissaoAtualizada.aplicacao.avaliacao.item.avaliador.id;
+
+                const payloadProfessor = {
+                  submissaoId: submissaoAtualizada.id,
+                  aplicacaoId: submissaoAtualizada.aplicacao.id,
+                  estado: EstadoSubmissaoEnum.CANCELADA,
+                  alunoNome: submissaoAtualizada.estudante.nome,
+                  timestamp: new Date().toISOString(),
+                };
+
+                this.notificationProvider.sendNotificationViaSocket(
+                  avaliadorId,
+                  'submissao-finalizada',
+                  payloadProfessor,
+                );
+
+                this.logger.log(
+                  `[FIX] Notificação de cancelamento enviada ao professor ${avaliadorId} para submissão ${submissaoAtualizada.id}`,
+                );
+              }
               break;
+            }
 
             case TipoPenalidadeEnum.NOTIFICAR_PROFESSOR:
               break;

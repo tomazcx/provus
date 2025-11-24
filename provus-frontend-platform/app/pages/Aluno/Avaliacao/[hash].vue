@@ -12,6 +12,7 @@ import { useTimer } from "~/composables/useTimer";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import { usePageVisibility } from "~/composables/usePageVisibility";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
+import { useWebSocket } from "~/composables/useWebSocket";
 
 interface ErroValidacaoPayload {
   message: string;
@@ -30,20 +31,24 @@ interface TempoAjustadoPayload {
   aplicacaoId: number;
   novaDataFimISO: string;
 }
+
 interface EstadoAplicacaoAtualizadoPayloadSubmissao {
   aplicacaoId: number;
   novoEstado: EstadoSubmissaoEnum;
   novaDataFimISO: string;
 }
+
 interface TempoReduzidoPayload {
   tempoReduzido: number;
 }
+
 interface AlertaEstudantePayload {
   quantidadeOcorrencias: number;
   tipoInfracao: string;
   penalidade: string;
   pontuacaoPerdida?: number;
 }
+
 interface SubmissaoCanceladaPayload {
   tipoInfracao: string;
   quantidadeOcorrencias: number;
@@ -107,11 +112,47 @@ const proibirCopiarColar = computed(
   () => studentAssessmentStore.proibirCopiarColar
 );
 
+const tempoPenalidadeStore = computed(
+  () => studentAssessmentStore.tempoPenalidade
+);
+
 const { tempoRestanteFormatado } = useTimer({
   dataFimISO: dataFimRef,
   isActive: isTimerActive,
   ajusteDeTempoEmSegundos: ajusteTempoPenalidade,
 });
+
+watch(
+  tempoPenalidadeStore,
+  (newVal) => {
+    ajusteTempoPenalidade.value = -(newVal || 0);
+  },
+  { immediate: true }
+);
+
+watch(
+  submissionQuestions,
+  (questions) => {
+    if (questions) {
+      questions.forEach((q) => {
+        if (q.dadosResposta) {
+          if ("texto" in q.dadosResposta) {
+            respostas[q.id] = { texto: q.dadosResposta.texto };
+          } else if ("alternativa_id" in q.dadosResposta) {
+            respostas[q.id] = {
+              alternativaId: q.dadosResposta.alternativa_id,
+            };
+          } else if ("alternativas_id" in q.dadosResposta) {
+            respostas[q.id] = {
+              alternativasId: q.dadosResposta.alternativas_id,
+            };
+          }
+        }
+      });
+    }
+  },
+  { immediate: true }
+);
 
 watch(
   submissionDetails,
@@ -152,6 +193,7 @@ const answeredQuestions = computed(
         .map(([key]) => Number(key))
     )
 );
+
 const totalQuestoes = computed(() => submissionQuestions.value?.length ?? 0);
 const pontuacaoTotalPossivel = computed(() => {
   return (
@@ -227,13 +269,11 @@ async function submit() {
 
 async function onConfirmSubmit() {
   isExitingForSubmission.value = true;
-
   if (document.fullscreenElement) {
     try {
       await document.exitFullscreen();
     } catch {}
   }
-
   const success = await studentAssessmentStore.submitStudentAnswers(respostas);
   if (success && submissionDetails.value?.hash) {
     router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
@@ -258,7 +298,6 @@ function checkFullscreenState() {
 function handleFullscreenChange() {
   const isNowFull = !!document.fullscreenElement;
   isFullscreen.value = isNowFull;
-
   if (
     !isNowFull &&
     proibirTrocarAbas.value &&
@@ -266,6 +305,13 @@ function handleFullscreenChange() {
     !isExitingForSubmission.value
   ) {
     console.log("[Proctoring] Violação: Saiu do modo Tela Cheia.");
+
+
+    toast.add({
+      title: "Atenção!",
+      description: "Você saiu do modo tela cheia. Isso foi registrado.",
+      color: "warning",
+    });
 
     if (studentWebSocket.isConnected.value) {
       studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
@@ -282,17 +328,31 @@ function onVisibilityViolation() {
     isTimerActive.value &&
     studentWebSocket.isConnected.value
   ) {
+
+    toast.add({
+      title: "Atenção!",
+      description: "Você saiu da aba da prova. Isso foi registrado.",
+      color: "warning",
+    });
+
     studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
       tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
     });
   }
 }
-
 usePageVisibility(onVisibilityViolation);
 
 function handleClipboardEvent(event: ClipboardEvent) {
   if (proibirCopiarColar.value && isTimerActive.value) {
     event.preventDefault();
+
+
+    toast.add({
+      title: "Ação Bloqueada",
+      description: "Copiar e colar não é permitido nesta avaliação.",
+      color: "error",
+    });
+
     if (studentWebSocket.isConnected.value) {
       studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
         tipoInfracao: TipoInfracaoEnum.COPIAR_COLAR,
@@ -334,7 +394,6 @@ function connectWebSocket(hash: string) {
     (data) => {
       currentSubmissionStatus.value = data.novoEstado;
       dataFimRef.value = data.novaDataFimISO;
-
       if (
         (data.novoEstado === EstadoSubmissaoEnum.INICIADA ||
           data.novoEstado === EstadoSubmissaoEnum.REABERTA) &&
@@ -342,7 +401,6 @@ function connectWebSocket(hash: string) {
       ) {
         checkFullscreenState();
       }
-
       if (data.novoEstado === EstadoSubmissaoEnum.PAUSADA) {
         toast.add({
           title: "Avaliação Pausada",
@@ -395,6 +453,9 @@ function connectWebSocket(hash: string) {
 
   studentWebSocket.on<TempoReduzidoPayload>("reduzir-tempo-aluno", (data) => {
     ajusteTempoPenalidade.value -= data.tempoReduzido;
+
+    studentAssessmentStore.aplicarPenalidadeTempo(data.tempoReduzido);
+
     toast.add({
       title: "Penalidade de Tempo",
       description: `-${data.tempoReduzido} segundos.`,
@@ -440,7 +501,6 @@ onMounted(async () => {
   } else {
     router.push("/aluno/entrar");
   }
-
   document.addEventListener("copy", handleClipboardEvent);
   document.addEventListener("paste", handleClipboardEvent);
   document.addEventListener("cut", handleClipboardEvent);
@@ -537,6 +597,7 @@ onUnmounted(() => {
                 :questao="questao"
                 :numero="index + 1"
                 :is-answered="answeredQuestions.has(questao.id!)"
+                :current-answer="respostas[questao.id]"
                 @update:answer="(qid, payload) => updateAnswer(qid, payload as StudentAnswerData | null)"
               />
             </template>
@@ -548,6 +609,7 @@ onUnmounted(() => {
                 :questao="questao"
                 :numero="startingQuestionNumber + index + 1"
                 :is-answered="answeredQuestions.has(questao.id!)"
+                :current-answer="respostas[questao.id]"
                 @update:answer="(qid, payload) => updateAnswer(qid, payload as StudentAnswerData | null)"
               />
               <div

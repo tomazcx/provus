@@ -14,6 +14,8 @@ defineProps({
   },
 });
 
+const emit = defineEmits(["view-submission"]);
+
 const monitoringStore = useMonitoringStore();
 const toast = useToast();
 
@@ -81,24 +83,28 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
   text: string;
   color: UBadgeColor;
 } {
-  const map: Record<EstadoSubmissaoEnum, { text: string; color: UBadgeColor }> =
-    {
-      [EstadoSubmissaoEnum.INICIADA]: { text: "Ativo", color: "success" },
-      [EstadoSubmissaoEnum.PAUSADA]: { text: "Pausado", color: "warning" },
-      [EstadoSubmissaoEnum.AVALIADA]: { text: "Finalizado", color: "info" },
-      [EstadoSubmissaoEnum.ENVIADA]: { text: "Finalizado", color: "info" },
-      [EstadoSubmissaoEnum.ABANDONADA]: { text: "Abandonou", color: "error" },
-      [EstadoSubmissaoEnum.ENCERRADA]: { text: "Encerrado", color: "gray" },
-      [EstadoSubmissaoEnum.CANCELADA]: { text: "Cancelado", color: "gray" },
-      [EstadoSubmissaoEnum.REABERTA]: { text: "Reaberto", color: "warning" },
-      [EstadoSubmissaoEnum.CODIGO_CONFIRMADO]: {
-        text: "Código Confirmado",
-        color: "secondary",
-      },
-    };
-  return map[estado] || { text: "Desconhecido", color: "gray" };
+  const map: Record<string, { text: string; color: UBadgeColor }> = {
+    [EstadoSubmissaoEnum.INICIADA]: { text: "Ativo", color: "success" },
+    [EstadoSubmissaoEnum.PAUSADA]: { text: "Pausado", color: "warning" },
+    [EstadoSubmissaoEnum.AVALIADA]: { text: "Finalizado", color: "info" },
+    [EstadoSubmissaoEnum.ENVIADA]: { text: "Finalizado", color: "info" },
+    [EstadoSubmissaoEnum.ABANDONADA]: { text: "Abandonou", color: "error" },
+    [EstadoSubmissaoEnum.ENCERRADA]: { text: "Encerrado", color: "gray" },
+    [EstadoSubmissaoEnum.CANCELADA]: { text: "Cancelado", color: "error" },
+    [EstadoSubmissaoEnum.REABERTA]: { text: "Reaberto", color: "warning" },
+    [EstadoSubmissaoEnum.CODIGO_CONFIRMADO]: {
+      text: "Código Confirmado",
+      color: "secondary",
+    },
+  };
+  return map[estado] || { text: estado || "Desconhecido", color: "gray" };
+}
+
+function handleCardClick(aluno: IProgressoAluno) {
+  emit("view-submission", aluno);
 }
 </script>
+
 <template>
   <UCard>
     <template #header>
@@ -108,14 +114,21 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
       <div
         v-for="aluno in progressoAlunos"
         :key="aluno.submissaoId"
-        class="p-4 border border-gray-200 rounded-lg"
+        class="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:shadow-md transition-all cursor-pointer group relative"
+        @click="handleCardClick(aluno)"
       >
+        <div
+          class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <UIcon name="i-lucide-external-link" class="text-gray-400 w-4 h-4" />
+        </div>
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center space-x-3">
             <UAvatar :alt="aluno.aluno.nome" size="sm" />
-            <span class="font-medium text-gray-900 text-sm">{{
-              aluno.aluno.nome
-            }}</span>
+            <span
+              class="font-medium text-gray-900 text-sm truncate max-w-[150px]"
+              >{{ aluno.aluno.nome }}</span
+            >
           </div>
           <UBadge
             :color="getStatusVisuals(aluno.estado).color"
@@ -123,7 +136,6 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
             >{{ getStatusVisuals(aluno.estado).text }}</UBadge
           >
         </div>
-
         <div class="mb-2">
           <div class="flex justify-between text-sm text-gray-600 mb-1">
             <span>Progresso</span>
@@ -136,7 +148,6 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
             :color="aluno.alertas > 0 ? 'error' : 'secondary'"
           />
         </div>
-
         <div class="flex justify-between text-xs text-gray-500">
           <span
             >Iniciou:
@@ -164,7 +175,7 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
             </span>
           </div>
 
-          <div vNextClickOutsideStop>
+          <div v-next-click-outside-stop @click.stop>
             <UPopover
               v-if="
                 aluno.estado === EstadoSubmissaoEnum.AVALIADA ||
@@ -204,7 +215,6 @@ function getStatusVisuals(estado: EstadoSubmissaoEnum): {
                 </div>
               </template>
             </UPopover>
-
             <UBadge
               v-else-if="aluno.estado === EstadoSubmissaoEnum.CODIGO_CONFIRMADO"
               color="secondary"

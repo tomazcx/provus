@@ -16,6 +16,10 @@ const reviewQuestions = computed(() => studentAssessmentStore.reviewQuestions);
 const isLoading = computed(() => studentAssessmentStore.isLoading);
 const error = computed(() => studentAssessmentStore.error);
 const tituloAvaliacao = computed(() => studentAssessmentStore.tituloAvaliacao);
+const descricaoAvaliacao = computed(
+  () => studentAssessmentStore.descricaoAvaliacao
+);
+
 const quantidadeTentativas = computed(
   () => studentAssessmentStore.quantidadeTentativas ?? 1
 );
@@ -31,6 +35,7 @@ const pontuacaoTotalPossivel = computed(() => {
 });
 
 const hasAttemptedLoad = ref(false);
+
 onMounted(async () => {
   const hash = route.params.hash as string;
   if (hash && !hasAttemptedLoad.value) {
@@ -38,7 +43,6 @@ onMounted(async () => {
     const success = await studentAssessmentStore.fetchSubmissionReviewData(
       hash
     );
-
     if (!success) {
       setTimeout(() => {
         if (studentAssessmentStore.submissionDetails?.hash) {
@@ -106,6 +110,7 @@ onMounted(async () => {
         :submission="submissionDetails"
         :questions="reviewQuestions"
         :total-possible-score="pontuacaoTotalPossivel"
+        :descricao-avaliacao="descricaoAvaliacao"
       />
       <main class="ml-80 flex-1 p-6 bg-gray-100">
         <div class="max-w-4xl mx-auto">
