@@ -196,7 +196,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
           toast.add({
             title: "Campo Obrigatório",
             description: `A questão #${index + 1} ("${
-              questao.titulo || "sem título"
+              stripHtml(questao.titulo) || "sem título"
             }") é discursiva e precisa de um "Modelo de Resposta para I.A." preenchido.`,
             color: "error",
             icon: "i-lucide-alert-triangle",

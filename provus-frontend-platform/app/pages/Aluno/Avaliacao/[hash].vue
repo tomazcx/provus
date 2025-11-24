@@ -65,6 +65,7 @@ const dataFimRef = ref<string | null>(null);
 const isSubmitConfirmOpen = ref(false);
 const ajusteTempoPenalidade = ref(0);
 const isExitingForSubmission = ref(false);
+const lastInfractionTime = ref(0);
 
 const isFullscreen = ref(true);
 const showFullscreenBlocker = computed(() => {
@@ -80,6 +81,22 @@ const isTimerActive = computed(
 const respostas = reactive<
   Record<number, StudentAnswerData | undefined | null>
 >({});
+
+function registrarInfracao(tipo: TipoInfracaoEnum) {
+  const now = Date.now();
+  if (now - lastInfractionTime.value < 2000) {
+    console.log(`[Proctoring] Infração ignorada (Debounce): ${tipo}`);
+    return;
+  }
+
+  lastInfractionTime.value = now;
+
+  if (studentWebSocket.isConnected.value) {
+    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
+      tipoInfracao: tipo,
+    });
+  }
+}
 
 const studentWebSocket = useWebSocket();
 
@@ -305,39 +322,23 @@ function handleFullscreenChange() {
     !isExitingForSubmission.value
   ) {
     console.log("[Proctoring] Violação: Saiu do modo Tela Cheia.");
-
-    if (studentWebSocket.isConnected.value) {
-      studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
-        tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
-      });
-    }
+    registrarInfracao(TipoInfracaoEnum.TROCA_ABAS);
   }
 }
 
 function onVisibilityViolation() {
   console.log("[Proctoring] Violação de Visibilidade/Foco detectada.");
-  if (
-    proibirTrocarAbas.value &&
-    isTimerActive.value &&
-    studentWebSocket.isConnected.value
-  ) {
-
-    studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
-      tipoInfracao: TipoInfracaoEnum.TROCA_ABAS,
-    });
+  if (proibirTrocarAbas.value && isTimerActive.value) {
+    registrarInfracao(TipoInfracaoEnum.TROCA_ABAS);
   }
 }
+
 usePageVisibility(onVisibilityViolation);
 
 function handleClipboardEvent(event: ClipboardEvent) {
   if (proibirCopiarColar.value && isTimerActive.value) {
     event.preventDefault();
-
-    if (studentWebSocket.isConnected.value) {
-      studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
-        tipoInfracao: TipoInfracaoEnum.COPIAR_COLAR,
-      });
-    }
+    registrarInfracao(TipoInfracaoEnum.COPIAR_COLAR);
   }
 }
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useNotificationsStore } from "~/store/notificationsStore";
-
 const notificationsStore = useNotificationsStore();
 
 const unreadNotifications = computed(
@@ -89,7 +88,9 @@ function formatTimestamp(date: Date): string {
             />
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-900">{{ n.title }}</p>
-              <p class="text-xs text-gray-500">{{ n.description }}</p>
+              <p class="text-xs text-gray-500">
+                {{ stripHtml(n.description) }}
+              </p>
               <p class="text-xs text-gray-400 mt-1">
                 {{ formatTimestamp(n.timestamp) }}
               </p>

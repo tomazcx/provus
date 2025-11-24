@@ -261,7 +261,9 @@ const statusVisuals = computed(() => {
 async function handleDelete() {
   if (!aplicacao.value) return;
   confirmTitle.value = "Deletar Aplicação?";
-  confirmDescription.value = `Tem certeza que deseja deletar a aplicação '${aplicacao.value.avaliacao.titulo}'? Esta ação não pode ser desfeita.`;
+  confirmDescription.value = `Tem certeza que deseja deletar a aplicação '${stripHtml(
+    aplicacao.value.avaliacao.titulo
+  )}'? Esta ação não pode ser desfeita.`;
   confirmAction.value = "deletar";
   confirmColor.value = "error";
   isConfirmOpen.value = true;

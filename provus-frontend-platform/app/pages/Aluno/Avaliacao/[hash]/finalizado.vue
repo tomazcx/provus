@@ -142,7 +142,7 @@ function backToHome() {
           <UCard>
             <p class="text-sm text-gray-600 mb-1">Nome da Avaliação</p>
             <p class="font-semibold text-gray-900 truncate">
-              {{ tituloAvaliacao ?? "Avaliação" }}
+              {{ tituloAvaliacao ? stripHtml(tituloAvaliacao) : "Avaliação" }}
             </p>
           </UCard>
           <UCard>

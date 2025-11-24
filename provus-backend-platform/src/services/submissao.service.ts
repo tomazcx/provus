@@ -107,10 +107,6 @@ export class SubmissaoService {
           'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
           'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
           'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
-          'avaliacao.arquivos',
-          'avaliacao.arquivos.arquivo',
-          'avaliacao.arquivos.arquivo.item',
-          'avaliacao.questoes.questao.alternativas',
         ],
       });
 
@@ -130,7 +126,18 @@ export class SubmissaoService {
         aplicacao.dataInicio = now;
         aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
         await this.aplicacaoRepository.save(aplicacao);
-        this.logger.log(`Aplicação ${aplicacao.id} agora está 'EM_ANDAMENTO'.`);
+
+        if (aplicacao.avaliacao?.item?.avaliador?.id) {
+          this.notificationProvider.sendNotificationViaSocket(
+            aplicacao.avaliacao.item.avaliador.id,
+            'estado-aplicacao-atualizado',
+            {
+              aplicacaoId: aplicacao.id,
+              novoEstado: EstadoAplicacaoEnum.EM_ANDAMENTO,
+              novaDataFimISO: aplicacao.dataFim.toISOString(),
+            },
+          );
+        }
       }
 
       if (!aplicacao.avaliacao?.item?.avaliador?.id) {
@@ -148,9 +155,6 @@ export class SubmissaoService {
 
       const submissaoSalva = await this.dataSource.transaction(
         async (manager) => {
-          let submissaoFinal: SubmissaoModel;
-          let estudante: EstudanteModel;
-
           const estudanteExistente = await manager.findOne(EstudanteModel, {
             where: {
               email: body.email,
@@ -166,15 +170,9 @@ export class SubmissaoService {
           ];
 
           if (estudanteExistente) {
-            this.logger.debug(
-              `Estudante ${body.email} já existe nesta aplicação. Verificando estado...`,
-            );
             const submissaoAntiga = estudanteExistente.submissao;
 
             if (estadosAtivos.includes(submissaoAntiga.estado)) {
-              this.logger.warn(
-                `Estudante ${body.email} reentrando em submissão já ativa (${submissaoAntiga.estado}).`,
-              );
               return submissaoAntiga;
             }
 
@@ -182,12 +180,10 @@ export class SubmissaoService {
               aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
 
             if (configGerais.permitirMultiplosEnvios) {
-              this.logger.log(
-                `Reciclando submissão ${submissaoAntiga.id} para ${body.email} (Múltiplos Envios Permitido).`,
-              );
               await manager.delete(SubmissaoRespostasModel, {
                 submissaoId: submissaoAntiga.id,
               });
+
               submissaoAntiga.estado = EstadoSubmissaoEnum.INICIADA;
               submissaoAntiga.pontuacaoTotal = 0;
               submissaoAntiga.finalizadoEm = null;
@@ -196,72 +192,59 @@ export class SubmissaoService {
               submissaoAntiga.codigoEntrega =
                 await this._generateUniqueSubmissionCode(manager);
 
-              submissaoFinal = await manager.save(submissaoAntiga);
-              estudante = estudanteExistente;
-              const respostasPromises = questoesParaAluno.map(
-                (questao, index) => {
-                  const submissaoResposta = manager.create(
-                    SubmissaoRespostasModel,
-                    {
-                      submissaoId: submissaoFinal.id,
-                      questaoId: questao.id,
-                      dadosResposta: {},
-                      pontuacao: 0,
-                      ordem: index + 1,
-                    },
-                  );
-                  return manager.save(submissaoResposta);
-                },
-              );
-              await Promise.all(respostasPromises);
+              const submissaoReciclada = await manager.save(submissaoAntiga);
 
-              return submissaoFinal;
+              if (questoesParaAluno.length > 0) {
+                const respostasBatch = questoesParaAluno.map(
+                  (questao, index) => ({
+                    submissaoId: submissaoReciclada.id,
+                    questaoId: questao.id,
+                    dadosResposta: {},
+                    pontuacao: 0,
+                    ordem: index + 1,
+                  }),
+                );
+                await manager.insert(SubmissaoRespostasModel, respostasBatch);
+              }
+
+              return submissaoReciclada;
             } else {
-              this.logger.log(
-                `Estudante ${body.email} tentou reentrar, mas múltiplos envios estão desabilitados. Retornando submissão finalizada.`,
-              );
               return submissaoAntiga;
             }
           } else {
-            this.logger.debug(`Estudante ${body.email} é novo. Criando...`);
-            estudante = manager.create(EstudanteModel, {
+            const novoEstudiante = manager.create(EstudanteModel, {
               nome: body.nome,
               email: body.email,
             });
 
             const codigoEntrega =
               await this._generateUniqueSubmissionCode(manager);
-            const hash = this._createShortHash(
-              body.codigoAcesso + estudante.email,
-            );
+
+            const hash = this._createShortHash(body.codigoAcesso + body.email);
 
             const novaSubmissao = manager.create(SubmissaoModel, {
               aplicacao: aplicacao,
               codigoEntrega: codigoEntrega,
-              estudante: estudante,
+              estudante: novoEstudiante,
               hash: hash,
               estado: EstadoSubmissaoEnum.INICIADA,
               pontuacaoTotal: 0,
             });
 
-            submissaoFinal = await manager.save(novaSubmissao);
+            const submissaoFinal = await manager.save(novaSubmissao);
 
-            const respostasPromises = questoesParaAluno.map(
-              (questao, index) => {
-                const submissaoResposta = manager.create(
-                  SubmissaoRespostasModel,
-                  {
-                    submissaoId: submissaoFinal.id,
-                    questaoId: questao.id,
-                    dadosResposta: {},
-                    pontuacao: 0,
-                    ordem: index + 1,
-                  },
-                );
-                return manager.save(submissaoResposta);
-              },
-            );
-            await Promise.all(respostasPromises);
+            if (questoesParaAluno.length > 0) {
+              const respostasBatch = questoesParaAluno.map(
+                (questao, index) => ({
+                  submissaoId: submissaoFinal.id,
+                  questaoId: questao.id,
+                  dadosResposta: {},
+                  pontuacao: 0,
+                  ordem: index + 1,
+                }),
+              );
+              await manager.insert(SubmissaoRespostasModel, respostasBatch);
+            }
 
             return submissaoFinal;
           }
@@ -286,13 +269,8 @@ export class SubmissaoService {
             'nova-submissao',
             notificationPayload,
           );
-          this.logger.log(
-            `Notificação 'nova-submissao' (ou reentrada) enviada para avaliador ${avaliadorId} referente à submissão ${submissaoSalva.id}`,
-          );
         } catch (wsError) {
-          this.logger.error(
-            `Falha ao enviar notificação WebSocket 'nova-submissao' para avaliador ${avaliadorId}: ${wsError}`,
-          );
+          this.logger.error(`Erro WS nova-submissao: ${wsError}`);
         }
 
         const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
@@ -300,26 +278,25 @@ export class SubmissaoService {
           url,
           aplicacao.avaliacao.item.titulo,
         );
-        try {
-          await this.notificationProvider.sendEmail(
-            body.email,
-            'Provus - Avaliação iniciada',
-            html,
-          );
-        } catch (emailError) {
-          this.logger.error(
-            `Falha ao enviar email de início para ${body.email}. O aluno poderá continuar, mas não recebeu o link. Erro: ${emailError.message}`,
-          );
-        }
+
+        this.notificationProvider
+          .sendEmail(body.email, 'Provus - Avaliação iniciada', html)
+          .catch((emailError) => {
+            this.logger.error(
+              `Falha ao enviar email de início (Background): ${emailError.message}`,
+            );
+          });
       }
 
-      const submissaoCompleta = await this.findSubmissaoByHash(
-        submissaoSalva.hash,
-      );
+      const responseLight = new FindSubmissaoByHashResponse();
+      responseLight.submissao = new SubmissaoResultDto(submissaoSalva);
 
-      return FindSubmissaoByHashResponse.fromModel(submissaoCompleta);
+      responseLight.questoes = [];
+      responseLight.arquivos = [];
+
+      return responseLight;
     } catch (error) {
-      console.log('Falha ao criar a submissão', error);
+      this.logger.error('Falha ao criar a submissão', error);
       throw error;
     }
   }

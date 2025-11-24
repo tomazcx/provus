@@ -18,7 +18,6 @@ const mapInfracaoToVisuals = (tipoInfracao: string) => {
 export const useNotificationsStore = defineStore("notifications", () => {
   const notifications = ref<INotification[]>([]);
   let $websocket: ReturnType<typeof useWebSocket> | null = null;
-  const toast = useToast();
 
   function initializeWebSocketListeners() {
     if (!$websocket || !$websocket.socket.value?.connected) {
@@ -43,19 +42,14 @@ export const useNotificationsStore = defineStore("notifications", () => {
           "id" | "timestamp" | "read"
         > = {
           title: `Infração Detectada: ${data.tipoInfracao}`,
-          description: `Aluno ${data.nomeEstudante} na avaliação "${data.nomeAvaliacao}". Ocorrências: ${data.quantidadeOcorrencias}.`,
+          description: `Aluno ${data.nomeEstudante} na avaliação "${stripHtml(
+            data.nomeAvaliacao
+          )}". Ocorrências: ${data.quantidadeOcorrencias}.`,
           icon: icon,
           iconColor: iconColor,
         };
 
         addNotification(newNotificationData);
-
-        toast.add({
-          title: newNotificationData.title,
-          description: newNotificationData.description,
-          icon: newNotificationData.icon,
-          color: "error",
-        });
       }
     );
 
