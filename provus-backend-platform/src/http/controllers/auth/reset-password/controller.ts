@@ -9,7 +9,7 @@ import { AuthService } from 'src/services/auth.service';
 export class ResetPasswordController {
   constructor(private readonly authService: AuthService) {}
 
-  @Patch('resetar-senha')
+  @Patch('recuperar-senha')
   @HttpCode(HttpStatus.OK)
   @ResetPasswordDecorators()
   async handle(@Body() dto: ResetPasswordRequest): Promise<void> {

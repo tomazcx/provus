@@ -8,7 +8,6 @@ import {
   IsInt,
   IsNotEmpty,
   IsOptional,
-  IsString,
   ValidateNested,
 } from 'class-validator';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
@@ -221,21 +220,9 @@ export class CreateConfiguracoesSegurancaRequest {
   quantidadeAcessosSimultaneos: number;
 
   @ApiProperty({
-    description: 'Duração dos alertas',
-    example: 10,
-  })
-  @IsInt()
-  @IsNotEmpty()
-  duracaoAlertas: number;
-
-  @ApiProperty({
     description: 'Permitir fechar alertas',
     example: true,
   })
-  @IsBoolean()
-  @IsNotEmpty()
-  permitirFecharAlertas: boolean;
-
   @ApiProperty({
     description: 'Ativar correção discursiva via IA',
     example: true,

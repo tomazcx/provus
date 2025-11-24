@@ -78,18 +78,6 @@ class ConfiguracaoSegurancaResponse {
   quantidadeAcessosSimultaneos: number;
 
   @ApiProperty({
-    description: 'Duração dos alertas',
-    example: 10,
-  })
-  duracaoAlertas: number;
-
-  @ApiProperty({
-    description: 'Permitir fechar alertas',
-    example: true,
-  })
-  permitirFecharAlertas: boolean;
-
-  @ApiProperty({
     description: 'Ativar correção discursiva via IA',
     example: true,
   })
@@ -111,8 +99,6 @@ class ConfiguracaoSegurancaResponse {
     response.proibirCopiarColar = model.proibirCopiarColar;
     response.quantidadeTentativas = model.quantidadeTentativas;
     response.quantidadeAcessosSimultaneos = model.quantidadeAcessosSimultaneos;
-    response.duracaoAlertas = model.duracaoAlertas;
-    response.permitirFecharAlertas = model.permitirFecharAlertas;
     response.ativarCorrecaoDiscursivaViaIa =
       model.ativarCorrecaoDiscursivaViaIa;
     response.punicoes =
