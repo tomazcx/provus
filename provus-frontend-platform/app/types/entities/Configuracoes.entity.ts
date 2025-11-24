@@ -53,8 +53,6 @@ export interface ConfiguracoesSegurancaEntity {
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  duracaoAlertas: number;
-  permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaEntity[];
   notificacoes: TipoNotificacaoEnum[];

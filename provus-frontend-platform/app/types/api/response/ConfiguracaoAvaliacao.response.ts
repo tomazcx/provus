@@ -40,8 +40,6 @@ interface ConfiguracoesSegurancaApiResponse {
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  duracaoAlertas: number;
-  permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaApiResponse[];
   notificacoes: { tipoNotificacao: TipoNotificacaoEnum }[];

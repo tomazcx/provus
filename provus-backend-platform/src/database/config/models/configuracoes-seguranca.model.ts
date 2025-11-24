@@ -19,12 +19,6 @@ export class ConfiguracoesSegurancaModel {
   @Column({ name: 'quantidade_acessos_simultaneos' })
   quantidadeAcessosSimultaneos: number;
 
-  @Column({ name: 'duracao_alertas' })
-  duracaoAlertas: number;
-
-  @Column({ name: 'permitir_fechar_alertas' })
-  permitirFecharAlertas: boolean;
-
   @Column({ name: 'ativar_correcao_discursiva_via_ia' })
   ativarCorrecaoDiscursivaViaIa: boolean;
 

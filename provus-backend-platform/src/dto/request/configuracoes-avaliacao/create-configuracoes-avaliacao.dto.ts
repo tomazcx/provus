@@ -39,8 +39,6 @@ export class CreateConfiguracoesSegurancaDto {
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  duracaoAlertas: number;
-  permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaDto[];
   notificacoes: TipoNotificacaoEnum[];

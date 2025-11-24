@@ -38,8 +38,6 @@ interface CreateConfiguracoesSegurancaRequest {
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  duracaoAlertas: number;
-  permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaRequest[];
   notificacoes: TipoNotificacaoEnum[];

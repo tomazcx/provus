@@ -78,8 +78,6 @@ export class ConfiguracaoSegurancaDto {
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
   quantidadeAcessosSimultaneos: number;
-  duracaoAlertas: number;
-  permitirFecharAlertas: boolean;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaDto[];
   notificacoes: TipoNotificacaoEnum[];
@@ -89,8 +87,6 @@ export class ConfiguracaoSegurancaDto {
     this.proibirCopiarColar = model.proibirCopiarColar;
     this.quantidadeTentativas = model.quantidadeTentativas;
     this.quantidadeAcessosSimultaneos = model.quantidadeAcessosSimultaneos;
-    this.duracaoAlertas = model.duracaoAlertas;
-    this.permitirFecharAlertas = model.permitirFecharAlertas;
     this.ativarCorrecaoDiscursivaViaIa = model.ativarCorrecaoDiscursivaViaIa;
     this.punicoes = model.punicoes.map(
       (punicao) => new PunicaoPorOcorrenciaDto(punicao),

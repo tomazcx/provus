@@ -117,8 +117,6 @@ export const getBlankAssessment = (): AvaliacaoEntity => ({
       proibirCopiarColar: false,
       quantidadeTentativas: 1,
       quantidadeAcessosSimultaneos: 1,
-      duracaoAlertas: 5,
-      permitirFecharAlertas: true,
       ativarCorrecaoDiscursivaViaIa: false,
       punicoes: [],
       notificacoes: [],

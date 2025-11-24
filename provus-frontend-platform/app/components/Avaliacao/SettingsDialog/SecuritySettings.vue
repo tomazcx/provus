@@ -269,33 +269,6 @@ onMounted(() => {
     </UCard>
     <UCard variant="subtle">
       <template #header>
-        <h2 class="font-bold">Alertas</h2>
-        <p class="text-sm">
-          Configure os alertas que podem aparecer aos estudantes.
-        </p>
-      </template>
-      <div class="flex flex-col gap-5">
-        <UFormField
-          label="Duração do alerta (segundos)"
-          description="Por quanto tempo o alerta ficará visível."
-        >
-          <UInputNumber
-            v-model="
-              formState.configuracao.configuracoesSeguranca.duracaoAlertas
-            "
-          />
-        </UFormField>
-        <USwitch
-          v-model="
-            formState.configuracao.configuracoesSeguranca.permitirFecharAlertas
-          "
-          label="Permitir fechar alerta"
-          description="O estudante poderá fechar o alerta antes que o tempo de duração termine."
-        />
-      </div>
-    </UCard>
-    <UCard variant="subtle">
-      <template #header>
         <h2 class="font-bold">Notificações</h2>
         <p class="text-sm">
           Configure suas notificações quando alguém infrigir as regras.
