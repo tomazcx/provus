@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+import { setServerTimeOffset } from "~/utils/serverTime";
 
 let refreshTokenPromise: Promise<void> | null = null;
 const publicRoutes = ["/auth/sign-in", "/auth/sign-up", "/token/refresh/"];
@@ -11,7 +12,7 @@ async function performTokenRefresh() {
 
   try {
     const { access } = await ofetch<{ access: string }>("/token/refresh/", {
-      baseURL: process.env.PROVUS_API_URL || "http://172.18.0.3:8000/api",
+      baseURL: process.env.PROVUS_API_URL || "http://localhost:8000/api",
       method: "POST",
       body: { refresh: refreshTokenCookie.value },
     });
@@ -32,7 +33,7 @@ async function performTokenRefresh() {
 
 export default defineNuxtPlugin(() => {
   const api: typeof $fetch = $fetch.create({
-    baseURL: process.env.PROVUS_API_URL || "http://172.18.0.3:8000/api",
+    baseURL: process.env.PROVUS_API_URL || "http://localhost:8000/api",
 
     onRequest({ request, options }) {
       if (publicRoutes.includes(request.toString())) {
@@ -51,7 +52,18 @@ export default defineNuxtPlugin(() => {
       }
     },
 
+    async onResponse({ response }) {
+      const dateHeader = response.headers.get("date");
+      if (dateHeader) {
+        setServerTimeOffset(dateHeader);
+      }
+    },
+
     async onResponseError({ request, options, response }) {
+      const dateHeader = response.headers.get("date");
+      if (dateHeader) {
+        setServerTimeOffset(dateHeader);
+      }
       if (
         response.status !== 401 ||
         publicRoutes.includes(request.toString())
