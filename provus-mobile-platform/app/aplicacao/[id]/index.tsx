@@ -60,7 +60,7 @@ export default function ApplicationDetailsScreen() {
                 description: "Status alterado para Criada.",
                 color: "success",
               });
-              router.replace("/home");
+              router.replace(`/monitoramento/${appId}` as any);
             } else {
               toast.add({
                 title: "Erro",
@@ -145,7 +145,7 @@ export default function ApplicationDetailsScreen() {
           {isFinished || isCanceled ? (
             <TouchableOpacity
               onPress={handleReopen}
-              className="flex-1 bg-yellow-500 py-3 rounded-lg flex-row items-center justify-center shadow-sm"
+              className="flex-1 bg-yellow-500 py-3 rounded-lg flex-row gap-2 items-center justify-center shadow-sm"
             >
               <RefreshCw size={20} color="white" className="mr-2" />
               <Text className="text-white font-bold text-base">
@@ -155,7 +155,7 @@ export default function ApplicationDetailsScreen() {
           ) : (
             <TouchableOpacity
               onPress={() => router.replace(`/monitoramento/${appId}`)}
-              className="flex-1 bg-secondary py-3 rounded-lg flex-row items-center justify-center shadow-sm"
+              className="flex-1 bg-secondary py-3 rounded-lg flex-row gap-2 items-center justify-center shadow-sm"
             >
               <Settings size={20} color="white" className="mr-2" />
               <Text className="text-white font-bold text-base">

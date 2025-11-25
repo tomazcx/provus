@@ -251,18 +251,36 @@ export default function MonitoringScreen() {
     }
   };
 
+  const handleStart = () => {
+    if (!socket.current) return;
+
+    socket.current.emit("iniciar-aplicacao", { aplicacaoId: applicationId });
+
+    updateApplicationData(applicationId, {
+      estado: EstadoAplicacaoEnum.EM_ANDAMENTO,
+    });
+  };
+
   const handleTogglePause = () => {
     if (!socket.current) return;
     const currentApp = getApplicationById(applicationId);
+
+    if (currentApp?.estado === EstadoAplicacaoEnum.CRIADA) {
+      return;
+    }
+
     const event =
       currentApp?.estado === EstadoAplicacaoEnum.PAUSADA
         ? "retomar-aplicacao"
         : "pausar-aplicacao";
+
     socket.current.emit(event, { aplicacaoId: applicationId });
+
     const novoEstado =
       currentApp?.estado === EstadoAplicacaoEnum.PAUSADA
         ? EstadoAplicacaoEnum.EM_ANDAMENTO
         : EstadoAplicacaoEnum.PAUSADA;
+
     updateApplicationData(applicationId, { estado: novoEstado });
   };
 
@@ -337,6 +355,7 @@ export default function MonitoringScreen() {
           onTogglePause={handleTogglePause}
           onFinish={handleFinish}
           onReset={handleReset}
+          onStart={handleStart}
         />
 
         <MonitoringTabs

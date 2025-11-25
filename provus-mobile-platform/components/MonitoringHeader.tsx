@@ -14,6 +14,7 @@ import {
 import { AplicacaoEntity } from "../types/entities/Aplicacao.entity";
 import { EstadoAplicacaoEnum } from "../enums/EstadoAplicacaoEnum";
 import { stripHtml } from "../utils/stripHtml";
+import { useToast } from "@/hooks/useToast";
 
 interface Props {
   aplicacao: AplicacaoEntity;
@@ -22,6 +23,7 @@ interface Props {
   onTogglePause: () => void;
   onFinish: () => void;
   onReset: () => void;
+  onStart: () => void;
 }
 
 export default function MonitoringHeader({
@@ -31,6 +33,7 @@ export default function MonitoringHeader({
   onTogglePause,
   onFinish,
   onReset,
+  onStart,
 }: Props) {
   const isPaused = aplicacao.estado === EstadoAplicacaoEnum.PAUSADA;
   const isInProgress = aplicacao.estado === EstadoAplicacaoEnum.EM_ANDAMENTO;
@@ -38,15 +41,48 @@ export default function MonitoringHeader({
     aplicacao.estado === EstadoAplicacaoEnum.FINALIZADA ||
     aplicacao.estado === EstadoAplicacaoEnum.CONCLUIDA ||
     aplicacao.estado === EstadoAplicacaoEnum.CANCELADA;
+  const isCreated = aplicacao.estado === EstadoAplicacaoEnum.CRIADA;
+  const isRunning = aplicacao.estado === EstadoAplicacaoEnum.EM_ANDAMENTO;
+  const toast = useToast();
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(aplicacao.codigoAcesso);
-    Alert.alert("Sucesso", "Código copiado para a área de transferência!");
+    toast.add({
+      title: "Copiado!",
+      description: "Código copiado para a área de transferência!",
+      color: "success",
+      timeout: 2000,
+    });
   };
+
+  let controlButton;
+
+  if (isCreated) {
+    controlButton = (
+      <TouchableOpacity
+        onPress={onStart}
+        className="bg-green-600 py-3 rounded-lg flex-1 gap-2 flex-row items-center justify-center shadow-md"
+      >
+        <Play size={20} color="white" className="mr-2" />
+        <Text className="text-white font-bold text-base">
+          Iniciar Avaliação
+        </Text>
+      </TouchableOpacity>
+    );
+  } else if (isConcluded) {
+    controlButton = (
+      <View className="bg-gray-200 py-3 rounded-lg flex-1 items-center justify-center">
+        <Text className="text-gray-600 font-bold text-base">
+          APLICAÇÃO {aplicacao.estado}
+        </Text>
+      </View>
+    );
+  } else {
+    controlButton = <></>;
+  }
 
   return (
     <View className="mb-6">
-      {/* Título e Código */}
       <View className="mb-6">
         <Text className="text-2xl font-bold text-gray-900 mb-1">
           Monitoramento
@@ -61,7 +97,6 @@ export default function MonitoringHeader({
           </View>
         </View>
 
-        {/* Código de Acesso */}
         <View className="flex-row items-center">
           <Text className="font-medium text-gray-700 mr-2">Código:</Text>
           <View className="bg-primary px-3 py-1 rounded-lg flex-row items-center">
@@ -75,44 +110,49 @@ export default function MonitoringHeader({
         </View>
       </View>
 
-      {/* Painel de Controle (Timer e Ações) */}
-      {!isConcluded && (
-        <View className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <View className="flex-row justify-between items-center mb-4">
-            {/* Timer Display */}
-            <View>
-              <Text className="text-xs text-gray-500 mb-1">Tempo Restante</Text>
-              <View className="flex-row items-end">
-                <Clock
-                  size={20}
-                  color="#4f46e5"
-                  style={{ marginBottom: 4, marginRight: 6 }}
-                />
-                <Text className="text-3xl font-bold text-primary font-mono">
-                  {isPaused ? "PAUSADO" : timer}
-                </Text>
-              </View>
-            </View>
-
-            {/* Status Badge */}
-            <View
-              className={`px-3 py-1 rounded-full ${
-                isInProgress ? "bg-green-100" : "bg-yellow-100"
-              }`}
-            >
-              <Text
-                className={`text-xs font-bold ${
-                  isInProgress ? "text-green-700" : "text-yellow-800"
-                }`}
-              >
-                {isInProgress ? "AO VIVO" : "PAUSADA"}
+      <View className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <View className="flex-row justify-between items-center mb-4">
+          <View>
+            <Text className="text-xs text-gray-500 mb-1">Tempo Restante</Text>
+            <View className="flex-row items-end">
+              <Clock
+                size={20}
+                color="#4f46e5"
+                style={{ marginBottom: 4, marginRight: 6 }}
+              />
+              <Text className="text-3xl font-bold text-primary font-mono">
+                {isPaused ? "Pausado" : timer}
               </Text>
             </View>
           </View>
 
-          {/* Botões de Ação */}
+          <View
+            className={`px-3 py-1 rounded-full ${
+              isCreated
+                ? "bg-blue-100"
+                : isInProgress
+                ? "bg-green-100"
+                : "bg-yellow-100"
+            }`}
+          >
+            <Text
+              className={`text-xs font-bold ${
+                isCreated
+                  ? "text-blue-700"
+                  : isInProgress
+                  ? "text-green-700"
+                  : "text-yellow-800"
+              }`}
+            >
+              {isCreated ? "CRIADA" : isInProgress ? "AO VIVO" : "PAUSADA"}
+            </Text>
+          </View>
+        </View>
+
+        <View className="mb-4">{controlButton}</View>
+
+        {(isRunning || isPaused) && (
           <View className="flex-row justify-between items-center pt-4 border-t border-gray-100">
-            {/* Ajuste de Tempo */}
             <View className="flex-row gap-2">
               <TouchableOpacity
                 onPress={() => onAdjustTime(-60)}
@@ -129,9 +169,7 @@ export default function MonitoringHeader({
               </TouchableOpacity>
             </View>
 
-            {/* Controles Principais */}
             <View className="flex-row gap-3">
-              {/* Resetar */}
               <TouchableOpacity
                 onPress={onReset}
                 className="w-10 h-10 rounded-full bg-blue-50 items-center justify-center"
@@ -139,21 +177,19 @@ export default function MonitoringHeader({
                 <RotateCw size={20} color="#3b82f6" />
               </TouchableOpacity>
 
-              {/* Pausar / Retomar */}
               <TouchableOpacity
                 onPress={onTogglePause}
                 className={`w-12 h-12 rounded-full items-center justify-center ${
-                  isInProgress ? "bg-yellow-100" : "bg-green-100"
+                  isRunning ? "bg-yellow-100" : "bg-green-100"
                 }`}
               >
-                {isInProgress ? (
+                {isRunning ? (
                   <Pause size={24} color="#ca8a04" fill="#ca8a04" />
                 ) : (
                   <Play size={24} color="#16a34a" fill="#16a34a" />
                 )}
               </TouchableOpacity>
 
-              {/* Finalizar */}
               <TouchableOpacity
                 onPress={onFinish}
                 className="w-12 h-12 rounded-full bg-red-100 items-center justify-center"
@@ -162,14 +198,13 @@ export default function MonitoringHeader({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
-      {/* Status Finalizado */}
       {isConcluded && (
         <View className="bg-red-50 p-4 rounded-xl border border-red-100 items-center">
           <Text className="text-red-800 font-bold text-lg">
-            Aplicação Finalizada
+            APLICAÇÃO {aplicacao.estado}
           </Text>
         </View>
       )}
