@@ -12,38 +12,43 @@ export interface AvaliadorEntity {
 
 interface UpdateProfilePayload {
   nome: string;
-  senha: string; 
-  novaSenha?: string; 
+  senha: string;
+  novaSenha?: string;
 }
 
 interface UserState {
   user: AvaliadorEntity | null;
   isLoading: boolean;
-
+  error: string | null;
   fetchCurrentUser: () => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: AvaliadorEntity | null) => void;
-
   updateProfile: (data: UpdateProfilePayload) => Promise<boolean>;
   requestPasswordReset: (email: string) => Promise<boolean>;
+  clearError: () => void;
 }
 
 export const useUserStore = create<UserState>((set) => ({
   user: null,
   isLoading: false,
-
+  error: null,
+  clearError: () => set({ error: null }),
   setUser: (user) => set({ user }),
 
   fetchCurrentUser: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const response = await api.get<AvaliadorEntity>(
         "/backoffice/avaliador/me"
       );
-      set({ user: response.data });
-    } catch (error) {
+      set({ user: response.data, error: null });
+    } catch (error: any) {
       console.error("Erro ao buscar usuário:", error);
-      set({ user: null });
+      const msg = error.friendlyMessage || "Erro ao carregar perfil.";
+      set({ user: null, error: msg });
+      if (error.response?.status === 401) {
+        await clearTokens();
+      }
     } finally {
       set({ isLoading: false });
     }

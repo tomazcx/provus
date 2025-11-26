@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -34,21 +35,38 @@ export default function ApplicationDetailsScreen() {
     getApplicationById,
     reopenApplication,
     isLoading,
+    fetchApplicationDetails,
     fetchApplications,
     deleteApplication,
   } = useApplicationsStore();
+
   const application = getApplicationById(appId);
+  const [refreshing, setRefreshing] = useState(false);
+
   const isFinished =
     application?.estado === EstadoAplicacaoEnum.FINALIZADA ||
     application?.estado === EstadoAplicacaoEnum.CONCLUIDA;
   const isCanceled = application?.estado === EstadoAplicacaoEnum.CANCELADA;
+
   const isInitialLoad = !application;
+
+  useEffect(() => {
+    if (appId) {
+      fetchApplicationDetails(appId);
+    }
+  }, [appId, fetchApplicationDetails]);
 
   useEffect(() => {
     if (isInitialLoad) {
       fetchApplications();
     }
   }, [fetchApplications, isInitialLoad]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchApplicationDetails(appId);
+    setRefreshing(false);
+  }, [appId, fetchApplicationDetails]);
 
   const handleReopen = async () => {
     Alert.alert(
@@ -91,13 +109,21 @@ export default function ApplicationDetailsScreen() {
           text: "Excluir",
           style: "destructive",
           onPress: async () => {
-            await deleteApplication(appId);
-            toast.add({
-              title: "Excluída",
-              description: "Aplicação removida com sucesso.",
-              color: "success",
-            });
-            router.replace("/home");
+            const success = await deleteApplication(appId);
+            if (success) {
+              toast.add({
+                title: "Excluída",
+                description: "Aplicação removida com sucesso.",
+                color: "success",
+              });
+              router.replace("/home");
+            } else {
+              toast.add({
+                title: "Erro",
+                description: "Não foi possível excluir a aplicação.",
+                color: "error",
+              });
+            }
           },
         },
       ]
@@ -117,18 +143,19 @@ export default function ApplicationDetailsScreen() {
     );
   }
 
-  if (!application) {
+  if (!isLoading && !application) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50 p-6">
-        <Text className="text-red-500">
+        <Text className="text-red-500 mb-4 text-center">
           Detalhes da Aplicação não encontrados.
         </Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4">
-          <Text className="text-primary">Voltar</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text className="text-primary font-bold">Voltar</Text>
         </TouchableOpacity>
       </View>
     );
   }
+  if (!application) return null;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -147,8 +174,18 @@ export default function ApplicationDetailsScreen() {
         </Text>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
-        {/* Título e Status */}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#004e8c"]}
+            tintColor="#004e8c"
+          />
+        }
+      >
         <View className="mb-6">
           <Text
             className="text-2xl font-bold text-gray-900 mb-1"
@@ -170,7 +207,6 @@ export default function ApplicationDetailsScreen() {
           </View>
         </View>
 
-        {/* Botões de Ação */}
         <View className="flex-row gap-3 mb-6">
           {isFinished || isCanceled ? (
             <TouchableOpacity
@@ -209,7 +245,7 @@ export default function ApplicationDetailsScreen() {
 
         <TouchableOpacity
           onPress={handleDelete}
-          className="w-full bg-red-50 border border-red-200 py-3 rounded-lg flex-row items-center justify-center"
+          className="w-full bg-red-50 border border-red-200 py-3 rounded-lg flex-row items-center justify-center mb-6"
         >
           <Trash2 size={20} color="#dc2626" className="mr-2" />
           <Text className="text-red-600 font-bold text-base">
@@ -217,13 +253,21 @@ export default function ApplicationDetailsScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Estatísticas (Só carrega se houver dados de stats na aplicação) */}
+        {/* Estatísticas */}
         {application.stats ? (
           <OverviewStats stats={application.stats} />
         ) : (
-          <Text className="text-gray-400 text-center py-6">
-            Estatísticas disponíveis após a conclusão da aplicação.
-          </Text>
+          <View className="py-6 items-center justify-center bg-white rounded-xl border border-gray-200 border-dashed">
+            {isLoading && !refreshing ? (
+              <ActivityIndicator size="small" color="#9ca3af" />
+            ) : (
+              <Text className="text-gray-400 text-center px-4">
+                Estatísticas disponíveis após a conclusão da aplicação.
+                {"\n"}
+                <Text className="text-xs">Arraste para atualizar.</Text>
+              </Text>
+            )}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>

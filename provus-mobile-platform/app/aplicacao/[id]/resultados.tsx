@@ -14,12 +14,12 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft, X, ShieldAlert, Check } from "lucide-react-native";
 
-import { useSubmissionsStore } from "../../stores/submissionsStore";
-import { useApplicationsStore } from "../../stores/applicationsStore";
-import SubmissionListItem from "../../components/SubmissionListItem";
-import ResultsHeader from "../../components/Results/ResultsHeader";
-import ResultsControls from "../../components/Results/ResultsControls";
-import { SubmissaoNaListaResponse } from "../../types/api/response/FindSubmissoes.response";
+import ResultsControls from "@/components/Results/ResultsControls";
+import ResultsHeader from "@/components/Results/ResultsHeader";
+import SubmissionListItem from "@/components/SubmissionListItem";
+import { useApplicationsStore } from "@/stores/applicationsStore";
+import { useSubmissionsStore } from "@/stores/submissionsStore";
+import { SubmissaoNaListaResponse } from "@/types/api/response/FindSubmissoes.response";
 
 export default function ApplicationResultsScreen() {
   const { id } = useLocalSearchParams();
@@ -54,8 +54,10 @@ export default function ApplicationResultsScreen() {
       const matchesSearch =
         sub.estudante.nome.toLowerCase().includes(search.toLowerCase()) ||
         sub.estudante.email.toLowerCase().includes(search.toLowerCase());
+
       const matchesStatus =
         statusFilter === "Todos" || sub.estado === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
   }, [submissions, search, statusFilter]);
@@ -114,7 +116,7 @@ export default function ApplicationResultsScreen() {
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header Navegação */}
+      {/* Header */}
       <View className="px-4 py-3 flex-row items-center bg-white border-b border-gray-200">
         <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2">
           <ArrowLeft size={24} color="#374151" />
@@ -149,19 +151,19 @@ export default function ApplicationResultsScreen() {
             submission={item}
             totalScore={totalScore}
             onPress={handleStudentPress}
-            onConfirmPress={handleOpenConfirm}
+            onConfirmPress={handleOpenConfirm} 
           />
         )}
         ListEmptyComponent={
           <View className="items-center justify-center py-10">
             <Text className="text-gray-400 text-center">
-              Nenhum resultado encontrado.
+              Nenhum resultado encontrado com os filtros atuais.
             </Text>
           </View>
         }
       />
 
-      {/* Modal de Confirmação (Reutilizando design do StudentListItem) */}
+      {/* --- Modal de Confirmação --- */}
       <Modal
         visible={isModalVisible}
         transparent

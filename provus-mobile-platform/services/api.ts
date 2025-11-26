@@ -6,8 +6,15 @@ import {
   clearTokens,
 } from "../utils/token";
 import { setServerTimeOffset } from "@/utils/serverTime";
+import Constants from "expo-constants";
 
-export const API_URL = "http://192.168.100.15:8000/api";
+const debuggerHost = Constants.expoConfig?.hostUri;
+const localhost = debuggerHost?.split(":")[0];
+const EXPO_IP = localhost
+  ? `http://${localhost}:8000/api`
+  : "http://192.168.100.15:8000/api";
+
+export const API_URL = EXPO_IP;
 
 const api = axios.create({
   baseURL: API_URL,
@@ -17,6 +24,16 @@ const api = axios.create({
 });
 
 const publicRoutes = ["/auth/sign-in", "/auth/sign-up", "/token/refresh/"];
+
+const getFriendlyErrorMessage = (error: any) => {
+  if (error.message === "Network Error" || error.code === "ERR_NETWORK") {
+    return "Verifique sua conexão com a internet e tente novamente.";
+  }
+  if (error.response) {
+    return error.response.data?.message || "Ocorreu um erro no servidor.";
+  }
+  return "Ocorreu um erro inesperado.";
+};
 
 api.interceptors.request.use(
   async (config) => {
@@ -57,6 +74,8 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    error.friendlyMessage = getFriendlyErrorMessage(error);
 
     if (
       error.response?.status === 401 &&

@@ -5,10 +5,11 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { User, ShieldAlert, Check, ExternalLink } from "lucide-react-native";
+import { User, ShieldAlert, Check, ExternalLink, X } from "lucide-react-native";
 import { IProgressoAluno } from "../types/IMonitoring";
 import { EstadoSubmissaoEnum } from "../enums/EstadoSubmissaoEnum";
 import { useMonitoringStore } from "../stores/monitoringStore";
@@ -27,23 +28,24 @@ export default function StudentListItem({
 }: Props) {
   const toast = useToast();
   const { confirmarCodigo } = useMonitoringStore();
+
   const [isModalVisible, setModalVisible] = useState(false);
   const [codigoInput, setCodigoInput] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const [hasError, setHasError] = useState(false);
 
   const getStatusVisuals = (estado: EstadoSubmissaoEnum) => {
     switch (estado) {
       case EstadoSubmissaoEnum.INICIADA:
       case EstadoSubmissaoEnum.REABERTA:
         return { text: "Ativo", bg: "bg-green-100", textCol: "text-green-800" };
-
       case EstadoSubmissaoEnum.PAUSADA:
         return {
           text: "Pausado",
           bg: "bg-yellow-100",
           textCol: "text-yellow-800",
         };
-
       case EstadoSubmissaoEnum.AVALIADA:
       case EstadoSubmissaoEnum.ENVIADA:
         return {
@@ -51,27 +53,22 @@ export default function StudentListItem({
           bg: "bg-blue-100",
           textCol: "text-blue-800",
         };
-
       case EstadoSubmissaoEnum.ABANDONADA:
         return { text: "Abandonou", bg: "bg-red-100", textCol: "text-red-800" };
-
       case EstadoSubmissaoEnum.CANCELADA:
         return { text: "Cancelado", bg: "bg-red-100", textCol: "text-red-800" };
-
       case EstadoSubmissaoEnum.ENCERRADA:
         return {
           text: "Encerrado",
           bg: "bg-gray-200",
           textCol: "text-gray-800",
         };
-
       case EstadoSubmissaoEnum.CODIGO_CONFIRMADO:
         return {
           text: "Confirmado",
           bg: "bg-secondary",
           textCol: "text-white",
         };
-
       default:
         return {
           text: estado || "Inativo",
@@ -91,26 +88,38 @@ export default function StudentListItem({
     aluno.estado === EstadoSubmissaoEnum.AVALIADA ||
     aluno.estado === EstadoSubmissaoEnum.ENVIADA;
 
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setCodigoInput("");
+    setHasError(false);
+  };
+
   const handleConfirmCode = async () => {
+    setHasError(false);
+
     if (codigoInput.length !== 6) {
       toast.add({
-        title: "Erro",
-        description: "O código deve ter 6 dígitos.",
-        color: "danger",
+        title: "Formato Inválido",
+        description: "O código deve ter exatamente 6 dígitos.",
+        color: "warning",
       });
+      setHasError(true);
       return;
     }
 
     setIsConfirming(true);
+
     const success = await confirmarCodigo(
       aluno.submissaoId,
       parseInt(codigoInput)
     );
+
     setIsConfirming(false);
 
     if (success) {
-      setModalVisible(false);
-      setCodigoInput("");
+      handleCloseModal();
+    } else {
+      setHasError(true);
     }
   };
 
@@ -123,7 +132,6 @@ export default function StudentListItem({
         }`}
       >
         <View className="flex-row justify-between items-start mb-2">
-          {/* Avatar e Nome */}
           <View className="flex-row items-center flex-1 mr-2">
             <View className="w-8 h-8 bg-gray-200 rounded-full items-center justify-center mr-3">
               <User size={16} color="#6b7280" />
@@ -132,8 +140,6 @@ export default function StudentListItem({
               {aluno.aluno.nome}
             </Text>
           </View>
-
-          {/* Badge Status */}
           <View className={`px-2 py-1 rounded-lg ${visuals.bg}`}>
             <Text className={`text-xs font-bold ${visuals.textCol}`}>
               {visuals.text}
@@ -141,7 +147,6 @@ export default function StudentListItem({
           </View>
         </View>
 
-        {/* Barra de Progresso */}
         <View className="mb-3">
           <View className="flex-row justify-between mb-1">
             <Text className="text-xs text-gray-500">Progresso</Text>
@@ -160,7 +165,6 @@ export default function StudentListItem({
           </View>
         </View>
 
-        {/* Footer (Alertas e Botão de Confirmação) */}
         <View className="flex-row justify-between items-center mt-1">
           <View className="flex-row items-center">
             <ShieldAlert
@@ -175,7 +179,6 @@ export default function StudentListItem({
               {aluno.alertas} Alerta(s)
             </Text>
           </View>
-
           {needsConfirmation ? (
             <TouchableOpacity
               onPress={() => setModalVisible(true)}
@@ -194,51 +197,84 @@ export default function StudentListItem({
                   : "text-gray-400"
               }`}
             >
-              {/* Se não estiver iniciado, mostra o tempo, mas em cinza, ou mostra traço se finalizado */}
               {tempoRestante}
             </Text>
           )}
         </View>
       </TouchableOpacity>
 
-      {/* Modal de Confirmação de Código */}
       <Modal
         visible={isModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleCloseModal}
       >
-        <View className="flex-1 bg-black/50 items-center justify-center p-6">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1 bg-black/60 items-center justify-center p-6"
+        >
           <View className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-xl">
-            <Text className="text-lg font-bold text-gray-900 mb-2">
-              Confirmar Entrega
-            </Text>
-            <Text className="text-sm text-gray-600 mb-4">
-              Insira o código de 6 dígitos fornecido pelo aluno{" "}
-              {aluno.aluno.nome}.
+            <View className="flex-row justify-between items-start mb-2">
+              <Text className="text-lg font-bold text-gray-900">
+                Confirmar Entrega
+              </Text>
+              <TouchableOpacity
+                onPress={handleCloseModal}
+                className="p-1 -mr-2 -mt-2"
+              >
+                <X size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-sm text-gray-600 mb-6">
+              Peça para <Text className="font-bold">{aluno.aluno.nome}</Text>{" "}
+              informar o código de 6 dígitos exibido na tela dele.
             </Text>
 
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 text-center text-2xl font-mono tracking-widest mb-6"
-              placeholder="000000"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={codigoInput}
-              onChangeText={setCodigoInput}
-            />
+            <View className="mb-6">
+              <TextInput
+                className={`border rounded-lg px-4 py-4 text-center text-3xl font-mono tracking-[5px] font-bold ${
+                  hasError
+                    ? "border-red-500 bg-red-50 text-red-900"
+                    : "border-gray-300 text-gray-900 bg-gray-50 focus:border-primary focus:bg-white"
+                }`}
+                placeholder="000000"
+                placeholderTextColor={hasError ? "#fca5a5" : "#9ca3af"}
+                keyboardType="number-pad"
+                maxLength={6}
+                value={codigoInput}
+                onChangeText={(text) => {
+                  const cleanText = text.replace(/[^0-9]/g, "").slice(0, 6);
+                  setCodigoInput(cleanText);
+                  if (hasError) setHasError(false);
+                }}
+              />
+              {hasError && (
+                <View className="flex-row items-center justify-center mt-2">
+                  <ShieldAlert size={14} color="#ef4444" />
+                  <Text className="text-red-600 text-xs font-bold ml-1">
+                    Código incorreto. Verifique e tente novamente.
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <View className="flex-row gap-3">
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                className="flex-1 py-3 items-center"
+                onPress={handleCloseModal}
+                className="flex-1 py-3 items-center justify-center bg-gray-100 rounded-lg"
               >
-                <Text className="text-gray-600 font-medium">Cancelar</Text>
+                <Text className="text-gray-700 font-medium">Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleConfirmCode}
-                disabled={isConfirming}
-                className="flex-1 bg-primary py-3 rounded-lg items-center flex-row justify-center"
+                disabled={isConfirming || codigoInput.length < 6}
+                className={`flex-1 py-3 rounded-lg items-center flex-row justify-center ${
+                  isConfirming || codigoInput.length < 6
+                    ? "bg-primary/50"
+                    : "bg-primary"
+                }`}
               >
                 {isConfirming ? (
                   <ActivityIndicator color="white" size="small" />
@@ -251,7 +287,7 @@ export default function StudentListItem({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

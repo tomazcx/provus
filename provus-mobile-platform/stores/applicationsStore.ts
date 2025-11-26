@@ -2,11 +2,14 @@ import { create } from "zustand";
 import api from "../services/api";
 import { AplicacaoEntity } from "../types/entities/Aplicacao.entity";
 import { EstadoAplicacaoEnum } from "../enums/EstadoAplicacaoEnum";
+import { mapAplicacaoApiResponseToEntity } from "@/utils/mappers";
 
 interface ApplicationsState {
   applications: AplicacaoEntity[];
   isLoading: boolean;
+  error: string | null;
   fetchApplications: () => Promise<void>;
+  fetchApplicationDetails: (id: number) => Promise<void>;
   deleteApplication: (applicationId: number) => Promise<boolean>;
   reopenApplication: (applicationId: number) => Promise<boolean>;
   getApplicationById: (id: number) => AplicacaoEntity | undefined;
@@ -19,9 +22,9 @@ interface ApplicationsState {
 export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
   applications: [],
   isLoading: false,
-
+  error: null,
   fetchApplications: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const response = await api.get("/backoffice/aplicacoes");
 
@@ -52,14 +55,42 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
         (a, b) => b.dataInicio.getTime() - a.dataInicio.getTime()
       );
 
-      set({ applications: mappedApplications });
+      set({ applications: mappedApplications, error: null });
     } catch (error) {
       console.error("Erro ao buscar aplicações:", error);
+      const msg = "Erro ao carregar aplicações.";
+      set({ error: msg });
     } finally {
       set({ isLoading: false });
     }
   },
 
+  fetchApplicationDetails: async (id: number) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get(`/backoffice/aplicacao/${id}`);
+      const fullApplication = mapAplicacaoApiResponseToEntity(response.data);
+
+      set((state) => {
+        const exists = state.applications.find((a) => a.id === id);
+        if (exists) {
+          return {
+            applications: state.applications.map((a) =>
+              a.id === id ? fullApplication : a
+            ),
+          };
+        } else {
+          return {
+            applications: [...state.applications, fullApplication],
+          };
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da aplicação:", error);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
   getApplicationById: (id: number) => {
     return get().applications.find((app) => app.id === id);
   },

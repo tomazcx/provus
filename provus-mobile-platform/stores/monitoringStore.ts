@@ -4,6 +4,7 @@ import { IProgressoAluno, ILogAtividade } from "../types/IMonitoring";
 import { MonitoramentoInicialResponseDto } from "../types/api/response/Monitoramento.response";
 import { EstadoSubmissaoEnum } from "../enums/EstadoSubmissaoEnum";
 import { TipoAtividadeEnum } from "../enums/TipoAtividadeEnum";
+import Toast from "react-native-toast-message";
 
 interface MonitoringState {
   studentProgress: IProgressoAluno[];
@@ -85,6 +86,7 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
 
   confirmarCodigo: async (submissaoId, codigoEntrega) => {
     const { currentApplicationId } = get();
+
     if (!currentApplicationId) return false;
 
     try {
@@ -97,9 +99,36 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
         submissaoId,
         EstadoSubmissaoEnum.CODIGO_CONFIRMADO
       );
+
+      Toast.show({
+        type: "success",
+        text1: "Entrega Confirmada!",
+        text2: "Código validado com sucesso.",
+        position: "top",
+        topOffset: 60,
+      });
+
       return true;
-    } catch (error) {
-      console.error("Erro ao confirmar código:", error);
+    } catch (error: any) {
+      const status = error.response?.status;
+      if (status !== 400 && status !== 422) {
+        console.error("Erro crítico ao confirmar código:", error);
+      }
+
+      let mensagemErro = "Não foi possível confirmar o código.";
+
+      if (status === 400 || status === 422) {
+        mensagemErro = "Código incorreto. Verifique e tente novamente.";
+      }
+
+      Toast.show({
+        type: "error",
+        text1: "Erro na validação",
+        text2: mensagemErro,
+        position: "top",
+        topOffset: 60,
+      });
+
       return false;
     }
   },
@@ -113,7 +142,6 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
       ) {
         return state;
       }
-
       const newLog: ILogAtividade = {
         id: Date.now() + Math.random(),
         tipo,
@@ -121,7 +149,6 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
         descricao,
         timestamp: new Date().toISOString(),
       };
-
       const newFeed = [newLog, ...state.activityFeed].slice(0, 100);
       return { activityFeed: newFeed };
     });

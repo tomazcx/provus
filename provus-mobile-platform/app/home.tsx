@@ -13,11 +13,13 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useUserStore } from "../stores/userStore";
 import { useApplicationsStore } from "../stores/applicationsStore";
 import ApplicationCard from "../components/ApplicationCard";
+import ErrorView from "../components/ui/ErrorView";
 
 export default function Home() {
   const router = useRouter();
-  const { user } = useUserStore(); 
-  const { applications, fetchApplications, isLoading } = useApplicationsStore();
+  const { user } = useUserStore();
+  const { applications, fetchApplications, isLoading, error } =
+    useApplicationsStore();
 
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -37,6 +39,14 @@ export default function Home() {
   const filteredApps = applications.filter((app) =>
     app.avaliacao.titulo.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (error && applications.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+        <ErrorView message={error} type="network" onRetry={fetchApplications} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
