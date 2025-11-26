@@ -53,7 +53,7 @@ function handleOpenFile(file: ArquivoSubmissaoResponse) {
   selectedFile.value = file;
   isLoadingPdf.value = true;
   hasRenderError.value = false;
-  pdfScale.value = 1.0; 
+  pdfScale.value = 1.0;
 }
 
 function closePreview() {
@@ -246,7 +246,7 @@ watch(
             class="max-w-full max-h-full object-contain rounded shadow-sm transition-transform duration-200"
             :style="{ transform: `scale(${pdfScale})` }"
             @error="onPdfError"
-          >
+          />
 
           <div
             v-if="!hasRenderError"
