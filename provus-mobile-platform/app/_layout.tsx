@@ -7,7 +7,6 @@ import { toastConfig } from "../components/ui/ToastConfig";
 export default function Layout() {
   return (
     <View className="flex-1 bg-gray-50">
-      {/* O Stack é o NavigationContainer do Expo Router */}
       <Stack
         screenOptions={{
           headerShown: false,

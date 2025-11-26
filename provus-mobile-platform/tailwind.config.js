@@ -6,7 +6,7 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#4f46e5",
+          DEFAULT: "#004e8c",
           50: "#eef2ff",
           100: "#e0e7ff",
           500: "#6366f1",
@@ -16,9 +16,9 @@ module.exports = {
           dark: "#3730a3",
         },
         secondary: {
-          DEFAULT: "#8b5cf6",
-          light: "#a78bfa",
-          dark: "#7c3aed",
+          DEFAULT: "#0fb465",
+          light: "#13d478",
+          dark: "#0a9852",
         },
         error: {
           DEFAULT: "#ef4444", 
@@ -34,13 +34,13 @@ module.exports = {
           600: "#16a34a",
         },
         warning: {
-          DEFAULT: "#eab308",
+          DEFAULT: "#eab308", 
           50: "#fefce8",
           100: "#fef9c3",
           600: "#ca8a04",
         },
         info: {
-          DEFAULT: "#3b82f6",
+          DEFAULT: "#3b82f6", 
           50: "#eff6ff",
           100: "#dbeafe",
           600: "#2563eb",

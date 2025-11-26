@@ -95,6 +95,8 @@ export class SubmissaoGateway
           'aplicacao',
           'aplicacao.avaliacao',
           'aplicacao.avaliacao.item',
+          'aplicacao.avaliacao.item.avaliador',
+          'aplicacao.avaliacao.questoes',
           'aplicacao.avaliacao.configuracaoAvaliacao',
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         ],
@@ -172,6 +174,33 @@ export class SubmissaoGateway
         estudante: submissaoData.estudante.nome,
         avaliacao: submissaoData.aplicacao.avaliacao.item.titulo,
       });
+
+      if (submissaoData.aplicacao?.avaliacao?.item?.avaliador?.id) {
+        const avaliadorId = submissaoData.aplicacao.avaliacao.item.avaliador.id;
+        const totalQuestoes =
+          submissaoData.aplicacao.avaliacao.questoes?.length || 0;
+
+        const payload = {
+          submissaoId: submissaoData.id,
+          aplicacaoId: aplicacaoId,
+          aluno: {
+            nome: submissaoData.estudante.nome,
+            email: submissaoData.estudante.email,
+          },
+          estado: submissaoData.estado,
+          horaInicio: submissaoData.criadoEm.toISOString(),
+          totalQuestoes: totalQuestoes,
+        };
+
+        this.notificationProvider.sendNotificationViaSocket(
+          avaliadorId,
+          'nova-submissao',
+          payload,
+        );
+        this.logger.log(
+          `Notificação 'nova-submissao' enviada para o avaliador ${avaliadorId}`,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Erro ao validar submissão durante handshake - Aluno: ${client.id}`,

@@ -55,7 +55,7 @@ export default function Home() {
           onPress={() => router.push("/perfil")}
           className="p-2 bg-gray-100 rounded-full"
         >
-          <User size={20} color="#4f46e5" />
+          <User size={20} color="#004e8c" />
         </TouchableOpacity>
       </View>
 
@@ -92,7 +92,7 @@ export default function Home() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#4f46e5"]}
+            colors={["#004e8c"]}
           />
         }
       />

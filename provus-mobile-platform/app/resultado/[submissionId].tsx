@@ -33,7 +33,7 @@ export default function SubmissionResultScreen() {
   if (isLoading || !submissionDetails) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#004e8c" />
       </View>
     );
   }

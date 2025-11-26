@@ -51,7 +51,7 @@ export default function ApplicationResultsScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#004e8c" />
         <Text className="text-gray-500 mt-4">Carregando resultados...</Text>
       </View>
     );

@@ -117,7 +117,7 @@ export default function MonitoringHeader({
             <View className="flex-row items-end">
               <Clock
                 size={20}
-                color="#4f46e5"
+                color="#004e8c"
                 style={{ marginBottom: 4, marginRight: 6 }}
               />
               <Text className="text-3xl font-bold text-primary font-mono">
@@ -158,14 +158,14 @@ export default function MonitoringHeader({
                 onPress={() => onAdjustTime(-60)}
                 className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
               >
-                <Minus size={20} color="#4f46e5" />
+                <Minus size={20} color="#004e8c" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => onAdjustTime(60)}
                 className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
               >
-                <Plus size={20} color="#4f46e5" />
+                <Plus size={20} color="#004e8c" />
               </TouchableOpacity>
             </View>
 

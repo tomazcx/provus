@@ -193,7 +193,7 @@ export default function ProfileScreen() {
           {/* Seção: Info Pessoal */}
           <View className="mb-8">
             <View className="flex-row items-center mb-4">
-              <User size={20} color="#4f46e5" />
+              <User size={20} color="#004e8c" />
               <Text className="text-lg font-bold text-gray-900 ml-2">
                 Informações Pessoais
               </Text>
@@ -238,7 +238,7 @@ export default function ProfileScreen() {
           <View className="mb-8">
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center">
-                <ShieldCheck size={20} color="#4f46e5" />
+                <ShieldCheck size={20} color="#004e8c" />
                 <Text className="text-lg font-bold text-gray-900 ml-2">
                   Segurança
                 </Text>

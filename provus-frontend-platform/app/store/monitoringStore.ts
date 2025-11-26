@@ -1,6 +1,9 @@
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 import TipoAtividadeEnum from "~/enums/TipoAtividadeEnum";
-import type { IProgressoAluno, ILogAtividade } from "~/types/IMonitoring";
+import type {
+  IProgressoAluno,
+  ILogAtividade,
+} from "~/types/interfaces/IMonitoring";
 import type { MonitoramentoInicialResponseDto } from "~/types/api/response/Monitoramento.response";
 import type { PunicaoPorOcorrenciaTemplateData } from "~/types/api/response/Notificacao.response";
 import { useApplicationsStore } from "./applicationsStore";
@@ -29,6 +32,15 @@ interface AlunoSaiuPayload {
   alunoNome: string;
   timestamp: string;
 }
+
+interface CodigoConfirmadoPayload {
+  submissaoId: number;
+  aplicacaoId: number;
+  alunoNome: string;
+  timestamp: string;
+  estado: EstadoSubmissaoEnum;
+}
+
 interface ProgressoAtualizadoPayload {
   submissaoId: number;
   progresso: number;
@@ -225,6 +237,23 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     );
   };
 
+  const onCodigoConfirmado = (data: CodigoConfirmadoPayload) => {
+    const aluno = studentProgress.value.find(
+      (s) => s.submissaoId === data.submissaoId
+    );
+
+    if (aluno) {
+      aluno.estado = EstadoSubmissaoEnum.CODIGO_CONFIRMADO;
+
+      toast.add({
+        title: "Código Confirmado",
+        description: `Código de ${data.alunoNome} validado com sucesso.`,
+        color: "success",
+        icon: "i-lucide-check-circle",
+      });
+    }
+  };
+
   const onEstadoAplicacaoAtualizado = (
     data: EstadoAplicacaoAtualizadoPayloadAvaliador
   ) => {
@@ -281,6 +310,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     socket.off("aluno-saiu", onAlunoSaiu);
     socket.off("tempo-ajustado", onTempoAjustado);
     socket.off("estado-aplicacao-atualizado", onEstadoAplicacaoAtualizado);
+    socket.off("codigo-confirmado", onCodigoConfirmado);
   }
 
   function initializeWebSocketListeners() {
@@ -311,7 +341,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     socket.on("aluno-saiu", onAlunoSaiu);
     socket.on("tempo-ajustado", onTempoAjustado);
     socket.on("estado-aplicacao-atualizado", onEstadoAplicacaoAtualizado);
-
+    socket.on("codigo-confirmado", onCodigoConfirmado);
     listenersInitialized.value = true;
     console.log("MonitoringStore: Listeners configurados com sucesso.");
   }

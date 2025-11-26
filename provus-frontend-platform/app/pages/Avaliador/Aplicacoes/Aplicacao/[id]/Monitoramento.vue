@@ -98,7 +98,7 @@ async function fetchApplicationIfNeeded() {
         color: "error",
       });
       router.push("/aplicacoes");
-      return false; 
+      return false;
     } finally {
       isLoading.value = false;
     }

@@ -36,7 +36,7 @@ export default function OverviewStats({ stats }: Props) {
       title: "Média Geral (%)",
       value: `${stats.mediaGeralPercentual?.toFixed(1) ?? "--"}%`,
       icon: TrendingUp,
-      color: "#4f46e5",
+      color: "#004e8c",
     },
     {
       title: "Taxa de Conclusão",

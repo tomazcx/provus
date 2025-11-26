@@ -24,7 +24,7 @@ export default function MonitoringTabs({
       >
         <Users
           size={16}
-          color={activeTab === "students" ? "#4f46e5" : "#6b7280"}
+          color={activeTab === "students" ? "#004e8c" : "#6b7280"}
         />
         <Text
           style={[
@@ -45,7 +45,7 @@ export default function MonitoringTabs({
       >
         <Activity
           size={16}
-          color={activeTab === "activity" ? "#4f46e5" : "#6b7280"}
+          color={activeTab === "activity" ? "#004e8c" : "#6b7280"}
         />
         <Text
           style={[
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   activeText: {
-    color: "#4f46e5",
+    color: "#004e8c",
   },
   inactiveText: {
     color: "#6b7280",

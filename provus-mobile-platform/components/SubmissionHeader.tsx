@@ -33,7 +33,7 @@ export default function SubmissionHeader({
       {/* Info do Aluno */}
       <View className="flex-row items-center mb-4 border-b border-gray-100 pb-4">
         <View className="w-12 h-12 bg-primary/10 rounded-full items-center justify-center mr-3">
-          <User size={24} color="#4f46e5" />
+          <User size={24} color="#004e8c" />
         </View>
         <View>
           <Text className="text-lg font-bold text-gray-900">
@@ -48,7 +48,7 @@ export default function SubmissionHeader({
         {/* Nota */}
         <View className="flex-1 min-w-[45%] bg-gray-50 p-3 rounded-lg">
           <View className="flex-row items-center mb-1">
-            <Award size={14} color="#4f46e5" style={{ marginRight: 4 }} />
+            <Award size={14} color="#004e8c" style={{ marginRight: 4 }} />
             <Text className="text-xs text-gray-500">Nota Final</Text>
           </View>
           <Text className="text-xl font-bold text-primary">

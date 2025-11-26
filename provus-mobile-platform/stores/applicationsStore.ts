@@ -7,6 +7,7 @@ interface ApplicationsState {
   applications: AplicacaoEntity[];
   isLoading: boolean;
   fetchApplications: () => Promise<void>;
+  deleteApplication: (applicationId: number) => Promise<boolean>;
   reopenApplication: (applicationId: number) => Promise<boolean>;
   getApplicationById: (id: number) => AplicacaoEntity | undefined;
   updateApplicationData: (
@@ -76,6 +77,25 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       return true;
     } catch (error) {
       console.error("Erro ao reabrir aplicação:", error);
+      return false;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  deleteApplication: async (applicationId: number) => {
+    set({ isLoading: true });
+    try {
+      await api.delete(`/backoffice/aplicacao/${applicationId}`);
+
+      set((state) => ({
+        applications: state.applications.filter(
+          (app) => app.id !== applicationId
+        ),
+      }));
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao deletar aplicação:", error);
       return false;
     } finally {
       set({ isLoading: false });

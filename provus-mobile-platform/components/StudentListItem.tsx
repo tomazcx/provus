@@ -12,6 +12,7 @@ import { User, ShieldAlert, Check, ExternalLink } from "lucide-react-native";
 import { IProgressoAluno } from "../types/IMonitoring";
 import { EstadoSubmissaoEnum } from "../enums/EstadoSubmissaoEnum";
 import { useMonitoringStore } from "../stores/monitoringStore";
+import { useToast } from "@/hooks/useToast";
 
 interface Props {
   aluno: IProgressoAluno;
@@ -24,6 +25,7 @@ export default function StudentListItem({
   tempoRestante,
   onPress,
 }: Props) {
+  const toast = useToast();
   const { confirmarCodigo } = useMonitoringStore();
   const [isModalVisible, setModalVisible] = useState(false);
   const [codigoInput, setCodigoInput] = useState("");
@@ -66,8 +68,8 @@ export default function StudentListItem({
       case EstadoSubmissaoEnum.CODIGO_CONFIRMADO:
         return {
           text: "Confirmado",
-          bg: "bg-purple-100",
-          textCol: "text-purple-800",
+          bg: "bg-secondary",
+          textCol: "text-white",
         };
 
       default:
@@ -91,7 +93,11 @@ export default function StudentListItem({
 
   const handleConfirmCode = async () => {
     if (codigoInput.length !== 6) {
-      Alert.alert("Erro", "O código deve ter 6 dígitos.");
+      toast.add({
+        title: "Erro",
+        description: "O código deve ter 6 dígitos.",
+        color: "danger",
+      });
       return;
     }
 
@@ -128,7 +134,7 @@ export default function StudentListItem({
           </View>
 
           {/* Badge Status */}
-          <View className={`px-2 py-1 rounded-md ${visuals.bg}`}>
+          <View className={`px-2 py-1 rounded-lg ${visuals.bg}`}>
             <Text className={`text-xs font-bold ${visuals.textCol}`}>
               {visuals.text}
             </Text>

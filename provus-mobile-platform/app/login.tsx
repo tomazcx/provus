@@ -15,8 +15,10 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react-native";
 import api from "../services/api";
 import { setTokens } from "../utils/token";
 import { useUserStore } from "../stores/userStore";
+import { useToast } from "@/hooks/useToast";
 
 export default function LoginScreen() {
+  const toast = useToast();
   const router = useRouter();
   const { fetchCurrentUser } = useUserStore();
 
@@ -27,7 +29,11 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email || !password) {
-      Alert.alert("Erro", "Por favor, preencha todos os campos.");
+      toast.add({
+        title: "Erro",
+        description: "Por favor, preencha todos os campos.",
+        color: "danger",
+      });
       return;
     }
 
@@ -47,7 +53,11 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error("Login error:", error);
       const msg = error.response?.data?.message || "Falha ao realizar login.";
-      Alert.alert("Erro de Login", msg);
+      toast.add({
+        title: "Erro",
+        description: msg,
+        color: "danger",
+      });
     } finally {
       setIsLoading(false);
     }

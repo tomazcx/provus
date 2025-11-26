@@ -252,26 +252,26 @@ export class SubmissaoService {
       );
 
       if (submissaoSalva.estado === EstadoSubmissaoEnum.INICIADA) {
-        try {
-          const notificationPayload = {
-            submissaoId: submissaoSalva.id,
-            aplicacaoId: aplicacao.id,
-            aluno: {
-              nome: body.nome,
-              email: body.email,
-            },
-            estado: EstadoSubmissaoEnum.INICIADA,
-            horaInicio: submissaoSalva.criadoEm.toISOString(),
-            totalQuestoes: totalQuestoesReal,
-          };
-          this.notificationProvider.sendNotificationViaSocket(
-            avaliadorId,
-            'nova-submissao',
-            notificationPayload,
-          );
-        } catch (wsError) {
-          this.logger.error(`Erro WS nova-submissao: ${wsError}`);
-        }
+        // try {
+        //   const notificationPayload = {
+        //     submissaoId: submissaoSalva.id,
+        //     aplicacaoId: aplicacao.id,
+        //     aluno: {
+        //       nome: body.nome,
+        //       email: body.email,
+        //     },
+        //     estado: EstadoSubmissaoEnum.INICIADA,
+        //     horaInicio: submissaoSalva.criadoEm.toISOString(),
+        //     totalQuestoes: totalQuestoesReal,
+        //   };
+        //   this.notificationProvider.sendNotificationViaSocket(
+        //     avaliadorId,
+        //     'nova-submissao',
+        //     notificationPayload,
+        //   );
+        // } catch (wsError) {
+        //   this.logger.error(`Erro WS nova-submissao: ${wsError}`);
+        // }
 
         const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
         const html = this.emailTemplatesProvider.submissaoCriada(
@@ -876,6 +876,20 @@ export class SubmissaoService {
       throw new NotFoundException('Submissão não encontrada');
     }
 
+    const estadosAtivos = [
+      EstadoSubmissaoEnum.INICIADA,
+      EstadoSubmissaoEnum.REABERTA,
+      EstadoSubmissaoEnum.PAUSADA,
+    ];
+
+    if (!estadosAtivos.includes(submissao.estado)) {
+      if (submissao.aplicacao?.avaliacao) {
+        submissao.aplicacao.avaliacao.questoes = [];
+        submissao.aplicacao.avaliacao.arquivos = [];
+      }
+      submissao.respostas = [];
+    }
+
     return submissao;
   }
 
@@ -1204,7 +1218,13 @@ export class SubmissaoService {
   ): Promise<SubmissaoResultDto> {
     const submissao = await this.submissaoRepository.findOne({
       where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
-      relations: ['estudante'],
+      relations: [
+        'estudante',
+        'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.item',
+        'aplicacao.avaliacao.item.avaliador',
+      ],
     });
 
     if (!submissao) {
@@ -1226,6 +1246,26 @@ export class SubmissaoService {
     if (estadosValidosParaConfirmar.includes(submissao.estado)) {
       submissao.estado = EstadoSubmissaoEnum.CODIGO_CONFIRMADO;
       const submissaoSalva = await this.submissaoRepository.save(submissao);
+
+      if (submissao.aplicacao?.avaliacao?.item?.avaliador?.id) {
+        const avaliadorId = submissao.aplicacao.avaliacao.item.avaliador.id;
+
+        this.notificationProvider.sendNotificationViaSocket(
+          avaliadorId,
+          'codigo-confirmado',
+          {
+            submissaoId: submissao.id,
+            aplicacaoId: aplicacaoId,
+            estado: EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
+            alunoNome: submissao.estudante.nome,
+            timestamp: new Date().toISOString(),
+          },
+        );
+        this.logger.log(
+          `Evento 'codigo-confirmado' enviado para avaliador ${avaliadorId}`,
+        );
+      }
+
       return new SubmissaoResultDto(submissaoSalva);
     }
 

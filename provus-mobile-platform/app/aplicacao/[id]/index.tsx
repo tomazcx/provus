@@ -9,7 +9,13 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, RefreshCw, BarChart3, Settings } from "lucide-react-native";
+import {
+  ArrowLeft,
+  RefreshCw,
+  BarChart3,
+  Settings,
+  Trash2,
+} from "lucide-react-native";
 
 import { useApplicationsStore } from "../../../stores/applicationsStore";
 import OverviewStats from "../../../components/OverviewStats";
@@ -29,6 +35,7 @@ export default function ApplicationDetailsScreen() {
     reopenApplication,
     isLoading,
     fetchApplications,
+    deleteApplication,
   } = useApplicationsStore();
   const application = getApplicationById(appId);
   const isFinished =
@@ -74,6 +81,29 @@ export default function ApplicationDetailsScreen() {
     );
   };
 
+  const handleDelete = async () => {
+    Alert.alert(
+      "Excluir Aplicação",
+      "Tem certeza absoluta? Todos os dados, estatísticas e submissões dos alunos serão apagados permanentemente.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            await deleteApplication(appId);
+            toast.add({
+              title: "Excluída",
+              description: "Aplicação removida com sucesso.",
+              color: "success",
+            });
+            router.replace("/home");
+          },
+        },
+      ]
+    );
+  };
+
   const handleViewResults = () => {
     router.push(`/aplicacao/${appId}/resultados` as any);
   };
@@ -81,7 +111,7 @@ export default function ApplicationDetailsScreen() {
   if (isLoading && isInitialLoad) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#004e8c" />
         <Text className="text-gray-500 mt-4">Carregando detalhes...</Text>
       </View>
     );
@@ -176,6 +206,16 @@ export default function ApplicationDetailsScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        <TouchableOpacity
+          onPress={handleDelete}
+          className="w-full bg-red-50 border border-red-200 py-3 rounded-lg flex-row items-center justify-center"
+        >
+          <Trash2 size={20} color="#dc2626" className="mr-2" />
+          <Text className="text-red-600 font-bold text-base">
+            Excluir Aplicação
+          </Text>
+        </TouchableOpacity>
 
         {/* Estatísticas (Só carrega se houver dados de stats na aplicação) */}
         {application.stats ? (

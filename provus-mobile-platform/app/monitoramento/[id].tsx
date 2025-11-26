@@ -27,6 +27,7 @@ import { EstadoSubmissaoEnum } from "../../enums/EstadoSubmissaoEnum";
 import { TipoAtividadeEnum } from "../../enums/TipoAtividadeEnum";
 import { useWebSocket } from "../../composables/useWebSocket";
 import { useToast } from "../../hooks/useToast";
+import { stripHtml } from "@/utils/stripHtml";
 
 export default function MonitoringScreen() {
   const { id } = useLocalSearchParams();
@@ -161,6 +162,25 @@ export default function MonitoringScreen() {
           addActivityLog(data.tipo, data.alunoNome, `finalizou a avaliação.`);
         }
       });
+
+      socketInstance.on("codigo-confirmado", (data: any) => {
+        if (data.aplicacaoId === applicationId) {
+          updateStudentStatus(data.submissaoId, data.estado);
+
+          addActivityLog(
+            TipoAtividadeEnum.FINALIZOU,
+            data.alunoNome,
+            "teve o código de entrega confirmado."
+          );
+
+          toast.add({
+            title: "Confirmado!",
+            description: `Entrega de ${data.alunoNome} confirmada.`,
+            color: "success",
+          });
+        }
+      });
+
       socketInstance.on("aluno-saiu", (data: any) => {
         if (data.aplicacaoId === applicationId) {
           updateStudentStatus(data.submissaoId, EstadoSubmissaoEnum.ABANDONADA);
@@ -205,9 +225,13 @@ export default function MonitoringScreen() {
           if (
             ["Finalizada", "Concluída", "Cancelada"].includes(data.novoEstado)
           ) {
-            Alert.alert("Atenção", "Aplicação finalizada.", [
-              { text: "OK", onPress: () => router.replace("/home") },
-            ]);
+            toast.add({
+              title: "Atenção!",
+              description: `Aplicação finalizada`,
+              color: "success",
+            });
+
+            router.replace("/home");
           }
         }
       });
@@ -221,6 +245,7 @@ export default function MonitoringScreen() {
         socketInstance.off("punicao-por-ocorrencia");
         socketInstance.off("tempo-ajustado");
         socketInstance.off("estado-aplicacao-atualizado");
+        socketInstance.off("codigo-confirmado");
       }
     };
   }, [
@@ -323,7 +348,7 @@ export default function MonitoringScreen() {
   if (!aplicacao || isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#004e8c" />
       </View>
     );
   }
@@ -338,7 +363,7 @@ export default function MonitoringScreen() {
           className="text-lg font-bold text-gray-900 flex-1"
           numberOfLines={1}
         >
-          {aplicacao.avaliacao.titulo}
+          {stripHtml(aplicacao.avaliacao.titulo)}
         </Text>
         <View
           className={`w-3 h-3 rounded-full ${
