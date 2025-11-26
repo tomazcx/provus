@@ -273,7 +273,7 @@ export class SubmissaoService {
         //   this.logger.error(`Erro WS nova-submissao: ${wsError}`);
         // }
 
-        const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
+        const url = `${Env.FRONTEND_URL}/aluno/submissao/${submissaoSalva.hash}`;
         const html = this.emailTemplatesProvider.submissaoCriada(
           url,
           aplicacao.avaliacao.item.titulo,
