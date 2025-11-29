@@ -2,6 +2,7 @@ import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
 import EstadoAplicacaoEnum from '../../../enums/estado-aplicacao.enum';
 import { AvaliacaoDto } from '../avaliacao/avaliacao.dto';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
+import { ConfiguracaoAvaliacaoDto } from '../configuracao-avaliacao/configuracao-avaliacao.dto';
 
 export class AplicacaoStatsDto {
   totalSubmissoes: number;
@@ -14,6 +15,7 @@ export class AplicacaoStatsDto {
   pontuacaoTotalAvaliacao: number;
   finalScores?: number[];
 }
+
 export class AplicacaoViolationDto {
   id: number;
   estudanteNome: string;
@@ -31,6 +33,7 @@ export class AplicacaoDto {
   dataFim: string;
   stats?: AplicacaoStatsDto;
   violations?: AplicacaoViolationDto[];
+  configuracao?: ConfiguracaoAvaliacaoDto;
 
   constructor(
     model: AplicacaoModel,
@@ -46,5 +49,9 @@ export class AplicacaoDto {
     this.dataFim = model.dataFim?.toISOString();
     this.stats = stats;
     this.violations = violations;
+
+    if (model.configuracao) {
+      this.configuracao = new ConfiguracaoAvaliacaoDto(model.configuracao);
+    }
   }
 }

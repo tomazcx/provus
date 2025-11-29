@@ -42,6 +42,18 @@ const modeloDaAplicacao = computed<AvaliacaoEntity | null>(
   () => aplicacao.value?.avaliacao ?? null
 );
 
+const configuracaoParaExibir = computed<AvaliacaoEntity | null>(() => {
+  if (!aplicacao.value || !modeloDaAplicacao.value) return null;
+
+  const configUsada =
+    aplicacao.value.configuracao || modeloDaAplicacao.value.configuracao;
+
+  return {
+    ...modeloDaAplicacao.value,
+    configuracao: configUsada,
+  };
+});
+
 const isLoadingData = ref(true);
 const isConfigDialogOpen = ref(false);
 
@@ -89,12 +101,10 @@ async function fetchApplicationDetails() {
 function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
   if (aplicacao.value && aplicacao.value.id === data.aplicacaoId) {
     console.log(`Atualizando estado da aplicação via WS: ${data.novoEstado}`);
-
     aplicacao.value.estado = data.novoEstado;
     if (data.novaDataFimISO) {
       aplicacao.value.dataFim = new Date(data.novaDataFimISO);
     }
-
     applicationsStore.updateApplicationData(data.aplicacaoId, {
       estado: data.novoEstado,
       dataFim: new Date(data.novaDataFimISO),
@@ -124,7 +134,6 @@ function onEstadoAtualizado(data: EstadoAplicacaoPayload) {
 
 onMounted(() => {
   fetchApplicationDetails();
-
   if ($websocket && $websocket.socket.value) {
     $websocket.on<EstadoAplicacaoPayload>(
       "estado-aplicacao-atualizado",
@@ -156,33 +165,27 @@ const podeIniciar = computed(
     aplicacao.value?.estado === EstadoAplicacaoEnum.CRIADA ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.AGENDADA
 );
-
 const podeMonitorar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
-
 const podePausar = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
-
 const podeRetomar = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
-
 const podeFinalizar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
-
 const podeVerResultados = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.FINALIZADA ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.CONCLUIDA
 );
-
 const podeDeletar = computed(
   () =>
     aplicacao.value?.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO &&
@@ -271,7 +274,6 @@ async function handleDelete() {
 
 async function onConfirmDialog() {
   if (!aplicacao.value) return;
-
   if (confirmAction.value === "deletar") {
     isLoadingData.value = true;
     await applicationsStore.deleteApplication(aplicacao.value.id);
@@ -297,7 +299,6 @@ async function onConfirmDialog() {
 
   <div v-else-if="aplicacao && modeloDaAplicacao">
     <Breadcrumbs :items="breadcrumbs" />
-
     <Header
       :titulo="modeloDaAplicacao.titulo"
       :descricao="modeloDaAplicacao.descricao"
@@ -312,7 +313,6 @@ async function onConfirmDialog() {
             aplicacao.estado
           }}</UBadge>
         </div>
-
         <div v-if="aplicacao.codigoAcesso" class="flex items-center space-x-2">
           <span class="font-medium text-gray-700">Código de Acesso:</span>
           <UBadge
@@ -329,7 +329,6 @@ async function onConfirmDialog() {
             @click="copyCode(aplicacao.codigoAcesso)"
           />
         </div>
-
         <UButton
           label="Ver Configuração"
           icon="i-lucide-settings-2"
@@ -410,6 +409,7 @@ async function onConfirmDialog() {
       v-if="aplicacao.violations && aplicacao.violations.length > 0"
       :violations="aplicacao.violations"
     />
+
     <UAlert
       v-else-if="
         !isLoadingData &&
@@ -423,7 +423,7 @@ async function onConfirmDialog() {
 
     <ViewConfigurationDialog
       v-model="isConfigDialogOpen"
-      :configuracao="modeloDaAplicacao"
+      :configuracao="configuracaoParaExibir"
     />
 
     <ConfirmationDialog

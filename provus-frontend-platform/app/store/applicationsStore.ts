@@ -8,6 +8,38 @@ import type {
 } from "~/types/api/request/Aplicacao.request";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
+import type { ConfiguracoesEntity } from "~/types/entities/Configuracoes.entity";
+import TipoItemEnum from "~/enums/TipoItemEnum";
+
+function mapConfiguracaoResponseToEntity(
+  configResponse: any
+): ConfiguracoesEntity {
+  return {
+    configuracoesGerais: {
+      ...configResponse.configuracoesGerais,
+      dataAgendamento: configResponse.configuracoesGerais.dataAgendamento
+        ? new Date(configResponse.configuracoesGerais.dataAgendamento)
+        : null,
+      configuracoesRandomizacao:
+        configResponse.configuracoesGerais.configuracoesRandomizacao.map(
+          (rule: any) => ({
+            id: Math.random(),
+            ...rule,
+            questoes: (rule.questoes ?? []).map((q: any) => ({
+              ...q,
+              tipo: TipoItemEnum.QUESTAO,
+            })),
+          })
+        ),
+    },
+    configuracoesSeguranca: {
+      ...configResponse.configuracoesSeguranca,
+      notificacoes: configResponse.configuracoesSeguranca.notificacoes.map(
+        (n: any) => (typeof n === "string" ? n : n.tipoNotificacao)
+      ),
+    },
+  };
+}
 
 export function mapAplicacaoApiResponseToEntity(
   apiResponse: AplicacaoApiResponse
@@ -25,6 +57,9 @@ export function mapAplicacaoApiResponseToEntity(
       : undefined,
     totalSubmissoes: apiResponse.totalSubmissoes,
     mediaGeralPercentual: apiResponse.mediaGeralPercentual,
+    configuracao: apiResponse.configuracao
+      ? mapConfiguracaoResponseToEntity(apiResponse.configuracao)
+      : undefined,
   };
 }
 
@@ -39,8 +74,8 @@ export const useApplicationsStore = defineStore("applications", () => {
   const toast = useToast();
   const applications = ref<AplicacaoEntity[]>([]);
   const isLoading = ref(false);
-
   const nuxtApp = useNuxtApp();
+
   const getWebsocket = () =>
     nuxtApp.$websocket as ReturnType<typeof useWebSocket> | undefined;
 
@@ -114,10 +149,12 @@ export const useApplicationsStore = defineStore("applications", () => {
       const response = await $api<AplicacaoApiResponse[]>(
         "/backoffice/aplicacoes"
       );
+
       if (!Array.isArray(response)) {
         applications.value = [];
         return;
       }
+
       applications.value = response.map(mapAplicacaoApiResponseToEntity);
 
       const ws = getWebsocket();
@@ -188,6 +225,7 @@ export const useApplicationsStore = defineStore("applications", () => {
           body: payload,
         }
       );
+
       await fetchApplications();
       return mapAplicacaoApiResponseToEntity(newApplicationResponse);
     } catch {
@@ -242,10 +280,8 @@ export const useApplicationsStore = defineStore("applications", () => {
     const appIndex = applications.value.findIndex(
       (a) => a.id === applicationId
     );
-
     if (appIndex !== -1) {
       const currentApp = applications.value[appIndex];
-
       if (!currentApp) return;
 
       const updatedApp: AplicacaoEntity = {
@@ -255,7 +291,6 @@ export const useApplicationsStore = defineStore("applications", () => {
           ? new Date(updatedFields.dataFim)
           : currentApp.dataFim,
       };
-
       applications.value.splice(appIndex, 1, updatedApp);
       console.log(
         `[ApplicationsStore] Aplicação ${applicationId} atualizada localmente para ${updatedApp.estado}`

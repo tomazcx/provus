@@ -21,7 +21,7 @@ export class ConfiguracaoRandomizacaoDto {
     this.tipo = model.tipo;
     this.dificuldade = model.dificuldade;
     this.quantidade = model.quantidade;
-    this.questoes = model.poolDeQuestoes.map(
+    this.questoes = (model.poolDeQuestoes || []).map(
       (questao) => new QuestaoResultDto(questao),
     );
   }
@@ -45,12 +45,12 @@ export class ConfiguracaoGeralDto {
     this.mostrarPontuacao = model.mostrarPontuacao;
     this.exibirPontuacaoQuestoes = model.exibirPontuacaoQuestoes;
     this.permitirRevisao = model.permitirRevisao;
-    this.configuracoesRandomizacao =
-      model.configuracoesRandomizacao?.map(
-        (configuracao) => new ConfiguracaoRandomizacaoDto(configuracao),
-      ) || [];
+    this.configuracoesRandomizacao = (
+      model.configuracoesRandomizacao || []
+    ).map((configuracao) => new ConfiguracaoRandomizacaoDto(configuracao));
   }
 }
+
 export class PunicaoPorOcorrenciaDto {
   tipoInfracao: TipoInfracaoEnum;
   quantidadeOcorrencias: number;
@@ -75,6 +75,7 @@ export class ConfiguracaoSegurancaDto {
   proibirTrocarAbas: boolean;
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
+  quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaDto[];
   notificacoes: TipoNotificacaoEnum[];
@@ -83,11 +84,14 @@ export class ConfiguracaoSegurancaDto {
     this.proibirTrocarAbas = model.proibirTrocarAbas;
     this.proibirCopiarColar = model.proibirCopiarColar;
     this.quantidadeTentativas = model.quantidadeTentativas;
+    this.quantidadeAcessosSimultaneos = 1;
     this.ativarCorrecaoDiscursivaViaIa = model.ativarCorrecaoDiscursivaViaIa;
-    this.punicoes = model.punicoes.map(
+
+    this.punicoes = (model.punicoes || []).map(
       (punicao) => new PunicaoPorOcorrenciaDto(punicao),
     );
-    this.notificacoes = model.notificacoes.map(
+
+    this.notificacoes = (model.notificacoes || []).map(
       (notificacao) => notificacao.tipoNotificacao,
     );
   }

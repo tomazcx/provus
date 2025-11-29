@@ -4,6 +4,7 @@ import type {
   AplicacaoStatsEntity,
   AplicacaoViolationEntity,
 } from "~/types/entities/Aplicacao.entity";
+import type { ConfiguracaoAvaliacaoApiResponse } from "./ConfiguracaoAvaliacao.response";
 
 export interface AplicacaoApiResponse {
   id: number;
@@ -16,4 +17,5 @@ export interface AplicacaoApiResponse {
   violations?: AplicacaoViolationEntity[];
   totalSubmissoes: number;
   mediaGeralPercentual: number | null;
+  configuracao?: ConfiguracaoAvaliacaoApiResponse;
 }

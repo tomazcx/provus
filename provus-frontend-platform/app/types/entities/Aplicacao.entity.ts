@@ -1,6 +1,7 @@
 import type EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AvaliacaoEntity } from "./Avaliacao.entity";
 import type TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
+import type { ConfiguracoesEntity } from "./Configuracoes.entity";
 export interface AplicacaoStatsEntity {
   totalSubmissoes: number;
   submissoesFinalizadas: number;
@@ -31,4 +32,5 @@ export interface AplicacaoEntity {
   violations?: AplicacaoViolationEntity[];
   totalSubmissoes: number;
   mediaGeralPercentual: number | null;
+  configuracao?: ConfiguracoesEntity;
 }
