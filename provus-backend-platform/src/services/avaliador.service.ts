@@ -39,16 +39,19 @@ export class AvaliadorService {
     }
 
     const isPasswordValid = await bcrypt.compare(dto.senha, avaliador.senha);
-
     if (!isPasswordValid) {
-      throw new BadRequestException('Senha inválida');
+      throw new BadRequestException('Senha atual incorreta.');
     }
 
-    const salt = await bcrypt.genSalt(Env.HASH_SALT);
-    const novaSenha = await bcrypt.hash(dto.novaSenha, salt);
+    if (dto.nome && dto.nome.trim() !== '') {
+      avaliador.nome = dto.nome;
+    }
 
-    avaliador.nome = dto.nome;
-    avaliador.senha = novaSenha;
+    if (dto.novaSenha && dto.novaSenha.trim() !== '') {
+      const salt = await bcrypt.genSalt(Env.HASH_SALT);
+      const novaSenhaHash = await bcrypt.hash(dto.novaSenha, salt);
+      avaliador.senha = novaSenhaHash;
+    }
 
     await this.avaliadorRepository.save(avaliador);
 

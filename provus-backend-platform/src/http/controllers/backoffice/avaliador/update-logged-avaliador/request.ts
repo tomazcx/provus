@@ -1,17 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAvaliadorRequest {
   @ApiProperty({
     description: 'Nome do avaliador',
     example: 'João da Silva',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  nome: string;
+  nome?: string;
 
   @ApiProperty({
-    description: 'Email do avaliador',
+    description: 'Senha do avaliador',
     example: '123456',
   })
   @IsString()
@@ -23,6 +23,6 @@ export class UpdateAvaliadorRequest {
     example: '123456',
   })
   @IsString()
-  @IsNotEmpty()
-  novaSenha: string;
+  @IsOptional()
+  novaSenha?: string;
 }

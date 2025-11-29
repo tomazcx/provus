@@ -1,5 +1,5 @@
 export class UpdateAvaliadorDto {
-  nome: string;
+  nome?: string;
   senha: string;
-  novaSenha: string;
+  novaSenha?: string;
 }
