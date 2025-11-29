@@ -24,33 +24,60 @@ const objectiveAnswer = ref<number | undefined>(undefined);
 const multipleChoiceAnswer = ref<number[]>([]);
 const trueFalseAnswers = ref<Record<number, boolean | undefined>>({});
 
+function areArraysEqual(arr1: number[], arr2: number[]): boolean {
+  if (arr1.length !== arr2.length) return false;
+  const sorted1 = [...arr1].sort();
+  const sorted2 = [...arr2].sort();
+  return sorted1.every((value, index) => value === sorted2[index]);
+}
+
 function syncStateFromProp(answer: StudentAnswerData | null | undefined) {
   if (!answer) {
-    discursiveAnswer.value = "";
-    objectiveAnswer.value = undefined;
-    multipleChoiceAnswer.value = [];
-    trueFalseAnswers.value = {};
+    if (discursiveAnswer.value !== "") discursiveAnswer.value = "";
+    if (objectiveAnswer.value !== undefined) objectiveAnswer.value = undefined;
+    if (multipleChoiceAnswer.value.length > 0) multipleChoiceAnswer.value = [];
+    if (Object.keys(trueFalseAnswers.value).length > 0)
+      trueFalseAnswers.value = {};
     return;
   }
 
   if ("texto" in answer && answer.texto) {
-    discursiveAnswer.value = answer.texto;
+    if (discursiveAnswer.value !== answer.texto) {
+      discursiveAnswer.value = answer.texto;
+    }
   } else if (
     "alternativaId" in answer &&
     typeof answer.alternativaId === "number"
   ) {
-    objectiveAnswer.value = answer.alternativaId;
+    if (objectiveAnswer.value !== answer.alternativaId) {
+      objectiveAnswer.value = answer.alternativaId;
+    }
   } else if (
     "alternativasId" in answer &&
     Array.isArray(answer.alternativasId)
   ) {
     if (props.questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA) {
-      multipleChoiceAnswer.value = [...answer.alternativasId];
+      if (!areArraysEqual(multipleChoiceAnswer.value, answer.alternativasId)) {
+        multipleChoiceAnswer.value = [...answer.alternativasId];
+      }
     } else if (props.questao.tipo === TipoQuestaoEnum.VERDADEIRO_FALSO) {
-      trueFalseAnswers.value = {};
-      answer.alternativasId.forEach((id) => {
-        trueFalseAnswers.value[id] = true;
+      const incomingTrueIds = answer.alternativasId || [];
+
+      const currentLocalTrueIds = Object.entries(trueFalseAnswers.value)
+        .filter(([, val]) => val === true)
+        .map(([key]) => Number(key));
+
+      if (areArraysEqual(currentLocalTrueIds, incomingTrueIds)) {
+        return;
+      }
+
+      const newAnswers: Record<number, boolean> = {};
+
+      incomingTrueIds.forEach((id) => {
+        newAnswers[id] = true;
       });
+
+      trueFalseAnswers.value = newAnswers;
     }
   }
 }
@@ -63,7 +90,8 @@ watch(
   () => props.currentAnswer,
   (newVal) => {
     syncStateFromProp(newVal);
-  }
+  },
+  { deep: true }
 );
 
 watch(discursiveAnswer, (newValue) => {
@@ -84,14 +112,25 @@ watch(discursiveAnswer, (newValue) => {
 });
 
 function handleObjectiveSelection(id: number) {
+  if (objectiveAnswer.value === id) return;
   objectiveAnswer.value = id;
   emit("update:answer", props.questao.id, { alternativaId: id });
 }
 
 watch(
   multipleChoiceAnswer,
-  (newVal) => {
+  (newVal, oldVal) => {
     if (props.questao.tipo === TipoQuestaoEnum.MULTIPLA_ESCOLHA) {
+      if (areArraysEqual(newVal, oldVal || [])) return;
+
+      if (
+        props.currentAnswer &&
+        "alternativasId" in props.currentAnswer &&
+        areArraysEqual(newVal, props.currentAnswer.alternativasId)
+      ) {
+        return;
+      }
+
       if (newVal.length === 0) {
         emit("update:answer", props.questao.id, null);
       } else {
@@ -111,6 +150,14 @@ watch(
       const trueAnswerIds = Object.entries(newVal)
         .filter(([, value]) => value === true)
         .map(([key]) => Number(key));
+
+      if (
+        props.currentAnswer &&
+        "alternativasId" in props.currentAnswer &&
+        areArraysEqual(trueAnswerIds, props.currentAnswer.alternativasId)
+      ) {
+        return;
+      }
 
       const answeredCount = Object.values(newVal).filter(
         (v) => v !== undefined
@@ -138,11 +185,13 @@ function handleTrueFalseSelection(alternativeId: number, choice: boolean) {
 
 function toggleMultipleChoice(id: number) {
   const index = multipleChoiceAnswer.value.indexOf(id);
+  const newArr = [...multipleChoiceAnswer.value];
   if (index === -1) {
-    multipleChoiceAnswer.value.push(id);
+    newArr.push(id);
   } else {
-    multipleChoiceAnswer.value.splice(index, 1);
+    newArr.splice(index, 1);
   }
+  multipleChoiceAnswer.value = newArr;
 }
 </script>
 
