@@ -1,13 +1,17 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AvaliadorModel } from '../config/models/avaliador.model';
 import { AplicacaoModel } from '../config/models/aplicacao.model';
 import { CreateAplicacaoDto } from 'src/dto/request/aplicacao/create-aplicacao.dto';
 import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import { AvaliacaoModel } from '../config/models/avaliacao.model';
-import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
-import { SubmissaoModel } from '../config/models/submissao.model';
+import { ConfiguracaoAvaliacaoModel } from '../config/models/configuracao-avaliacao.model';
+import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.model';
+import { ConfiguracoesRandomizacaoModel } from '../config/models/configuracoes-randomizacao.model';
+import { ConfiguracoesSegurancaModel } from '../config/models/configuracoes-seguranca.model';
+import { PunicaoPorOcorrenciaModel } from '../config/models/punicao-por-ocorrencia.model';
+import { ConfiguracaoNotificacaoModel } from '../config/models/configuracao-notificacao.model';
 
 @Injectable()
 export class AplicacaoRepository extends Repository<AplicacaoModel> {
@@ -26,7 +30,15 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           id: dto.avaliacaoId,
           item: { avaliador: { id: avaliador.id } },
         },
-        relations: ['configuracaoAvaliacao.configuracoesGerais'],
+        relations: [
+          'configuracaoAvaliacao',
+          'configuracaoAvaliacao.configuracoesGerais',
+          'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
+          'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+          'configuracaoAvaliacao.configuracoesSeguranca',
+          'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+          'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
+        ],
       });
 
       if (!avaliacaoEntity) {
@@ -35,12 +47,17 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         );
       }
 
+      const snapshotConfig = await this._snapshotConfiguration(
+        manager,
+        avaliacaoEntity.configuracaoAvaliacao,
+      );
+
       const aplicacao = new AplicacaoModel();
       aplicacao.codigoAcesso = codigoAcesso;
       aplicacao.avaliacao = avaliacaoEntity;
+      aplicacao.configuracao = snapshotConfig;
 
-      const configGerais =
-        avaliacaoEntity.configuracaoAvaliacao.configuracoesGerais;
+      const configGerais = snapshotConfig.configuracoesGerais;
       const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
       const now = new Date();
 
@@ -49,16 +66,13 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         if (isNaN(dataInicio.getTime())) {
           throw new BadRequestException('Data de início inválida.');
         }
-
         aplicacao.estado = EstadoAplicacaoEnum.AGENDADA;
         aplicacao.dataInicio = dataInicio;
         aplicacao.dataFim = new Date(dataInicio.getTime() + tempoMaximoMs);
-      } else if (configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA) {
-        if (!configGerais.dataAgendamento) {
-          throw new BadRequestException(
-            'A avaliação é do tipo "Agendada", mas não possui uma data de agendamento configurada.',
-          );
-        }
+      } else if (
+        configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA &&
+        configGerais.dataAgendamento
+      ) {
         aplicacao.estado = EstadoAplicacaoEnum.AGENDADA;
         aplicacao.dataInicio = configGerais.dataAgendamento;
         aplicacao.dataFim = new Date(
@@ -81,6 +95,81 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
     });
   }
 
+  private async _snapshotConfiguration(
+    manager: EntityManager,
+    original: ConfiguracaoAvaliacaoModel,
+  ): Promise<ConfiguracaoAvaliacaoModel> {
+    const novasGerais = new ConfiguracoesGeraisModel();
+    Object.assign(novasGerais, {
+      ...original.configuracoesGerais,
+      id: undefined,
+    });
+    const savedGerais = await manager.save(novasGerais);
+
+    if (
+      original.configuracoesGerais.configuracoesRandomizacao &&
+      original.configuracoesGerais.configuracoesRandomizacao.length > 0
+    ) {
+      for (const rule of original.configuracoesGerais
+        .configuracoesRandomizacao) {
+        const novaRule = new ConfiguracoesRandomizacaoModel();
+        novaRule.tipo = rule.tipo;
+        novaRule.dificuldade = rule.dificuldade;
+        novaRule.quantidade = rule.quantidade;
+        novaRule.configuracoesGerais = savedGerais;
+        novaRule.poolDeQuestoes = rule.poolDeQuestoes;
+        await manager.save(novaRule);
+      }
+    }
+
+    const novasSeguranca = new ConfiguracoesSegurancaModel();
+    Object.assign(novasSeguranca, {
+      ...original.configuracoesSeguranca,
+      id: undefined,
+      punicoes: undefined,
+      notificacoes: undefined,
+    });
+    const savedSeguranca = await manager.save(novasSeguranca);
+
+    if (
+      original.configuracoesSeguranca.punicoes &&
+      original.configuracoesSeguranca.punicoes.length > 0
+    ) {
+      const novasPunicoes = original.configuracoesSeguranca.punicoes.map(
+        (p) => {
+          const novaPunicao = new PunicaoPorOcorrenciaModel();
+          Object.assign(novaPunicao, {
+            ...p,
+            id: undefined,
+            configuracaoSeguranca: savedSeguranca,
+          });
+          return novaPunicao;
+        },
+      );
+      await manager.save(novasPunicoes);
+    }
+
+    if (
+      original.configuracoesSeguranca.notificacoes &&
+      original.configuracoesSeguranca.notificacoes.length > 0
+    ) {
+      const novasNotificacoes =
+        original.configuracoesSeguranca.notificacoes.map((n) => {
+          const novaNotificacao = new ConfiguracaoNotificacaoModel();
+          novaNotificacao.tipoNotificacao = n.tipoNotificacao;
+          novaNotificacao.configuracaoSeguranca = savedSeguranca;
+          return novaNotificacao;
+        });
+      await manager.save(novasNotificacoes);
+    }
+
+    const novaConfig = new ConfiguracaoAvaliacaoModel();
+    novaConfig.configuracoesGerais = savedGerais;
+    novaConfig.configuracoesSeguranca = savedSeguranca;
+
+    return await manager.save(novaConfig);
+  }
+
   async updateAplicacao(
     id: number,
     avaliacao: AvaliacaoModel,
@@ -93,11 +182,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           id,
           avaliacao: { item: { avaliador: { id: avaliador.id } } },
         },
-        relations: [
-          'avaliacao',
-          'avaliacao.configuracaoAvaliacao',
-          'avaliacao.configuracaoAvaliacao.configuracoesGerais',
-        ],
+        relations: ['configuracao', 'configuracao.configuracoesGerais'],
       });
 
       if (!aplicacao) {
@@ -106,17 +191,16 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
 
       const estadoAnterior = aplicacao.estado;
       const now = new Date();
+
       aplicacao.estado = estado;
 
       if (estado === EstadoAplicacaoEnum.PAUSADA) {
         if (estadoAnterior !== EstadoAplicacaoEnum.PAUSADA) {
           aplicacao.pausedAt = now;
-          console.log(
-            `Repositório: Aplicação ${id} pausada em ${aplicacao.pausedAt.toISOString()}`,
-          );
         }
       } else {
         aplicacao.pausedAt = null;
+        const configGerais = aplicacao.configuracao.configuracoesGerais;
 
         if (
           estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
@@ -133,60 +217,16 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         } else if (
           estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
           (estadoAnterior === EstadoAplicacaoEnum.CRIADA ||
-            estadoAnterior === EstadoAplicacaoEnum.AGENDADA ||
-            estadoAnterior === EstadoAplicacaoEnum.FINALIZADA ||
-            estadoAnterior === EstadoAplicacaoEnum.CONCLUIDA ||
-            estadoAnterior === EstadoAplicacaoEnum.CANCELADA)
+            estadoAnterior === EstadoAplicacaoEnum.AGENDADA)
         ) {
-          const configGerais =
-            aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
           const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
           aplicacao.dataInicio = now;
           aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-        } else if (
-          estado === EstadoAplicacaoEnum.AGENDADA &&
-          estadoAnterior !== EstadoAplicacaoEnum.AGENDADA
-        ) {
-          const configGerais =
-            aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-          if (!aplicacao.dataInicio && configGerais.dataAgendamento) {
-            aplicacao.dataInicio = configGerais.dataAgendamento;
-          }
         }
       }
 
-      const updatedAplicacao = await manager.save(aplicacao);
-
-      const estadosFinaisAplicacao: EstadoAplicacaoEnum[] = [
-        EstadoAplicacaoEnum.FINALIZADA,
-        EstadoAplicacaoEnum.CANCELADA,
-        EstadoAplicacaoEnum.CONCLUIDA,
-      ];
-
-      const estadosAtivosSubmissao: EstadoSubmissaoEnum[] = [
-        EstadoSubmissaoEnum.INICIADA,
-        EstadoSubmissaoEnum.REABERTA,
-        EstadoSubmissaoEnum.PAUSADA,
-      ];
-
-      if (
-        estadosFinaisAplicacao.includes(estado) &&
-        !estadosFinaisAplicacao.includes(estadoAnterior)
-      ) {
-        const submissaoRepo = manager.getRepository(SubmissaoModel);
-        await submissaoRepo.update(
-          {
-            aplicacao: { id: aplicacao.id },
-            estado: In(estadosAtivosSubmissao),
-          },
-          {
-            estado: EstadoSubmissaoEnum.ENCERRADA,
-            finalizadoEm: now,
-          },
-        );
-      }
-
-      return updatedAplicacao.id;
+      await manager.save(aplicacao);
+      return aplicacao.id;
     });
   }
 
@@ -202,18 +242,38 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       relations: [
         'avaliacao',
         'avaliacao.item',
+        'configuracao',
+        'configuracao.configuracoesGerais',
+        'configuracao.configuracoesSeguranca',
+      ],
+    });
+  }
+
+  async findById(
+    id: number,
+    avaliador: AvaliadorModel,
+  ): Promise<AplicacaoModel | null> {
+    return this.findOne({
+      where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
+      relations: [
+        'avaliacao',
+        'avaliacao.item',
         'avaliacao.arquivos',
+        'avaliacao.arquivos.arquivo',
+        'avaliacao.arquivos.arquivo.item',
         'avaliacao.questoes',
         'avaliacao.questoes.questao',
-        'avaliacao.arquivos.arquivo',
-        'avaliacao.configuracaoAvaliacao',
-        'avaliacao.configuracaoAvaliacao.configuracoesGerais',
-        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
-        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
-        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
-        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
-        'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
+        'avaliacao.questoes.questao.item',
+        'avaliacao.questoes.questao.alternativas',
+        'configuracao',
+        'configuracao.configuracoesGerais',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.item',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
+        'configuracao.configuracoesSeguranca',
+        'configuracao.configuracoesSeguranca.punicoes',
+        'configuracao.configuracoesSeguranca.notificacoes',
       ],
     });
   }
@@ -225,6 +285,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           id,
           avaliacao: { item: { avaliador: { id: avaliador.id } } },
         },
+        relations: ['configuracao'],
       });
 
       if (!aplicacao) {
@@ -232,6 +293,65 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       }
 
       await manager.delete(AplicacaoModel, { id });
+
+      if (aplicacao.configuracao) {
+        const configAvaliacaoId = aplicacao.configuracao.id;
+
+        const configSnapshot = await manager.findOne(
+          ConfiguracaoAvaliacaoModel,
+          {
+            where: { id: configAvaliacaoId },
+            relations: ['configuracoesGerais', 'configuracoesSeguranca'],
+          },
+        );
+
+        if (configSnapshot) {
+          const gerais = configSnapshot.configuracoesGerais;
+          const seguranca = configSnapshot.configuracoesSeguranca;
+
+          if (gerais) {
+            const randomizacoes = await manager.find(
+              ConfiguracoesRandomizacaoModel,
+              {
+                where: { configuracoesGerais: { id: gerais.id } },
+                relations: ['poolDeQuestoes'],
+              },
+            );
+
+            for (const r of randomizacoes) {
+              if (r.poolDeQuestoes && r.poolDeQuestoes.length > 0) {
+                r.poolDeQuestoes = [];
+                await manager.save(r);
+              }
+            }
+            await manager.delete(ConfiguracoesRandomizacaoModel, {
+              configuracoesGerais: { id: gerais.id },
+            });
+          }
+
+          if (seguranca) {
+            await manager.delete(PunicaoPorOcorrenciaModel, {
+              configuracoesSegurancaId: seguranca.id,
+            });
+            await manager.delete(ConfiguracaoNotificacaoModel, {
+              configuracoesSegurancaId: seguranca.id,
+            });
+          }
+
+          await manager.delete(ConfiguracaoAvaliacaoModel, {
+            id: configAvaliacaoId,
+          });
+
+          if (gerais) {
+            await manager.delete(ConfiguracoesGeraisModel, { id: gerais.id });
+          }
+          if (seguranca) {
+            await manager.delete(ConfiguracoesSegurancaModel, {
+              id: seguranca.id,
+            });
+          }
+        }
+      }
     });
   }
 }

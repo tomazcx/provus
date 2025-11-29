@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
+  Logger,
 } from '@nestjs/common';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
@@ -29,6 +30,8 @@ import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
 
 @Injectable()
 export class QuestaoService {
+  private readonly logger = new Logger(QuestaoService.name);
+
   constructor(
     private readonly itemSistemaArquivosRepository: ItemSistemaArquivosRepository,
     private readonly questaoRepository: QuestaoRepository,
@@ -69,7 +72,6 @@ export class QuestaoService {
       const path = await this.itemSistemaArquivosRepository.findPathById(
         questaoModel.id,
       );
-
       return new QuestaoResultDto(questaoModel, path);
     });
 
@@ -98,7 +100,6 @@ export class QuestaoService {
       dto,
       avaliador,
     );
-
     return this.findById(newQuestaoId, avaliador);
   }
 
@@ -156,7 +157,6 @@ export class QuestaoService {
       });
 
       const path = await this.itemSistemaArquivosRepository.findPathById(id);
-
       return new QuestaoResultDto(questaoAtualizada, path);
     });
 
@@ -183,7 +183,6 @@ export class QuestaoService {
       const path = await this.itemSistemaArquivosRepository.findPathById(
         questaoModel.id,
       );
-
       return new QuestaoResultDto(questaoModel, path);
     });
 
@@ -196,7 +195,6 @@ export class QuestaoService {
     user: AvaliadorModel,
   ): Promise<GeneratedQuestaoDto[]> {
     const MAX_CONTEXT_LENGTH = 70000;
-
     const contentSources: { buffer: Buffer; mimeType: string }[] = [];
 
     for (const file of uploadedFiles) {
@@ -208,37 +206,77 @@ export class QuestaoService {
         dto.arquivoIds,
         user.id,
       );
+
       for (const fileDto of existingFiles) {
-        const response = await fetch(fileDto.url);
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const mimeType = this._getMimeTypeFromUrl(fileDto.url);
-        contentSources.push({ buffer, mimeType });
+        try {
+          const response = await fetch(fileDto.url);
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          let mimeType = response.headers.get('content-type');
+
+          if (
+            !mimeType ||
+            mimeType === 'application/octet-stream' ||
+            mimeType === 'application/x-www-form-urlencoded'
+          ) {
+            mimeType = this._getMimeTypeFromUrl(fileDto.url);
+          }
+
+          if (mimeType === 'application/octet-stream') {
+            mimeType = this._detectMimeTypeFromBuffer(buffer);
+            this.logger.debug(
+              `Tipo detectado por Magic Bytes: ${mimeType} para ${fileDto.url}`,
+            );
+          }
+
+          contentSources.push({ buffer, mimeType });
+        } catch (error) {
+          this.logger.error(
+            `Erro ao baixar ou processar arquivo ${fileDto.url}:`,
+            error,
+          );
+        }
       }
     }
 
     if (contentSources.length === 0) {
       throw new BadRequestException(
-        'Nenhum material foi fornecido para gerar as questões.',
+        'Nenhum material válido foi fornecido ou baixado para gerar as questões.',
       );
     }
 
     const rawExtractedTexts = await Promise.all(
-      contentSources.map((source) =>
-        this.textExtractorService.extractTextFromFile(
-          source.buffer,
-          source.mimeType,
-        ),
-      ),
+      contentSources.map(async (source) => {
+        try {
+          return await this.textExtractorService.extractTextFromFile(
+            source.buffer,
+            source.mimeType,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Falha ao extrair texto de um arquivo (${source.mimeType}): ${error.message}`,
+          );
+          return '';
+        }
+      }),
     );
 
-    const cleanedTexts = rawExtractedTexts.map((text) =>
+    const validTexts = rawExtractedTexts.filter((t) => t && t.trim() !== '');
+
+    if (validTexts.length === 0) {
+      throw new BadRequestException(
+        'Não foi possível extrair texto legível dos arquivos fornecidos. Verifique se são PDFs de texto (não imagem) ou DOCX válidos.',
+      );
+    }
+
+    const cleanedTexts = validTexts.map((text) =>
       this._cleanExtractedText(text),
     );
-
     let contexto = cleanedTexts.join('\n\n---\n\n');
 
     if (contexto.length > MAX_CONTEXT_LENGTH) {
-      console.warn(
+      this.logger.warn(
         `Contexto muito longo (${contexto.length} caracteres). Truncando para ${MAX_CONTEXT_LENGTH}.`,
       );
       contexto =
@@ -283,13 +321,16 @@ export class QuestaoService {
     dto: EvaluateByAiRequestDto,
   ): Promise<EvaluateByAiResultDto> {
     const { questaoId, resposta } = dto;
+
     const questao = await this.questaoRepository.findOne({
       where: { id: questaoId },
       relations: ['item'],
     });
+
     if (!questao) {
       throw new NotFoundException('Questão não encontrada');
     }
+
     const prompt = this._getEvaluationPrompt(questao, resposta);
 
     const responseArray =
@@ -333,11 +374,8 @@ export class QuestaoService {
     quantidade: number,
   ): string {
     return `Aja como um especialista em criar questões para avaliações educacionais.
-
   Sua tarefa é criar ${quantidade} questão(ões) discursiva(s) sobre o assunto '${assunto}' com dificuldade '${dificuldade}'.
-
   A sua resposta deve ser APENAS um array JSON, mesmo que a quantidade seja 1. O array JSON deve conter ${quantidade} objeto(s), onde cada objeto segue estritamente a seguinte estrutura:
-
   [
     {
       "titulo": "Um título curto e informativo para a questão",
@@ -364,15 +402,11 @@ export class QuestaoService {
     }
 
     return `Aja como um especialista em criar questões para avaliações educacionais.
-
   Sua tarefa é criar ${quantidade} questão(ões) do tipo '${tipoQuestao}' sobre o assunto '${assunto}' com dificuldade '${dificuldade}'.
-
   Regras importantes para as alternativas:
   - Crie um total de 5 alternativas para cada questão.
   - ${instrucaoCorretas}
-
   A sua resposta deve ser APENAS um array JSON, mesmo que a quantidade seja 1. O array JSON deve conter ${quantidade} objeto(s), onde cada objeto segue estritamente a seguinte estrutura, incluindo a chave "alternativas":
-
   [
     {
       "titulo": "Um título curto e informativo para a questão",
@@ -413,7 +447,6 @@ export class QuestaoService {
       "exemplo_resposta": "Um exemplo detalhado de uma resposta que seria considerada 100% correta com base no conteúdo."
     }
   ]
-
   CONTEÚDO:
   """
   ${contexto}
@@ -433,6 +466,7 @@ export class QuestaoService {
       instrucaoCorretas =
         "UMA OU MAIS alternativas podem ter o campo 'isCorreto' como true.";
     }
+
     const assuntoClause = assunto
       ? `A questão deve ser especificamente sobre '${assunto}'.`
       : 'A questão deve ser sobre o tema geral do conteúdo.';
@@ -448,7 +482,7 @@ export class QuestaoService {
       "titulo": "Um título curto e informativo para a questão",
       "descricao": "O texto completo da questão.",
       "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Uma justificativa explicando qual(is) alternativa(s) está(ão) correta(s) e por quê. Priorizar objetividade para não ser longo.",
+      "exemplo_resposta": "Uma justificativa explicando qual(is) alternativa(s) está(ão) correta(s) e por quê. Priorizar objetividade para não ser longo. Priorizar objetividade para não ser longo.",
       "alternativas": [
         {
           "descricao": "Texto da primeira alternativa.",
@@ -461,24 +495,61 @@ export class QuestaoService {
       ]
     }
   ]
-
   CONTEÚDO:
   """
   ${contexto}
   """`;
   }
 
+  private _detectMimeTypeFromBuffer(buffer: Buffer): string {
+    if (
+      buffer.length >= 4 &&
+      buffer[0] === 0x25 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x44 &&
+      buffer[3] === 0x46
+    ) {
+      return 'application/pdf';
+    }
+
+    if (
+      buffer.length >= 4 &&
+      buffer[0] === 0x50 &&
+      buffer[1] === 0x4b &&
+      buffer[2] === 0x03 &&
+      buffer[3] === 0x04
+    ) {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
+    return 'application/octet-stream';
+  }
+
   private _getMimeTypeFromUrl(url: string): string {
-    const extension = url.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'txt':
-        return 'text/plain';
-      default:
+    try {
+      const parsedUrl = new URL(url);
+      const pathname = parsedUrl.pathname;
+      const extension = pathname.split('.').pop()?.toLowerCase();
+
+      if (!extension || extension === pathname || extension.includes('/')) {
         return 'application/octet-stream';
+      }
+
+      switch (extension) {
+        case 'pdf':
+          return 'application/pdf';
+        case 'docx':
+          return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        case 'txt':
+          return 'text/plain';
+        default:
+          return 'application/octet-stream';
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao analisar URL para mimetype: ${url} - Erro: ${error.message}`,
+      );
+      return 'application/octet-stream';
     }
   }
 
@@ -488,16 +559,17 @@ export class QuestaoService {
   ): string {
     return `Aja como um especialista em avaliar questões para avaliações educacionais.
     Sua tarefa é avaliar a questão discursiva '${questao.item.titulo}' com a resposta '${resposta}' e pontuação '${questao.pontuacao}'.
+
     A sua resposta deve ser APENAS um objeto JSON, seguindo a estrutura:
     {
       "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" ou "${EstadoQuestaoCorrigida.INCORRETA}" ou "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
       "pontuacao": ${questao.pontuacao},
       "textoRevisao": "Um texto de revisão da resposta do aluno, de forma clara e objetiva."
     }
-   
+
     O valor do campo "estadoCorrecao" deve ser "${EstadoQuestaoCorrigida.CORRETA}" se a resposta estiver correta, "${EstadoQuestaoCorrigida.INCORRETA}" se a resposta estiver incorreta e "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}" se a resposta estiver parcialmente correta.
     Caso o "estadoCorrecao" seja "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", o valor do campo "pontuacao" deve ser a pontuação parcial da questão de acordo com a resposta do aluno.
-   
+
     Considere o seguinte gabarito da questão para avaliar a resposta:
     ${questao.exemploRespostaIa}
     `;
@@ -506,12 +578,15 @@ export class QuestaoService {
   private async _callAiAndParseResponse<T>(prompt: string): Promise<T[]> {
     try {
       const rawResponse = await this.aiProvider.generateText(prompt);
+
       const jsonMatch = rawResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
       if (!jsonMatch) {
         throw new Error('Resposta da IA não continha um JSON válido.');
       }
+
       const jsonString = jsonMatch[0];
       const generatedData = JSON.parse(jsonString) as T[] | T;
+
       return Array.isArray(generatedData) ? generatedData : [generatedData];
     } catch (error) {
       console.error('Falha ao gerar ou parsear a questão da IA:', error);
@@ -523,10 +598,9 @@ export class QuestaoService {
 
   private _cleanExtractedText(text: string): string {
     const cleanedText = text.replace(
-      /[^\p{L}\p{N}\p{Z}\s.,;:?!()[\]{}'"+\-−*/=<>≤≥∆]/gu,
+      /[^\p{L}\p{N}\p{Z}\s.,;:?!()[\]{}'"+\-−*/=<>≤≥∆%]/gu,
       '',
     );
-
     return cleanedText.replace(/\s+/g, ' ').trim();
   }
 }

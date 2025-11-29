@@ -58,6 +58,7 @@ const route = useRoute();
 const router = useRouter();
 const studentAssessmentStore = useStudentAssessmentStore();
 const toast = useToast();
+
 const currentSubmissionStatus = ref<EstadoSubmissaoEnum | null>(null);
 const isMaterialsOpen = ref(false);
 const viewMode = ref<"single" | "paginated">("single");
@@ -66,8 +67,8 @@ const isSubmitConfirmOpen = ref(false);
 const ajusteTempoPenalidade = ref(0);
 const isExitingForSubmission = ref(false);
 const lastInfractionTime = ref(0);
-
 const isFullscreen = ref(true);
+
 const showFullscreenBlocker = computed(() => {
   return proibirTrocarAbas.value && isTimerActive.value && !isFullscreen.value;
 });
@@ -88,9 +89,7 @@ function registrarInfracao(tipo: TipoInfracaoEnum) {
     console.log(`[Proctoring] Infração ignorada (Debounce): ${tipo}`);
     return;
   }
-
   lastInfractionTime.value = now;
-
   if (studentWebSocket.isConnected.value) {
     studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
       tipoInfracao: tipo,
@@ -110,6 +109,7 @@ const submissionFiles = computed(() => studentAssessmentStore.submissionFiles);
 const isLoading = computed(() => studentAssessmentStore.isLoading);
 const isSubmitting = computed(() => studentAssessmentStore.isSubmitting);
 const error = computed(() => studentAssessmentStore.error);
+
 const dataInicioAplicacao = computed(
   () => studentAssessmentStore.dataInicioAplicacao
 );
@@ -122,13 +122,14 @@ const descricaoAvaliacao = computed(
 const tituloAvaliacao = computed(
   () => studentAssessmentStore.tituloAvaliacao ?? "Carregando..."
 );
+const nomeAvaliador = computed(() => studentAssessmentStore.nomeAvaliador);
+
 const proibirTrocarAbas = computed(
   () => studentAssessmentStore.proibirTrocarAbas
 );
 const proibirCopiarColar = computed(
   () => studentAssessmentStore.proibirCopiarColar
 );
-
 const tempoPenalidadeStore = computed(
   () => studentAssessmentStore.tempoPenalidade
 );
@@ -223,12 +224,14 @@ const pontuacaoTotalPossivel = computed(() => {
 
 const questionsPerPage = 5;
 const currentPage = ref(1);
+
 const paginatedQuestions = computed(() => {
   if (!submissionQuestions.value) return [];
   const start = (currentPage.value - 1) * questionsPerPage;
   const end = start + questionsPerPage;
   return submissionQuestions.value.slice(start, end);
 });
+
 const startingQuestionNumber = computed(
   () => (currentPage.value - 1) * questionsPerPage
 );
@@ -358,7 +361,6 @@ function connectWebSocket(hash: string) {
       description: data.message,
       color: "error",
     });
-
     if (
       data.estado &&
       data.estado !== EstadoSubmissaoEnum.INICIADA &&
@@ -375,6 +377,7 @@ function connectWebSocket(hash: string) {
     (data) => {
       currentSubmissionStatus.value = data.novoEstado;
       dataFimRef.value = data.novaDataFimISO;
+
       if (
         (data.novoEstado === EstadoSubmissaoEnum.INICIADA ||
           data.novoEstado === EstadoSubmissaoEnum.REABERTA) &&
@@ -382,6 +385,7 @@ function connectWebSocket(hash: string) {
       ) {
         checkFullscreenState();
       }
+
       if (data.novoEstado === EstadoSubmissaoEnum.PAUSADA) {
         toast.add({
           title: "Avaliação Pausada",
@@ -434,9 +438,7 @@ function connectWebSocket(hash: string) {
 
   studentWebSocket.on<TempoReduzidoPayload>("reduzir-tempo-aluno", (data) => {
     ajusteTempoPenalidade.value -= data.tempoReduzido;
-
     studentAssessmentStore.aplicarPenalidadeTempo(data.tempoReduzido);
-
     toast.add({
       title: "Penalidade de Tempo",
       description: `-${data.tempoReduzido} segundos.`,
@@ -482,6 +484,7 @@ onMounted(async () => {
   } else {
     router.push("/aluno/entrar");
   }
+
   document.addEventListener("copy", handleClipboardEvent);
   document.addEventListener("paste", handleClipboardEvent);
   document.addEventListener("cut", handleClipboardEvent);
@@ -509,7 +512,6 @@ onUnmounted(() => {
       <p class="mt-4 text-lg text-gray-600">Carregando avaliação...</p>
     </div>
   </div>
-
   <div v-else-if="error" class="flex items-center justify-center min-h-screen">
     <UAlert
       icon="i-lucide-alert-triangle"
@@ -520,7 +522,6 @@ onUnmounted(() => {
     />
     <UButton class="mt-4" @click="router.push('/aluno/entrar')">Voltar</UButton>
   </div>
-
   <div v-else-if="submissionDetails && submissionQuestions">
     <UModal :open="showFullscreenBlocker" prevent-close>
       <template #body>
@@ -549,6 +550,7 @@ onUnmounted(() => {
 
     <ExamHeader
       :titulo-avaliacao="tituloAvaliacao"
+      :nome-avaliador="nomeAvaliador"
       :tempo-restante-formatado="tempoRestanteFormatado"
       :is-submitting="isSubmitting"
       @submit="submit"
@@ -566,7 +568,6 @@ onUnmounted(() => {
         @open-materials="isMaterialsOpen = true"
         @toggle-view="viewMode = viewMode === 'single' ? 'paginated' : 'single'"
       />
-
       <main class="ml-80 flex-1 p-6">
         <div id="questions-container" class="max-w-4xl mx-auto">
           <div class="space-y-6">
@@ -612,9 +613,7 @@ onUnmounted(() => {
         </div>
       </main>
     </div>
-
     <MaterialsDialog v-model="isMaterialsOpen" :arquivos="submissionFiles" />
-
     <ConfirmationDialog
       v-model="isSubmitConfirmOpen"
       title="Entregar Avaliação?"
@@ -624,7 +623,6 @@ onUnmounted(() => {
       @confirm="onConfirmSubmit"
     />
   </div>
-
   <div v-else class="flex items-center justify-center min-h-screen">
     <UAlert
       icon="i-lucide-search-x"

@@ -12,7 +12,6 @@ import TipoItemEnum from "~/enums/TipoItemEnum";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 import type { CreateAiQuestaoDto } from "~/types/api/request/Questao.request";
 import type { GeneratedQuestaoDto } from "~/types/api/response/Questao.response";
-import type { GenerateQuestaoFromFileRequestDto } from "~/types/api/request/GenerateQuestaoFromFile.request";
 import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
 
 interface TemaForm {
@@ -123,7 +122,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
   const { $api } = useNuxtApp();
   const toast = useToast();
   const router = useRouter();
-
   const assessmentState = ref<AvaliacaoEntity | null>(null);
   const isLoading = ref(false);
   const isSaving = ref(false);
@@ -287,9 +285,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
   }
 
   async function generateQuestionsByTopic(regra: TemaForm) {
-    console.log("oi???");
     if (!assessmentState.value) return;
-
     isSaving.value = true;
 
     try {
@@ -338,7 +334,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
       );
 
       assessmentState.value.questoes.push(...novasQuestoes);
-
       toast.add({
         title: `${novasQuestoes.length} questão(ões) gerada(s) por I.A.`,
         color: "secondary",
@@ -358,7 +353,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
   async function generateQuestionsByFile(regras: RegraGeracaoIaEntity[]) {
     if (!assessmentState.value) return;
     isSaving.value = true;
-
     const allGeneratedQuestions: QuestaoEntity[] = [];
 
     try {
@@ -373,19 +367,24 @@ export const useAssessmentStore = defineStore("assessment", () => {
           continue;
         }
 
-        const payload: GenerateQuestaoFromFileRequestDto = {
-          arquivoIds: rule.materiaisAnexadosIds,
-          assunto: rule.assunto || undefined,
-          dificuldade: rule.dificuldade,
-          tipoQuestao: rule.tipo,
-          quantidade: rule.quantidade,
-        };
+        const formData = new FormData();
+        formData.append("dificuldade", rule.dificuldade);
+        formData.append("tipoQuestao", rule.tipo);
+        formData.append("quantidade", rule.quantidade.toString());
+
+        if (rule.assunto) {
+          formData.append("assunto", rule.assunto);
+        }
+
+        rule.materiaisAnexadosIds.forEach((id) => {
+          formData.append("arquivoIds", id.toString());
+        });
 
         const generatedQuestions = await $api<GeneratedQuestaoDto[]>(
           "/backoffice/questao/generate-by-ai/gerar-por-arquivo",
           {
             method: "POST",
-            body: payload,
+            body: formData,
           }
         );
 

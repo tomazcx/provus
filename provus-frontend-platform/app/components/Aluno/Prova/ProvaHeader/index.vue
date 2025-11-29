@@ -3,6 +3,7 @@ import RichTextEditor from "~/components/ui/RichTextEditor/index.vue";
 
 defineProps<{
   tituloAvaliacao: string;
+  nomeAvaliador?: string | null;
   tempoRestanteFormatado?: string | null;
   isSubmitting?: boolean;
 }>();
@@ -25,9 +26,10 @@ const emit = defineEmits(["submit"]);
           />
         </div>
       </div>
-      <span class="text-sm opacity-90 shrink-0">Prof. Responsável</span>
+      <span class="text-sm opacity-90 shrink-0">
+        {{ nomeAvaliador || "Prof. Responsável" }}
+      </span>
     </div>
-
     <div class="flex items-center space-x-6 shrink-0">
       <div class="flex items-center space-x-2">
         <Icon name="i-lucide-clock" />

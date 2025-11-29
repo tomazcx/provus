@@ -37,12 +37,10 @@ export class GenerateByAiController {
     @Body() dto: GenerateQuestaoFromFileRequestDto,
     @LoggedAvaliador() user: AvaliadorModel,
     @UploadedFiles()
-    uploadedContent: { files?: Express.Multer.File[] },
+    uploadedContent?: { files?: Express.Multer.File[] },
   ): Promise<GeneratedQuestaoDto[]> {
-    return this.questaoService.createByFile(
-      dto,
-      uploadedContent.files || [],
-      user,
-    );
+    const files = uploadedContent?.files || [];
+
+    return this.questaoService.createByFile(dto, files, user);
   }
 }
