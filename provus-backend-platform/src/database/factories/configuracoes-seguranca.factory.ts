@@ -9,7 +9,6 @@ export const ConfiguracoesSegurancaFactory = setSeederFactory(
     config.proibirTrocarAbas = faker.datatype.boolean();
     config.proibirCopiarColar = faker.datatype.boolean();
     config.quantidadeTentativas = faker.number.int({ min: 1, max: 3 });
-    config.quantidadeAcessosSimultaneos = 1;
     config.ativarCorrecaoDiscursivaViaIa = faker.datatype.boolean();
     return config;
   },

@@ -100,14 +100,6 @@ export class CreateConfiguracoesGeraisRequest {
   permitirRevisao: boolean;
 
   @ApiProperty({
-    description: 'Permitir multiplos envios',
-    example: true,
-  })
-  @IsBoolean()
-  @IsNotEmpty()
-  permitirMultiplosEnvios: boolean;
-
-  @ApiProperty({
     description: 'Exibir pontuação das questões',
     example: true,
   })
@@ -210,14 +202,6 @@ export class CreateConfiguracoesSegurancaRequest {
   @IsInt()
   @IsNotEmpty()
   quantidadeTentativas: number;
-
-  @ApiProperty({
-    description: 'Quantidade de acessos simultâneos',
-    example: 3,
-  })
-  @IsInt()
-  @IsNotEmpty()
-  quantidadeAcessosSimultaneos: number;
 
   @ApiProperty({
     description: 'Permitir fechar alertas',

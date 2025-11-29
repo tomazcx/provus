@@ -65,9 +65,6 @@ function mapEntityToRequest(entity: AvaliacaoEntity): CreateAvaliacaoRequest {
         ...entity.configuracao.configuracoesGerais,
         permitirRevisao:
           entity.configuracao.configuracoesGerais.permitirRevisao ?? false,
-        permitirMultiplosEnvios:
-          entity.configuracao.configuracoesGerais.permitirMultiplosEnvios ??
-          false,
         dataAgendamento: entity.configuracao.configuracoesGerais.dataAgendamento
           ? entity.configuracao.configuracoesGerais.dataAgendamento.toISOString()
           : null,
@@ -108,7 +105,6 @@ export const getBlankAssessment = (): AvaliacaoEntity => ({
       dataAgendamento: null,
       mostrarPontuacao: true,
       permitirRevisao: false,
-      permitirMultiplosEnvios: false,
       exibirPontuacaoQuestoes: true,
       configuracoesRandomizacao: [],
     },
@@ -116,7 +112,6 @@ export const getBlankAssessment = (): AvaliacaoEntity => ({
       proibirTrocarAbas: false,
       proibirCopiarColar: false,
       quantidadeTentativas: 1,
-      quantidadeAcessosSimultaneos: 1,
       ativarCorrecaoDiscursivaViaIa: false,
       punicoes: [],
       notificacoes: [],

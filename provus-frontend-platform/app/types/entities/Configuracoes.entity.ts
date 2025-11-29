@@ -43,7 +43,6 @@ export interface ConfiguracoesGeraisEntity {
   dataAgendamento: Date | null;
   mostrarPontuacao: boolean;
   permitirRevisao: boolean;
-  permitirMultiplosEnvios: boolean;
   exibirPontuacaoQuestoes: boolean;
   configuracoesRandomizacao: RandomizationRuleEntity[];
 }
@@ -52,7 +51,6 @@ export interface ConfiguracoesSegurancaEntity {
   proibirTrocarAbas: boolean;
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
-  quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaEntity[];
   notificacoes: TipoNotificacaoEnum[];

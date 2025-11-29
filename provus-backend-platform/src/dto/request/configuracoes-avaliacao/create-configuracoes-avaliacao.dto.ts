@@ -19,7 +19,6 @@ export class CreateConfiguracoesGeraisDto {
   dataAgendamento: Date;
   mostrarPontuacao: boolean;
   permitirRevisao: boolean;
-  permitirMultiplosEnvios: boolean;
   exibirPontuacaoQuestoes: boolean;
   configuracoesRandomizacao: CreateConfiguracoesRandomizacaoDto[];
 }
@@ -38,7 +37,6 @@ export class CreateConfiguracoesSegurancaDto {
   proibirTrocarAbas: boolean;
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
-  quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaDto[];
   notificacoes: TipoNotificacaoEnum[];

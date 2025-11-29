@@ -30,7 +30,6 @@ interface ConfiguracoesGeraisApiResponse {
   dataAgendamento: string | null;
   mostrarPontuacao: boolean;
   permitirRevisao: boolean;
-  permitirMultiplosEnvios: boolean;
   exibirPontuacaoQuestoes: boolean;
   configuracoesRandomizacao: ConfiguracaoRandomizacaoApiResponse[];
 }
@@ -39,7 +38,6 @@ interface ConfiguracoesSegurancaApiResponse {
   proibirTrocarAbas: boolean;
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
-  quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaApiResponse[];
   notificacoes: { tipoNotificacao: TipoNotificacaoEnum }[];

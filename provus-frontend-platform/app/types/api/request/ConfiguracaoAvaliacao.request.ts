@@ -28,7 +28,6 @@ interface CreateConfiguracoesGeraisRequest {
   dataAgendamento: string | null;
   mostrarPontuacao: boolean;
   permitirRevisao: boolean;
-  permitirMultiplosEnvios: boolean;
   exibirPontuacaoQuestoes: boolean;
   configuracoesRandomizacao: CreateConfiguracoesRandomizacaoRequest[];
 }
@@ -37,7 +36,6 @@ interface CreateConfiguracoesSegurancaRequest {
   proibirTrocarAbas: boolean;
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
-  quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaRequest[];
   notificacoes: TipoNotificacaoEnum[];

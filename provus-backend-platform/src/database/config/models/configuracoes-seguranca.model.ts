@@ -16,9 +16,6 @@ export class ConfiguracoesSegurancaModel {
   @Column({ name: 'quantidade_tentativas' })
   quantidadeTentativas: number;
 
-  @Column({ name: 'quantidade_acessos_simultaneos' })
-  quantidadeAcessosSimultaneos: number;
-
   @Column({ name: 'ativar_correcao_discursiva_via_ia' })
   ativarCorrecaoDiscursivaViaIa: boolean;
 

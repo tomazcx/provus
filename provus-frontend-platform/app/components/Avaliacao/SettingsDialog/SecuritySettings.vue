@@ -241,34 +241,6 @@ onMounted(() => {
 
     <UCard variant="subtle">
       <template #header>
-        <h2 class="font-bold">Controle de acesso</h2>
-      </template>
-      <div class="space-y-5">
-        <UFormField
-          label="Quantidade de tentativas"
-          description="Defina quantas vezes o aluno pode fazer a avaliação."
-        >
-          <UInputNumber
-            v-model="
-              formState.configuracao.configuracoesSeguranca.quantidadeTentativas
-            "
-          />
-        </UFormField>
-        <UFormField
-          label="Quantidade de acessos simultâneos"
-          description="Defina quantas pessoas podem acessar uma mesma prova ao mesmo tempo."
-        >
-          <UInputNumber
-            v-model="
-              formState.configuracao.configuracoesSeguranca
-                .quantidadeAcessosSimultaneos
-            "
-          />
-        </UFormField>
-      </div>
-    </UCard>
-    <UCard variant="subtle">
-      <template #header>
         <h2 class="font-bold">Notificações</h2>
         <p class="text-sm">
           Configure suas notificações quando alguém infrigir as regras.

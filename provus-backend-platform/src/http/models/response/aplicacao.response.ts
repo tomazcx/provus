@@ -41,7 +41,6 @@ export class AplicacaoResponse {
         dataAgendamento: new Date(),
         mostrarPontuacao: true,
         permitirRevisao: true,
-        permitirMultiplosEnvios: true,
         exibirPontuacaoQuestoes: true,
         configuracoesRandomizacao: {
           tipo: TipoRandomizacaoEnum.SIMPLES,

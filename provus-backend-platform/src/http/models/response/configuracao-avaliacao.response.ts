@@ -72,12 +72,6 @@ class ConfiguracaoSegurancaResponse {
   quantidadeTentativas: number;
 
   @ApiProperty({
-    description: 'Quantidade de acessos simultâneos',
-    example: 3,
-  })
-  quantidadeAcessosSimultaneos: number;
-
-  @ApiProperty({
     description: 'Ativar correção discursiva via IA',
     example: true,
   })
@@ -98,7 +92,6 @@ class ConfiguracaoSegurancaResponse {
     response.proibirTrocarAbas = model.proibirTrocarAbas;
     response.proibirCopiarColar = model.proibirCopiarColar;
     response.quantidadeTentativas = model.quantidadeTentativas;
-    response.quantidadeAcessosSimultaneos = model.quantidadeAcessosSimultaneos;
     response.ativarCorrecaoDiscursivaViaIa =
       model.ativarCorrecaoDiscursivaViaIa;
     response.punicoes =

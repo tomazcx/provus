@@ -76,10 +76,10 @@ export class SubmissaoGateway
     this.logger.log(`Aluno tentando se conectar para avaliação: ${client.id}`);
     this.logger.debug('Handshake Query:', client.handshake.query);
     this.logger.debug('Handshake Auth:', client.handshake.auth);
+
     try {
       const hash = client.handshake.auth.hash as string | undefined;
-      this.logger.debug('Handshake Query:', client.handshake.query);
-      this.logger.debug('Handshake Auth:', client.handshake.auth);
+
       if (!hash) {
         this.logger.warn(`Tentativa de conexão sem hash - Aluno: ${client.id}`);
         client.emit('erro-validacao', {
@@ -88,6 +88,7 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
+
       const submissaoData = await this.submissaoRepository.findOne({
         where: { hash },
         relations: [
@@ -101,6 +102,7 @@ export class SubmissaoGateway
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         ],
       });
+
       if (!submissaoData) {
         this.logger.warn(
           `Tentativa de conexão com hash inválido: ${hash} - Aluno: ${client.id}`,
@@ -111,10 +113,12 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
+
       const estadosValidos = [
         EstadoSubmissaoEnum.INICIADA,
         EstadoSubmissaoEnum.REABERTA,
       ];
+
       if (!estadosValidos.includes(submissaoData.estado)) {
         this.logger.warn(
           `Tentativa de conexão com submissão em estado inválido: ${submissaoData.estado} - Hash: ${hash} - Aluno: ${client.id}`,
@@ -126,9 +130,11 @@ export class SubmissaoGateway
         client.disconnect();
         return;
       }
+
       const configSeguranca =
         submissaoData.aplicacao?.avaliacao?.configuracaoAvaliacao
           ?.configuracoesSeguranca;
+
       if (!configSeguranca) {
         this.logger.error(
           `Configurações de segurança não encontradas para aplicação ${submissaoData.aplicacao?.id}, hash ${hash}`,
@@ -137,37 +143,57 @@ export class SubmissaoGateway
           'Erro ao verificar configurações da avaliação.',
         );
       }
-      const quantidadeAcessosSimultaneos =
-        submissaoData.aplicacao.avaliacao.configuracaoAvaliacao
-          .configuracoesSeguranca.quantidadeAcessosSimultaneos;
+      const connections = this.connectedClients.get(hash) || [];
+      const emailAluno = submissaoData.estudante.email;
+
+      const sessaoAnterior = connections.find(
+        (c) => c.estudanteEmail === emailAluno,
+      );
+
+      if (sessaoAnterior) {
+        this.logger.warn(
+          `[BLOQUEIO] Aluno ${emailAluno} tentou entrar novamente em outro dispositivo. Bloqueando nova conexão.`,
+        );
+        client.emit('erro-validacao', {
+          message:
+            'Você já está com a prova aberta em outro dispositivo ou aba. Feche a outra sessão para entrar aqui.',
+        });
+        client.disconnect();
+        return;
+      }
+
+      if (connections.length >= 1) {
+        this.logger.warn(`[BLOQUEIO] Limite de conexões para o hash atingido.`);
+        client.emit('erro-validacao', {
+          message: 'Limite de acessos simultâneos atingido.',
+        });
+        client.disconnect();
+        return;
+      }
+
       const connectionData: SubmissaoConnectionData = {
         clientId: client.id,
         submissaoId: submissaoData.id,
         estudanteEmail: submissaoData.estudante.email,
       };
-      const connections = this.connectedClients.get(hash) || [];
-      if (connections.length >= quantidadeAcessosSimultaneos) {
-        this.logger.warn(
-          `Tentativa de conexão com quantidade de acessos simultâneos atingida: ${connections.length} - Hash: ${hash} - Aluno: ${client.id}`,
-        );
-        client.emit('erro-validacao', {
-          message: 'Quantidade de acessos simultâneos atingida',
-        });
-        client.disconnect();
-        return;
-      }
+
       const aplicacaoId = submissaoData.aplicacao.id;
       const roomName = `aplicacao_${aplicacaoId}`;
+
       await client.join(roomName);
+
       this.logger.log(
         `Cliente ${client.id} (SubId: ${submissaoData.id}) entrou na sala ${roomName}`,
       );
+
       connections.push(connectionData);
       this.connectedClients.set(hash, connections);
       this.clientsHash.set(client.id, hash);
+
       this.logger.log(
         `Conexão estabelecida com sucesso - Hash: ${hash}, Email: ${submissaoData.estudante.email} - Aluno: ${client.id}`,
       );
+
       client.emit('submissao-validada', {
         message: 'Conexão estabelecida com sucesso',
         submissaoId: submissaoData.id,

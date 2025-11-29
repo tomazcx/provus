@@ -35,7 +35,6 @@ export class ConfiguracaoGeralDto {
   mostrarPontuacao: boolean;
   exibirPontuacaoQuestoes: boolean;
   permitirRevisao: boolean;
-  permitirMultiplosEnvios: boolean;
   configuracoesRandomizacao: ConfiguracaoRandomizacaoDto[];
 
   constructor(model: ConfiguracoesGeraisModel) {
@@ -46,7 +45,6 @@ export class ConfiguracaoGeralDto {
     this.mostrarPontuacao = model.mostrarPontuacao;
     this.exibirPontuacaoQuestoes = model.exibirPontuacaoQuestoes;
     this.permitirRevisao = model.permitirRevisao;
-    this.permitirMultiplosEnvios = model.permitirMultiplosEnvios;
     this.configuracoesRandomizacao =
       model.configuracoesRandomizacao?.map(
         (configuracao) => new ConfiguracaoRandomizacaoDto(configuracao),
@@ -77,7 +75,6 @@ export class ConfiguracaoSegurancaDto {
   proibirTrocarAbas: boolean;
   proibirCopiarColar: boolean;
   quantidadeTentativas: number;
-  quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaDto[];
   notificacoes: TipoNotificacaoEnum[];
@@ -86,7 +83,6 @@ export class ConfiguracaoSegurancaDto {
     this.proibirTrocarAbas = model.proibirTrocarAbas;
     this.proibirCopiarColar = model.proibirCopiarColar;
     this.quantidadeTentativas = model.quantidadeTentativas;
-    this.quantidadeAcessosSimultaneos = model.quantidadeAcessosSimultaneos;
     this.ativarCorrecaoDiscursivaViaIa = model.ativarCorrecaoDiscursivaViaIa;
     this.punicoes = model.punicoes.map(
       (punicao) => new PunicaoPorOcorrenciaDto(punicao),

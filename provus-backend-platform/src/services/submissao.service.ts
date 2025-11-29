@@ -9,7 +9,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, In } from 'typeorm';
 import * as crypto from 'crypto';
-
 import { CreateSubmissaoRequest } from 'src/http/controllers/backoffice/submissao/create-submissao/request';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
@@ -56,30 +55,26 @@ interface SubmissaoFinalizadaPayload {
   alunoNome: string;
   timestamp: string;
 }
+
 @Injectable()
 export class SubmissaoService {
   private readonly logger = new Logger(SubmissaoService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly emailTemplatesProvider: EmailTemplatesProvider,
     private readonly notificationProvider: NotificationProvider,
     private readonly questaoService: QuestaoService,
-
     @InjectRepository(AplicacaoModel)
     private readonly aplicacaoRepository: Repository<AplicacaoModel>,
-
     @InjectRepository(SubmissaoModel)
     private readonly submissaoRepository: Repository<SubmissaoModel>,
-
     @InjectRepository(SubmissaoRespostasModel)
     private readonly submissaoRespostasRepository: Repository<SubmissaoRespostasModel>,
-
     @InjectRepository(EstudanteModel)
     private readonly estudanteRepository: Repository<EstudanteModel>,
-
     @InjectRepository(RegistroPunicaoPorOcorrenciaModel)
     private readonly registroPunicaoPorOcorrenciaRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
-
     @InjectRepository(QuestaoModel)
     private readonly questaoRepository: Repository<QuestaoModel>,
   ) {}
@@ -122,6 +117,7 @@ export class SubmissaoService {
           aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
         const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
         const now = new Date();
+
         aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
         aplicacao.dataInicio = now;
         aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
@@ -149,9 +145,7 @@ export class SubmissaoService {
         );
       }
 
-      const avaliadorId = aplicacao.avaliacao.item.avaliador.id;
       const questoesParaAluno = this._randomizeQuestoes(aplicacao.avaliacao);
-      const totalQuestoesReal = questoesParaAluno.length;
 
       const submissaoSalva = await this.dataSource.transaction(
         async (manager) => {
@@ -163,54 +157,8 @@ export class SubmissaoService {
             relations: ['submissao'],
           });
 
-          const estadosAtivos = [
-            EstadoSubmissaoEnum.INICIADA,
-            EstadoSubmissaoEnum.PAUSADA,
-            EstadoSubmissaoEnum.REABERTA,
-          ];
-
           if (estudanteExistente) {
-            const submissaoAntiga = estudanteExistente.submissao;
-
-            if (estadosAtivos.includes(submissaoAntiga.estado)) {
-              return submissaoAntiga;
-            }
-
-            const configGerais =
-              aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-
-            if (configGerais.permitirMultiplosEnvios) {
-              await manager.delete(SubmissaoRespostasModel, {
-                submissaoId: submissaoAntiga.id,
-              });
-
-              submissaoAntiga.estado = EstadoSubmissaoEnum.INICIADA;
-              submissaoAntiga.pontuacaoTotal = 0;
-              submissaoAntiga.finalizadoEm = null;
-              submissaoAntiga.criadoEm = new Date();
-              submissaoAntiga.atualizadoEm = new Date();
-              submissaoAntiga.codigoEntrega =
-                await this._generateUniqueSubmissionCode(manager);
-
-              const submissaoReciclada = await manager.save(submissaoAntiga);
-
-              if (questoesParaAluno.length > 0) {
-                const respostasBatch = questoesParaAluno.map(
-                  (questao, index) => ({
-                    submissaoId: submissaoReciclada.id,
-                    questaoId: questao.id,
-                    dadosResposta: {},
-                    pontuacao: 0,
-                    ordem: index + 1,
-                  }),
-                );
-                await manager.insert(SubmissaoRespostasModel, respostasBatch);
-              }
-
-              return submissaoReciclada;
-            } else {
-              return submissaoAntiga;
-            }
+            return estudanteExistente.submissao;
           } else {
             const novoEstudiante = manager.create(EstudanteModel, {
               nome: body.nome,
@@ -219,7 +167,6 @@ export class SubmissaoService {
 
             const codigoEntrega =
               await this._generateUniqueSubmissionCode(manager);
-
             const hash = this._createShortHash(body.codigoAcesso + body.email);
 
             const novaSubmissao = manager.create(SubmissaoModel, {
@@ -252,33 +199,11 @@ export class SubmissaoService {
       );
 
       if (submissaoSalva.estado === EstadoSubmissaoEnum.INICIADA) {
-        // try {
-        //   const notificationPayload = {
-        //     submissaoId: submissaoSalva.id,
-        //     aplicacaoId: aplicacao.id,
-        //     aluno: {
-        //       nome: body.nome,
-        //       email: body.email,
-        //     },
-        //     estado: EstadoSubmissaoEnum.INICIADA,
-        //     horaInicio: submissaoSalva.criadoEm.toISOString(),
-        //     totalQuestoes: totalQuestoesReal,
-        //   };
-        //   this.notificationProvider.sendNotificationViaSocket(
-        //     avaliadorId,
-        //     'nova-submissao',
-        //     notificationPayload,
-        //   );
-        // } catch (wsError) {
-        //   this.logger.error(`Erro WS nova-submissao: ${wsError}`);
-        // }
-
         const url = `${Env.FRONTEND_URL}/submissao/${submissaoSalva.hash}`;
         const html = this.emailTemplatesProvider.submissaoCriada(
           url,
           aplicacao.avaliacao.item.titulo,
         );
-
         this.notificationProvider
           .sendEmail(body.email, 'Provus - Avaliação iniciada', html)
           .catch((emailError) => {
@@ -290,7 +215,6 @@ export class SubmissaoService {
 
       const responseLight = new FindSubmissaoByHashResponse();
       responseLight.submissao = new SubmissaoResultDto(submissaoSalva);
-
       responseLight.questoes = [];
       responseLight.arquivos = [];
 
@@ -331,6 +255,7 @@ export class SubmissaoService {
       EstadoSubmissaoEnum.INICIADA,
       EstadoSubmissaoEnum.REABERTA,
     ];
+
     if (!estadosPermitidosParaEnvio.includes(submissao.estado)) {
       throw new BadRequestException(
         `Submissão com estado "${submissao.estado}" não pode ser enviada.`,
@@ -368,6 +293,7 @@ export class SubmissaoService {
         }
 
         let novosDadosResposta: DadosRespostaType | null = null;
+
         if (
           respostaDto.texto !== undefined &&
           respostaDto.texto.trim() !== ''
@@ -383,6 +309,7 @@ export class SubmissaoService {
             alternativas_id: respostaDto.alternativas_id,
           };
         }
+
         respostaExistente.dadosResposta = novosDadosResposta;
       }
 
@@ -395,6 +322,7 @@ export class SubmissaoService {
         const dadosRespostaAluno = resposta.dadosResposta;
 
         let isConsideredAnswered = false;
+
         if (dadosRespostaAluno) {
           if (
             isDadosRespostaDiscursiva(dadosRespostaAluno) &&
@@ -430,6 +358,7 @@ export class SubmissaoService {
               if (isDadosRespostaObjetiva(dadosRespostaAluno)) {
                 respostaAlunoObjId = dadosRespostaAluno.alternativa_id;
               }
+
               if (
                 alternativaCorretaObj &&
                 respostaAlunoObjId === alternativaCorretaObj.id
@@ -449,10 +378,12 @@ export class SubmissaoService {
                   .filter((a) => a.isCorreto)
                   .map((a) => a.id),
               );
+
               let idsAluno = new Set<number>();
               if (isDadosRespostaMultipla(dadosRespostaAluno)) {
                 idsAluno = new Set(dadosRespostaAluno.alternativas_id);
               }
+
               const totalCorretas = idsCorretas.size;
               const acertos = [...idsAluno].filter((id) =>
                 idsCorretas.has(id),
@@ -460,15 +391,19 @@ export class SubmissaoService {
               const erros = [...idsAluno].filter(
                 (id) => !idsCorretas.has(id),
               ).length;
+
               let pontuacaoCalculada = 0;
               if (totalCorretas > 0) {
                 const pontosPorAcerto =
                   questaoGabarito.pontuacao / totalCorretas;
                 const penalidadePorErro = pontosPorAcerto;
+
                 pontuacaoCalculada =
                   acertos * pontosPorAcerto - erros * penalidadePorErro;
               }
+
               pontuacaoObtida = Math.max(0, pontuacaoCalculada);
+
               if (
                 pontuacaoObtida === questaoGabarito.pontuacao &&
                 erros === 0 &&
@@ -487,6 +422,7 @@ export class SubmissaoService {
               const isAiCorrectionEnabled =
                 submissao.aplicacao.avaliacao.configuracaoAvaliacao
                   .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa;
+
               let respostaExistente = '';
               if (isDadosRespostaDiscursiva(dadosRespostaAluno)) {
                 respostaExistente = dadosRespostaAluno?.texto ?? '';
@@ -497,6 +433,7 @@ export class SubmissaoService {
                   questaoId: questaoGabarito.id,
                   resposta: respostaExistente,
                 });
+
                 pontuacaoObtida = parseFloat(result.pontuacao.toFixed(2));
                 estadoCorrecao = result.estadoCorrecao;
                 resposta.textoRevisao = result.textoRevisao;
@@ -541,6 +478,7 @@ export class SubmissaoService {
       submissao.pontuacaoTotal = parseFloat(
         (pontuacaoTotalCalculada - reducaoDePontuacao).toFixed(2),
       );
+
       submissaoAtualizada = await submissaoRepo.save(submissao);
     });
 
@@ -671,9 +609,11 @@ export class SubmissaoService {
     const submissao = await this.submissaoRepository.findOne({
       where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
     });
+
     if (!submissao) {
       throw new NotFoundException('Submissão não encontrada');
     }
+
     submissao.estado = estado;
     await this.submissaoRepository.save(submissao);
   }
@@ -683,7 +623,6 @@ export class SubmissaoService {
   ): Promise<number> {
     let attempts = 0;
     const maxAttempts = 10;
-
     const activeStates = [
       EstadoSubmissaoEnum.INICIADA,
       EstadoSubmissaoEnum.ENVIADA,
@@ -694,7 +633,6 @@ export class SubmissaoService {
 
     while (attempts < maxAttempts) {
       const code = Math.floor(100000 + Math.random() * 900000);
-
       const existingSubmissao = await manager.findOne(SubmissaoModel, {
         where: { codigoEntrega: code, estado: In(activeStates) },
       });
@@ -702,9 +640,9 @@ export class SubmissaoService {
       if (!existingSubmissao) {
         return code;
       }
-
       attempts++;
     }
+
     throw new BadRequestException(
       'Não foi possível gerar um código de entrega após várias tentativas',
     );
@@ -909,7 +847,6 @@ export class SubmissaoService {
       [DificuldadeQuestaoEnum.MEDIO]: DificuldadeRandomizacaoEnum.MEDIO,
       [DificuldadeQuestaoEnum.DIFICIL]: DificuldadeRandomizacaoEnum.DIFICIL,
     };
-
     return mapeamento[dificuldadeQuestao];
   }
 
@@ -921,6 +858,7 @@ export class SubmissaoService {
       order: { criadoEm: 'DESC' },
       take: 50,
     });
+
     return punicoes.reduce(
       (acc, punicao) => acc + (punicao.pontuacaoPerdida ?? 0),
       0,
@@ -956,7 +894,6 @@ export class SubmissaoService {
       const questoes = configuracoesRandomizacao[0].poolDeQuestoes.sort(
         () => Math.random() - 0.5,
       );
-
       return questoes.slice(0, configuracoesRandomizacao[0].quantidade);
     }
 
@@ -1016,6 +953,7 @@ export class SubmissaoService {
         EstadoSubmissaoEnum.REABERTA,
         EstadoSubmissaoEnum.PAUSADA,
       ];
+
       if (!submissao || !estadosValidos.includes(submissao.estado)) {
         this.logger.warn(
           `[DEPURAÇÃO] Submissão não encontrada ou em estado inválido (${
@@ -1116,6 +1054,7 @@ export class SubmissaoService {
             const notificacoesConfiguradas =
               submissao.aplicacao.avaliacao.configuracaoAvaliacao
                 .configuracoesSeguranca.notificacoes;
+
             if (
               notificacoesConfiguradas.some(
                 (n) => n.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
@@ -1129,6 +1068,7 @@ export class SubmissaoService {
                 tipoInfracao: dto.tipoInfracao,
                 urlPlataforma: `${Env.FRONTEND_URL}`,
               });
+
               await this.notificationProvider.sendEmail(
                 submissao.aplicacao.avaliacao.item.avaliador.email,
                 'Provus - Infração de segurança detectada',
@@ -1249,7 +1189,6 @@ export class SubmissaoService {
 
       if (submissao.aplicacao?.avaliacao?.item?.avaliador?.id) {
         const avaliadorId = submissao.aplicacao.avaliacao.item.avaliador.id;
-
         this.notificationProvider.sendNotificationViaSocket(
           avaliadorId,
           'codigo-confirmado',
@@ -1265,7 +1204,6 @@ export class SubmissaoService {
           `Evento 'codigo-confirmado' enviado para avaliador ${avaliadorId}`,
         );
       }
-
       return new SubmissaoResultDto(submissaoSalva);
     }
 
