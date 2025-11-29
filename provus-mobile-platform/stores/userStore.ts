@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { router } from "expo-router";
 import api from "../services/api";
 import { clearTokens } from "../utils/token";
 
@@ -49,6 +50,7 @@ export const useUserStore = create<UserState>((set) => ({
       if (error.response?.status === 401) {
         await clearTokens();
       }
+      router.replace("/login");
     } finally {
       set({ isLoading: false });
     }
