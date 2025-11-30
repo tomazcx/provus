@@ -84,12 +84,15 @@ const respostas = reactive<
 >({});
 
 function registrarInfracao(tipo: TipoInfracaoEnum) {
+  if (isExitingForSubmission.value) return;
+
   const now = Date.now();
   if (now - lastInfractionTime.value < 2000) {
     console.log(`[Proctoring] Infração ignorada (Debounce): ${tipo}`);
     return;
   }
   lastInfractionTime.value = now;
+
   if (studentWebSocket.isConnected.value) {
     studentWebSocket.emit("registrar-punicao-por-ocorrencia", {
       tipoInfracao: tipo,
@@ -289,12 +292,15 @@ async function submit() {
 
 async function onConfirmSubmit() {
   isExitingForSubmission.value = true;
+
   if (document.fullscreenElement) {
     try {
       await document.exitFullscreen();
     } catch {}
   }
+
   const success = await studentAssessmentStore.submitStudentAnswers(respostas);
+
   if (success && submissionDetails.value?.hash) {
     router.push(`/aluno/avaliacao/${submissionDetails.value.hash}/finalizado`);
   } else {
