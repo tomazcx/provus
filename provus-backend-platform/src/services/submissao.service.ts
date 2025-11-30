@@ -86,10 +86,6 @@ export class SubmissaoService {
       const aplicacao = await this.aplicacaoRepository.findOne({
         where: {
           codigoAcesso: body.codigoAcesso,
-          estado: In([
-            EstadoAplicacaoEnum.EM_ANDAMENTO,
-            EstadoAplicacaoEnum.CRIADA,
-          ]),
         },
         relations: [
           'avaliacao',
@@ -109,57 +105,69 @@ export class SubmissaoService {
         throw new BadRequestException('Aplicação não encontrada');
       }
 
-      if (aplicacao.estado === EstadoAplicacaoEnum.CRIADA) {
-        this.logger.log(
-          `Aplicação ${aplicacao.id} está 'CRIADA'. Iniciando-a agora.`,
-        );
-        const configGerais =
-          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-        const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
-        const now = new Date();
-
-        aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
-        aplicacao.dataInicio = now;
-        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-        await this.aplicacaoRepository.save(aplicacao);
-
-        if (aplicacao.avaliacao?.item?.avaliador?.id) {
-          this.notificationProvider.sendNotificationViaSocket(
-            aplicacao.avaliacao.item.avaliador.id,
-            'estado-aplicacao-atualizado',
-            {
-              aplicacaoId: aplicacao.id,
-              novoEstado: EstadoAplicacaoEnum.EM_ANDAMENTO,
-              novaDataFimISO: aplicacao.dataFim.toISOString(),
-            },
-          );
-        }
-      }
-
-      if (!aplicacao.avaliacao?.item?.avaliador?.id) {
-        this.logger.error(
-          `Falha ao carregar avaliador para aplicação ID: ${aplicacao.id}`,
-        );
-        throw new InternalServerErrorException(
-          'Não foi possível identificar o professor responsável pela aplicação.',
-        );
-      }
-
       const questoesParaAluno = this._randomizeQuestoes(aplicacao.avaliacao);
 
       const submissaoSalva = await this.dataSource.transaction(
         async (manager) => {
-          const estudanteExistente = await manager.findOne(EstudanteModel, {
-            where: {
-              email: body.email,
-              submissao: { aplicacao: { id: aplicacao.id } },
-            },
-            relations: ['submissao'],
-          });
+          const estudanteExistente = await manager
+            .createQueryBuilder(EstudanteModel, 'estudante')
+            .innerJoinAndSelect('estudante.submissao', 'submissao')
+            .innerJoinAndSelect('submissao.aplicacao', 'aplicacao')
+            .where('estudante.email = :email', { email: body.email })
+            .andWhere('aplicacao.id = :aplicacaoId', {
+              aplicacaoId: aplicacao.id,
+            })
+            .getOne();
 
           if (estudanteExistente) {
             return estudanteExistente.submissao;
           } else {
+            if (
+              aplicacao.estado !== EstadoAplicacaoEnum.CRIADA &&
+              aplicacao.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO
+            ) {
+              throw new BadRequestException(
+                'Esta aplicação já foi finalizada ou encerrada e não aceita novos alunos.',
+              );
+            }
+
+            if (aplicacao.estado === EstadoAplicacaoEnum.CRIADA) {
+              this.logger.log(
+                `Aplicação ${aplicacao.id} está 'CRIADA'. Iniciando-a agora.`,
+              );
+              const configGerais =
+                aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+              const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+              const now = new Date();
+
+              aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
+              aplicacao.dataInicio = now;
+              aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+
+              await manager.save(aplicacao);
+
+              if (aplicacao.avaliacao?.item?.avaliador?.id) {
+                this.notificationProvider.sendNotificationViaSocket(
+                  aplicacao.avaliacao.item.avaliador.id,
+                  'estado-aplicacao-atualizado',
+                  {
+                    aplicacaoId: aplicacao.id,
+                    novoEstado: EstadoAplicacaoEnum.EM_ANDAMENTO,
+                    novaDataFimISO: aplicacao.dataFim.toISOString(),
+                  },
+                );
+              }
+            }
+
+            if (!aplicacao.avaliacao?.item?.avaliador?.id) {
+              this.logger.error(
+                `Falha ao carregar avaliador para aplicação ID: ${aplicacao.id}`,
+              );
+              throw new InternalServerErrorException(
+                'Não foi possível identificar o professor responsável pela aplicação.',
+              );
+            }
+
             const novoEstudiante = manager.create(EstudanteModel, {
               nome: body.nome,
               email: body.email,
@@ -220,7 +228,7 @@ export class SubmissaoService {
 
       return responseLight;
     } catch (error) {
-      this.logger.error('Falha ao criar a submissão', error);
+      this.logger.error('Falha ao criar/entrar na submissão', error);
       throw error;
     }
   }

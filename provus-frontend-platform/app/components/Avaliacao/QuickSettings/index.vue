@@ -69,16 +69,6 @@ const isRandomizacaoSimplesActive = computed({
           class="w-32"
         />
       </div>
-
-      <div class="flex items-center justify-between">
-        <span class="text-sm text-gray-700">Tentativas Permitidas</span>
-        <UInputNumber
-          v-model="
-            model.configuracao.configuracoesSeguranca.quantidadeTentativas
-          "
-          class="w-28"
-        />
-      </div>
     </div>
   </UCard>
 </template>
