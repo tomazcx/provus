@@ -1,6 +1,5 @@
 import type TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import type TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
-import type TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 import type { QuestaoEntity } from "./Questao.entity";
@@ -53,7 +52,6 @@ export interface ConfiguracoesSegurancaEntity {
   quantidadeTentativas: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaEntity[];
-  notificacoes: TipoNotificacaoEnum[];
 }
 
 export interface ConfiguracoesEntity {

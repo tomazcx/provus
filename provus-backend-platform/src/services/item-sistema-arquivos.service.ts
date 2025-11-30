@@ -18,7 +18,6 @@ import { ConfiguracoesGeraisModel } from 'src/database/config/models/configuraco
 import { ConfiguracoesSegurancaModel } from 'src/database/config/models/configuracoes-seguranca.model';
 import { ConfiguracoesRandomizacaoModel } from 'src/database/config/models/configuracoes-randomizacao.model';
 import { PunicaoPorOcorrenciaModel } from 'src/database/config/models/punicao-por-ocorrencia.model';
-import { ConfiguracaoNotificacaoModel } from 'src/database/config/models/configuracao-notificacao.model';
 import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-avaliacoes.model';
 import { ArquivosAvaliacoesModel } from 'src/database/config/models/arquivos-avaliacoes.model';
 import { ItemSistemaArquivosResponse } from 'src/http/models/response/item-sitema-arquivos.response';
@@ -225,9 +224,6 @@ export class ItemSistemaArquivosService {
 
     if (configuracoesSegurancaId) {
       await manager.delete(PunicaoPorOcorrenciaModel, {
-        configuracoesSegurancaId,
-      });
-      await manager.delete(ConfiguracaoNotificacaoModel, {
         configuracoesSegurancaId,
       });
     }

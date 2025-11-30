@@ -13,7 +13,6 @@ import { ConfiguracaoAvaliacaoModel } from '../config/models/configuracao-avalia
 import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.model';
 import { ConfiguracoesSegurancaModel } from '../config/models/configuracoes-seguranca.model';
 import { PunicaoPorOcorrenciaModel } from '../config/models/punicao-por-ocorrencia.model';
-import { ConfiguracaoNotificacaoModel } from '../config/models/configuracao-notificacao.model';
 import { QuestoesAvaliacoesModel } from '../config/models/questoes-avaliacoes.model';
 import { ArquivosAvaliacoesModel } from '../config/models/arquivos-avaliacoes.model';
 import { ConfiguracoesRandomizacaoModel } from '../config/models/configuracoes-randomizacao.model';
@@ -326,9 +325,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
         await manager.delete(PunicaoPorOcorrenciaModel, {
           configuracoesSegurancaId: configSegurancaId,
         });
-        await manager.delete(ConfiguracaoNotificacaoModel, {
-          configuracoesSegurancaId: configSegurancaId,
-        });
       }
 
       await manager.update(
@@ -388,7 +384,7 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
     }
 
     const configuracoesSeguranca = new ConfiguracoesSegurancaModel();
-    const { punicoes, notificacoes, ...configSegurancaFields } =
+    const { punicoes, ...configSegurancaFields } =
       dto.configuracoesAvaliacao.configuracoesSeguranca;
     Object.assign(configuracoesSeguranca, configSegurancaFields);
     const savedConfigSeguranca = await manager.save(configuracoesSeguranca);
@@ -404,16 +400,6 @@ export class AvaliacaoRepository extends Repository<AvaliacaoModel> {
       });
 
       await manager.save(punicoesEntities);
-    }
-
-    if (notificacoes && notificacoes.length > 0) {
-      const notificacoesEntities = notificacoes.map((tipoNotificacao) => {
-        const notificacao = new ConfiguracaoNotificacaoModel();
-        notificacao.tipoNotificacao = tipoNotificacao;
-        notificacao.configuracaoSeguranca = savedConfigSeguranca;
-        return notificacao;
-      });
-      await manager.save(notificacoesEntities);
     }
 
     const configuracaoAvaliacao = new ConfiguracaoAvaliacaoModel();

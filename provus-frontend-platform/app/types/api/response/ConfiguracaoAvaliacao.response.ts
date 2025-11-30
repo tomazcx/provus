@@ -1,7 +1,6 @@
 import type DificuldadeRandomizacaoEnum from "~/enums/DificuldadeRandomizacaoEnum";
 import type TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import type TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
-import type TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 import type { QuestaoApiResponse } from "./Questao.response";
@@ -40,7 +39,6 @@ interface ConfiguracoesSegurancaApiResponse {
   quantidadeTentativas: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaApiResponse[];
-  notificacoes: { tipoNotificacao: TipoNotificacaoEnum }[];
 }
 
 export interface ConfiguracaoAvaliacaoApiResponse {

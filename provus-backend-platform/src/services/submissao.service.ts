@@ -26,7 +26,6 @@ import EstadoAplicacaoEnum from 'src/enums/estado-aplicacao.enum';
 import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 import { ProcessPunicaoPorCorrenciaDto } from 'src/dto/request/submissao/process-punicao-por-correncia.dto';
-import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 import { SubmitRespostaRequest } from 'src/http/models/request/submit-respostas.request';
 import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
@@ -1057,38 +1056,6 @@ export class SubmissaoService {
             punicao.tipoPenalidade === TipoPenalidadeEnum.ENCERRAR_AVALIACAO
           ) {
             deveEncerrar = true;
-          }
-
-          if (
-            punicao.tipoPenalidade === TipoPenalidadeEnum.NOTIFICAR_PROFESSOR
-          ) {
-            const notificacoesConfiguradas =
-              submissao.aplicacao.avaliacao.configuracaoAvaliacao
-                .configuracoesSeguranca.notificacoes;
-
-            if (
-              notificacoesConfiguradas.some(
-                (n) => n.tipoNotificacao === TipoNotificacaoEnum.EMAIL,
-              )
-            ) {
-              const html = this.emailTemplatesProvider.punicaoPorOcorrencia({
-                nomeEstudante: submissao.estudante.nome,
-                nomeAvaliacao: submissao.aplicacao.avaliacao.item.titulo,
-                dataHoraInfracao: new Date().toLocaleString(),
-                quantidadeOcorrencias: totalOcorrenciasAtual,
-                tipoInfracao: dto.tipoInfracao,
-                urlPlataforma: `${Env.FRONTEND_URL}`,
-              });
-
-              await this.notificationProvider.sendEmail(
-                submissao.aplicacao.avaliacao.item.avaliador.email,
-                'Provus - Infração de segurança detectada',
-                html,
-              );
-              this.logger.debug(
-                `[DEPURAÇÃO] Punição: NOTIFICAR_PROFESSOR (Email) aplicada.`,
-              );
-            }
           }
 
           const registro = manager.create(RegistroPunicaoPorOcorrenciaModel, {

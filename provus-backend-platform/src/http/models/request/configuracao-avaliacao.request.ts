@@ -12,7 +12,6 @@ import {
 } from 'class-validator';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
-import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
 import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum';
@@ -222,15 +221,6 @@ export class CreateConfiguracoesSegurancaRequest {
   @ValidateNested()
   @Type(() => CreatePunicaoPorOcorrenciaRequest)
   punicoes: CreatePunicaoPorOcorrenciaRequest[];
-
-  @ApiProperty({
-    description: 'Notificações',
-    example: ['Email', 'Notificação Push'],
-  })
-  @IsArray()
-  @IsNotEmpty()
-  @IsEnum(TipoNotificacaoEnum, { each: true })
-  notificacoes: TipoNotificacaoEnum[];
 }
 
 export class CreateConfiguracaoAvaliacaoRequest {

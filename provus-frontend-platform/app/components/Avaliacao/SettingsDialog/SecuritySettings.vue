@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
@@ -63,45 +62,6 @@ function removeOcorrenciaRule(ruleToRemove: PunicaoPorOcorrenciaEntity) {
     punicoes.splice(index, 1);
   }
 }
-
-const isEmailNotificationSelected = computed({
-  get() {
-    return formState.value.configuracao.configuracoesSeguranca.notificacoes.includes(
-      TipoNotificacaoEnum.EMAIL
-    );
-  },
-  set(value) {
-    const selection = new Set(
-      formState.value.configuracao.configuracoesSeguranca.notificacoes
-    );
-    if (value) {
-      selection.add(TipoNotificacaoEnum.EMAIL);
-    } else {
-      selection.delete(TipoNotificacaoEnum.EMAIL);
-    }
-    formState.value.configuracao.configuracoesSeguranca.notificacoes =
-      Array.from(selection);
-  },
-});
-const isPushNotificationSelected = computed({
-  get() {
-    return formState.value.configuracao.configuracoesSeguranca.notificacoes.includes(
-      TipoNotificacaoEnum.PUSH_NOTIFICATION
-    );
-  },
-  set(value) {
-    const selection = new Set(
-      formState.value.configuracao.configuracoesSeguranca.notificacoes
-    );
-    if (value) {
-      selection.add(TipoNotificacaoEnum.PUSH_NOTIFICATION);
-    } else {
-      selection.delete(TipoNotificacaoEnum.PUSH_NOTIFICATION);
-    }
-    formState.value.configuracao.configuracoesSeguranca.notificacoes =
-      Array.from(selection);
-  },
-});
 
 function watchRule(rule: PunicaoPorOcorrenciaEntity) {
   watch(
@@ -236,27 +196,6 @@ onMounted(() => {
             />
           </div>
         </div>
-      </div>
-    </UCard>
-
-    <UCard variant="subtle">
-      <template #header>
-        <h2 class="font-bold">Notificações</h2>
-        <p class="text-sm">
-          Configure suas notificações quando alguém infrigir as regras.
-        </p>
-      </template>
-      <div class="flex flex-col gap-5">
-        <UCheckbox
-          v-model="isEmailNotificationSelected"
-          label="E-mail"
-          description="Receba notificações via e-mail."
-        />
-        <UCheckbox
-          v-model="isPushNotificationSelected"
-          label="Notificações Push"
-          description="Receba notificações pelo aplicativo de celular."
-        />
       </div>
     </UCard>
   </div>

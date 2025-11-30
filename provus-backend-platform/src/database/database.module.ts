@@ -7,7 +7,6 @@ import { AvaliacaoModel } from './config/models/avaliacao.model';
 import { ConfiguracaoAvaliacaoModel } from './config/models/configuracao-avaliacao.model';
 import { ConfiguracoesGeraisModel } from './config/models/configuracoes-gerais.model';
 import { ConfiguracoesSegurancaModel } from './config/models/configuracoes-seguranca.model';
-import { ConfiguracaoNotificacaoModel } from './config/models/configuracao-notificacao.model';
 import { ItemSistemaArquivosModel } from './config/models/item-sistema-arquivos.model';
 import { QuestaoModel } from './config/models/questao.model';
 import { QuestoesAvaliacoesModel } from './config/models/questoes-avaliacoes.model';
@@ -36,7 +35,6 @@ import { BancoDeConteudoModel } from './config/models/banco-de-conteudo.model';
       ConfiguracaoAvaliacaoModel,
       ConfiguracoesGeraisModel,
       ConfiguracoesSegurancaModel,
-      ConfiguracaoNotificacaoModel,
       ItemSistemaArquivosModel,
       QuestaoModel,
       QuestoesAvaliacoesModel,

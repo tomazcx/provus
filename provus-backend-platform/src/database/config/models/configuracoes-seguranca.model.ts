@@ -1,6 +1,5 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { PunicaoPorOcorrenciaModel } from './punicao-por-ocorrencia.model';
-import { ConfiguracaoNotificacaoModel } from './configuracao-notificacao.model';
 
 @Entity('configuracoes_seguranca')
 export class ConfiguracoesSegurancaModel {
@@ -25,11 +24,4 @@ export class ConfiguracoesSegurancaModel {
     { cascade: true },
   )
   punicoes: PunicaoPorOcorrenciaModel[];
-
-  @OneToMany(
-    () => ConfiguracaoNotificacaoModel,
-    (notificacao) => notificacao.configuracaoSeguranca,
-    { cascade: true, eager: true },
-  )
-  notificacoes: ConfiguracaoNotificacaoModel[];
 }

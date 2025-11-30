@@ -3,7 +3,6 @@ import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
-import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 
 export class CreateConfiguracoesRandomizacaoDto {
   tipo: TipoRandomizacaoEnum;
@@ -39,7 +38,6 @@ export class CreateConfiguracoesSegurancaDto {
   quantidadeTentativas: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaDto[];
-  notificacoes: TipoNotificacaoEnum[];
 }
 
 export class CreateConfiguracoesAvaliacaoDto {

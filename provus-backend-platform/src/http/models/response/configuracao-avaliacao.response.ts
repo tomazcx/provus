@@ -5,7 +5,6 @@ import { ConfiguracoesSegurancaModel } from 'src/database/config/models/configur
 import { PunicaoPorOcorrenciaModel } from 'src/database/config/models/punicao-por-ocorrencia.model';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
-import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 
 class PunicaoPorOcorrenciaResponse {
@@ -83,8 +82,6 @@ class ConfiguracaoSegurancaResponse {
   })
   punicoes: PunicaoPorOcorrenciaResponse[];
 
-  notificacoes: TipoNotificacaoEnum[];
-
   static fromModel(
     model: ConfiguracoesSegurancaModel,
   ): ConfiguracaoSegurancaResponse {
@@ -97,8 +94,6 @@ class ConfiguracaoSegurancaResponse {
     response.punicoes =
       model.punicoes?.map((p) => PunicaoPorOcorrenciaResponse.fromModel(p)) ||
       [];
-    response.notificacoes =
-      model.notificacoes?.map((n) => n.tipoNotificacao) || [];
     return response;
   }
 }

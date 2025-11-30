@@ -11,7 +11,6 @@ import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.
 import { ConfiguracoesRandomizacaoModel } from '../config/models/configuracoes-randomizacao.model';
 import { ConfiguracoesSegurancaModel } from '../config/models/configuracoes-seguranca.model';
 import { PunicaoPorOcorrenciaModel } from '../config/models/punicao-por-ocorrencia.model';
-import { ConfiguracaoNotificacaoModel } from '../config/models/configuracao-notificacao.model';
 
 @Injectable()
 export class AplicacaoRepository extends Repository<AplicacaoModel> {
@@ -147,20 +146,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         },
       );
       await manager.save(novasPunicoes);
-    }
-
-    if (
-      original.configuracoesSeguranca.notificacoes &&
-      original.configuracoesSeguranca.notificacoes.length > 0
-    ) {
-      const novasNotificacoes =
-        original.configuracoesSeguranca.notificacoes.map((n) => {
-          const novaNotificacao = new ConfiguracaoNotificacaoModel();
-          novaNotificacao.tipoNotificacao = n.tipoNotificacao;
-          novaNotificacao.configuracaoSeguranca = savedSeguranca;
-          return novaNotificacao;
-        });
-      await manager.save(novasNotificacoes);
     }
 
     const novaConfig = new ConfiguracaoAvaliacaoModel();
@@ -331,9 +316,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
 
           if (seguranca) {
             await manager.delete(PunicaoPorOcorrenciaModel, {
-              configuracoesSegurancaId: seguranca.id,
-            });
-            await manager.delete(ConfiguracaoNotificacaoModel, {
               configuracoesSegurancaId: seguranca.id,
             });
           }

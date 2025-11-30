@@ -6,7 +6,6 @@ import DificuldadeRandomizacaoEnum from 'src/enums/dificuldade-randomizacao.enum
 import TipoRandomizacaoEnum from 'src/enums/tipo-randomizacao.enum';
 import TipoAplicacaoEnum from 'src/enums/tipo-aplicacao.enum';
 import TipoInfracaoEnum from 'src/enums/tipo-infracao.enum';
-import TipoNotificacaoEnum from 'src/enums/tipo-notificacao.enum';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { ConfiguracoesRandomizacaoModel } from 'src/database/config/models/configuracoes-randomizacao.model';
 import { QuestaoResultDto } from '../questao/questao.result';
@@ -78,7 +77,6 @@ export class ConfiguracaoSegurancaDto {
   quantidadeAcessosSimultaneos: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: PunicaoPorOcorrenciaDto[];
-  notificacoes: TipoNotificacaoEnum[];
 
   constructor(model: ConfiguracoesSegurancaModel) {
     this.proibirTrocarAbas = model.proibirTrocarAbas;
@@ -89,10 +87,6 @@ export class ConfiguracaoSegurancaDto {
 
     this.punicoes = (model.punicoes || []).map(
       (punicao) => new PunicaoPorOcorrenciaDto(punicao),
-    );
-
-    this.notificacoes = (model.notificacoes || []).map(
-      (notificacao) => notificacao.tipoNotificacao,
     );
   }
 }

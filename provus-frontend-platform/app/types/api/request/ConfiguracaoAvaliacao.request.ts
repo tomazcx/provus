@@ -1,7 +1,6 @@
 import type DificuldadeRandomizacaoEnum from "~/enums/DificuldadeRandomizacaoEnum";
 import type TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import type TipoInfracaoEnum from "~/enums/TipoInfracaoEnum";
-import type TipoNotificacaoEnum from "~/enums/TipoNotificacaoEnum";
 import type TipoPenalidadeEnum from "~/enums/TipoPenalidadeEnum";
 import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 
@@ -38,7 +37,6 @@ interface CreateConfiguracoesSegurancaRequest {
   quantidadeTentativas: number;
   ativarCorrecaoDiscursivaViaIa: boolean;
   punicoes: CreatePunicaoPorOcorrenciaRequest[];
-  notificacoes: TipoNotificacaoEnum[];
 }
 
 export interface CreateConfiguracaoAvaliacaoRequest {
