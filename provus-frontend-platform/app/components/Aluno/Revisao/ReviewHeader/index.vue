@@ -7,10 +7,6 @@ defineProps<{
 }>();
 
 const router = useRouter();
-
-function retakeTest() {
-  router.push("/aluno/entrar");
-}
 </script>
 
 <template>
@@ -42,17 +38,6 @@ function retakeTest() {
             />
           </div>
         </div>
-      </div>
-      <div class="flex items-center space-x-3 shrink-0">
-        <UButton
-          v-if="allowRetake"
-          color="white"
-          variant="outline"
-          @click="retakeTest"
-        >
-          <Icon name="i-lucide-refresh-cw" class="mr-2 h-4 w-4" /> Refazer
-          Avaliação
-        </UButton>
       </div>
     </div>
   </div>
