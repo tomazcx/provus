@@ -14,8 +14,6 @@ export class FindSubmissaoByHashController {
   async handle(
     @Param('hash') hash: string,
   ): Promise<FindSubmissaoByHashResponse> {
-    const submissao = await this.submissaoService.findSubmissaoByHash(hash);
-
-    return FindSubmissaoByHashResponse.fromModel(submissao);
+    return this.submissaoService.findSubmissaoByHash(hash);
   }
 }

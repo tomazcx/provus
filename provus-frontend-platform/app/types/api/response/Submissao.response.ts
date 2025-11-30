@@ -75,4 +75,5 @@ export interface FindSubmissaoByHashResponse {
   proibirTrocarAbas: boolean | null;
   proibirCopiarColar: boolean | null;
   pontosPerdidos: number;
+  pontuacaoMaxima: number | null;
 }

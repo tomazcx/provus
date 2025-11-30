@@ -303,6 +303,12 @@ export class FindSubmissaoByHashResponse {
   tempoMaximoAvaliacao: number | null;
 
   @ApiProperty({
+    description: 'Pontuação máxima possível da avaliação.',
+    example: 100,
+  })
+  pontuacaoMaxima: number;
+
+  @ApiProperty({
     description: 'Descrição/Instruções da avaliação original.',
     example: 'Leia atentamente as questões...',
     nullable: true,
@@ -362,6 +368,12 @@ export class FindSubmissaoByHashResponse {
       model.registrosPunicaoPorOcorrencia || []
     ).reduce((acc, registro) => acc + (registro.pontuacaoPerdida || 0), 0);
 
+    const pontuacaoMaxima =
+      model.aplicacao.avaliacao.questoes?.reduce(
+        (acc, q) => acc + Number(q.pontuacao || 0),
+        0,
+      ) ?? 0;
+
     return {
       submissao: SubmissaoResponse.fromModel(model),
       questoes: model.respostas
@@ -381,6 +393,7 @@ export class FindSubmissaoByHashResponse {
       proibirTrocarAbas: configSeguranca?.proibirTrocarAbas ?? null,
       proibirCopiarColar: configSeguranca?.proibirCopiarColar ?? null,
       pontosPerdidos: totalPontosPerdidos,
+      pontuacaoMaxima: pontuacaoMaxima,
     };
   }
 }

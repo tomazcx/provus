@@ -37,6 +37,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
   const permitirRevisao = ref<boolean | null>(null);
   const reviewQuestions = ref<QuestaoRevisaoResponse[] | null>(null);
   const quantidadeTentativas = ref<number | null>(null);
+  const pontuacaoMaximaAvaliacao = ref<number | null>(null);
 
   const tituloAvaliacao = ref<string | null>(null);
   const nomeAvaliador = ref<string | null>(null);
@@ -134,6 +135,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         proibirTrocarAbas.value = response.proibirTrocarAbas ?? false;
         proibirCopiarColar.value = response.proibirCopiarColar ?? false;
         pontosPerdidos.value = response.pontosPerdidos ?? 0;
+        pontuacaoMaximaAvaliacao.value = response.pontuacaoMaxima ?? 0;
       } else {
         throw new Error(
           "Resposta inválida do servidor ao buscar dados da submissão."
@@ -411,11 +413,12 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     proibirCopiarColar,
     pontosPerdidos,
     tempoPenalidade,
+    pontuacaoMaximaAvaliacao,
     aplicarPenalidadePontos,
     createStudentSubmission,
     fetchSubmissionDataByHash,
     submitStudentAnswers,
     fetchSubmissionReviewData,
-    aplicarPenalidadeTempo
+    aplicarPenalidadeTempo,
   };
 });

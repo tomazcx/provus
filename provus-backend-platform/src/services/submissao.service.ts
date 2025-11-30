@@ -796,7 +796,9 @@ export class SubmissaoService {
     return new SubmissaoRevisaoResultDto(submissao);
   }
 
-  async findSubmissaoByHash(hash: string): Promise<SubmissaoModel> {
+  async findSubmissaoByHash(
+    hash: string,
+  ): Promise<FindSubmissaoByHashResponse> {
     const submissao = await this.submissaoRepository.findOne({
       where: { hash: hash },
       relations: [
@@ -811,6 +813,7 @@ export class SubmissaoService {
         'aplicacao.avaliacao.arquivos',
         'aplicacao.avaliacao.arquivos.arquivo',
         'aplicacao.avaliacao.arquivos.arquivo.item',
+        'aplicacao.avaliacao.questoes',
         'respostas',
         'respostas.questao',
         'respostas.questao.item',
@@ -823,6 +826,8 @@ export class SubmissaoService {
       throw new NotFoundException('Submissão não encontrada');
     }
 
+    const responseDto = FindSubmissaoByHashResponse.fromModel(submissao);
+
     const estadosAtivos = [
       EstadoSubmissaoEnum.INICIADA,
       EstadoSubmissaoEnum.REABERTA,
@@ -830,14 +835,11 @@ export class SubmissaoService {
     ];
 
     if (!estadosAtivos.includes(submissao.estado)) {
-      if (submissao.aplicacao?.avaliacao) {
-        submissao.aplicacao.avaliacao.questoes = [];
-        submissao.aplicacao.avaliacao.arquivos = [];
-      }
-      submissao.respostas = [];
+      responseDto.questoes = [];
+      responseDto.arquivos = [];
     }
 
-    return submissao;
+    return responseDto;
   }
 
   private _createShortHash(data: string): string {

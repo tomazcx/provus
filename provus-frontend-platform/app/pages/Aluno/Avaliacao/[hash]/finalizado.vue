@@ -25,6 +25,25 @@ const mostrarPontuacao = computed(
 const permitirRevisao = computed(() => studentAssessmentStore.permitirRevisao);
 const isLoading = computed(() => studentAssessmentStore.isLoading);
 const error = computed(() => studentAssessmentStore.error);
+const pontuacaoMaximaAvaliacao = computed(
+  () => studentAssessmentStore.pontuacaoMaximaAvaliacao
+);
+
+const pontuacaoTotalPossivel = computed(() => {
+  if (
+    pontuacaoMaximaAvaliacao.value !== null &&
+    pontuacaoMaximaAvaliacao.value > 0
+  ) {
+    return pontuacaoMaximaAvaliacao.value;
+  }
+
+  return (
+    submissionQuestions.value?.reduce(
+      (sum, q) => sum + (q.pontuacao ?? 0),
+      0
+    ) ?? 0
+  );
+});
 
 onMounted(async () => {
   const hash = route.params.hash as string;
@@ -38,15 +57,6 @@ onMounted(async () => {
     });
     router.push("/aluno/entrar");
   }
-});
-
-const pontuacaoTotalPossivel = computed(() => {
-  return (
-    submissionQuestions.value?.reduce(
-      (sum, q) => sum + (q.pontuacao ?? 0),
-      0
-    ) ?? 0
-  );
 });
 
 const scorePercent = computed(() => {
@@ -169,9 +179,6 @@ function backToHome() {
           </UCard>
         </div>
 
-        <!-- *** INÍCIO DA LÓGICA DE NOTA CORRIGIDA *** -->
-
-        <!-- CASO 1: A nota pode ser exibida (Prof liberou E (prova foi Avaliada OU Confirmada)) -->
         <template
           v-if="
             mostrarPontuacao &&
@@ -193,7 +200,6 @@ function backToHome() {
           </UCard>
         </template>
 
-        <!-- CASO 2: A prova está pendente de correção manual (Estado 'Enviada') -->
         <template
           v-else-if="submissionDetails.estado === EstadoSubmissaoEnum.ENVIADA"
         >
@@ -207,7 +213,6 @@ function backToHome() {
           />
         </template>
 
-        <!-- CASO 3: O professor ocultou a nota (mostrarPontuacao === false) -->
         <template v-else-if="mostrarPontuacao === false">
           <UAlert
             icon="i-lucide-lock"
@@ -219,7 +224,6 @@ function backToHome() {
           />
         </template>
 
-        <!-- CASO 4: Outros estados (Cancelada, Encerrada, etc.) -->
         <template
           v-else-if="
             submissionDetails.estado === EstadoSubmissaoEnum.CANCELADA ||
@@ -236,7 +240,6 @@ function backToHome() {
           />
         </template>
 
-        <!-- CASO 5: Fallback genérico (similar ao Caso 3) -->
         <template v-else>
           <UAlert
             icon="i-lucide-lock"
@@ -247,7 +250,6 @@ function backToHome() {
             class="mt-4"
           />
         </template>
-        <!-- *** FIM DA LÓGICA DE NOTA CORRIGIDA *** -->
       </UCard>
 
       <div class="bg-primary rounded-xl p-6 mb-5 mt-5">
