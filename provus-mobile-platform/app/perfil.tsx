@@ -59,6 +59,7 @@ export default function ProfileScreen() {
       });
       return;
     }
+
     if (currentPassword.length < 6) {
       toast.add({
         title: "Senha obrigatória",
@@ -67,27 +68,33 @@ export default function ProfileScreen() {
       });
       return;
     }
-    if (newPassword && newPassword !== confirmPassword) {
-      toast.add({
-        title: "Senhas não conferem",
-        description: "A nova senha e a confirmação devem ser iguais.",
-        color: "error",
-      });
-      return;
-    }
-    if (newPassword && newPassword.length < 6) {
-      toast.add({
-        title: "Senha fraca",
-        description: "A nova senha deve ter no mínimo 6 caracteres.",
-        color: "warning",
-      });
-      return;
+
+    let passwordToUpdate: string | undefined = undefined;
+
+    if (newPassword.trim() !== "") {
+      if (newPassword !== confirmPassword) {
+        toast.add({
+          title: "Senhas não conferem",
+          description: "A nova senha e a confirmação devem ser iguais.",
+          color: "error",
+        });
+        return;
+      }
+      if (newPassword.length < 6) {
+        toast.add({
+          title: "Senha fraca",
+          description: "A nova senha deve ter no mínimo 6 caracteres.",
+          color: "warning",
+        });
+        return;
+      }
+      passwordToUpdate = newPassword;
     }
 
     const success = await updateProfile({
       nome: name,
       senha: currentPassword,
-      novaSenha: newPassword || "",
+      novaSenha: passwordToUpdate,
     });
 
     if (success) {
