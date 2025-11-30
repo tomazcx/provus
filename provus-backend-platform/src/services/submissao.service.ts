@@ -122,28 +122,23 @@ export class SubmissaoService {
           if (estudanteExistente) {
             return estudanteExistente.submissao;
           } else {
-            if (
-              aplicacao.estado !== EstadoAplicacaoEnum.CRIADA &&
-              aplicacao.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO
-            ) {
+            if (aplicacao.estado === EstadoAplicacaoEnum.CRIADA) {
               throw new BadRequestException(
-                'Esta aplicação já foi finalizada ou encerrada e não aceita novos alunos.',
+                'A avaliação ainda não foi iniciada pelo professor. Aguarde o início.',
               );
             }
 
-            if (aplicacao.estado === EstadoAplicacaoEnum.CRIADA) {
-              this.logger.log(
-                `Aplicação ${aplicacao.id} está 'CRIADA'. Iniciando-a agora.`,
-              );
-              const configGerais =
-                aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
-              const tempoMaximoMs = configGerais.tempoMaximo * 60 * 1000;
+            if (aplicacao.estado === EstadoAplicacaoEnum.AGENDADA) {
               const now = new Date();
-
+              if (now < aplicacao.dataInicio) {
+                throw new BadRequestException(
+                  `A avaliação ainda não começou. Aguarde o horário agendado (${aplicacao.dataInicio.toLocaleString()}).`,
+                );
+              }
+              this.logger.log(
+                `Aplicação AGENDADA ${aplicacao.id} iniciada automaticamente pelo acesso do aluno.`,
+              );
               aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
-              aplicacao.dataInicio = now;
-              aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-
               await manager.save(aplicacao);
 
               if (aplicacao.avaliacao?.item?.avaliador?.id) {
@@ -157,6 +152,12 @@ export class SubmissaoService {
                   },
                 );
               }
+            }
+
+            if (aplicacao.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO) {
+              throw new BadRequestException(
+                'Esta aplicação não está aceitando novas submissões (Encerrada ou Cancelada).',
+              );
             }
 
             if (!aplicacao.avaliacao?.item?.avaliador?.id) {
