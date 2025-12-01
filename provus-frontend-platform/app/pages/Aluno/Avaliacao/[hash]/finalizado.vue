@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useStudentAssessmentStore } from "~/store/studentAssessmentStore";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
+import type { useWebSocket } from "~/composables/useWebSocket";
 
 definePageMeta({
   layout: false,
@@ -10,6 +11,11 @@ const studentAssessmentStore = useStudentAssessmentStore();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const nuxtApp = useNuxtApp();
+
+const $websocket = nuxtApp.$websocket as
+  | ReturnType<typeof useWebSocket>
+  | undefined;
 
 const tituloAvaliacao = computed(() => studentAssessmentStore.tituloAvaliacao);
 const nomeAvaliador = computed(() => studentAssessmentStore.nomeAvaliador);
@@ -45,10 +51,48 @@ const pontuacaoTotalPossivel = computed(() => {
   );
 });
 
+interface ConfigLiberacaoPayload {
+  aplicacaoId: number;
+  mostrarPontuacao: boolean;
+  permitirRevisao: boolean;
+}
+
+function connectWebSocket(hash: string) {
+  if (!$websocket) return;
+
+  const authPayload = { hash: hash };
+
+  if ($websocket.isConnected.value) {
+    $websocket.connect(`/submissao`, authPayload);
+  } else {
+    $websocket.connect(`/submissao`, authPayload);
+  }
+
+  $websocket.on<ConfigLiberacaoPayload>(
+    "configuracao-liberacao-atualizada",
+    (data) => {
+      console.log("Configuração atualizada via WS:", data);
+
+      studentAssessmentStore.updateReleaseSettings({
+        mostrarPontuacao: data.mostrarPontuacao,
+        permitirRevisao: data.permitirRevisao,
+      });
+
+      toast.add({
+        title: "Atualização",
+        description: "O professor atualizou as permissões de visualização.",
+        color: "info",
+        icon: "i-lucide-refresh-cw",
+      });
+    }
+  );
+}
+
 onMounted(async () => {
   const hash = route.params.hash as string;
   if (hash) {
     await studentAssessmentStore.fetchSubmissionDataByHash(hash);
+    connectWebSocket(hash);
   } else {
     toast.add({
       title: "Erro",
@@ -56,6 +100,12 @@ onMounted(async () => {
       color: "error",
     });
     router.push("/aluno/entrar");
+  }
+});
+
+onUnmounted(() => {
+  if ($websocket) {
+    $websocket.disconnect();
   }
 });
 
@@ -184,7 +234,8 @@ function backToHome() {
             mostrarPontuacao &&
             (submissionDetails.estado === EstadoSubmissaoEnum.AVALIADA ||
               submissionDetails.estado ===
-                EstadoSubmissaoEnum.CODIGO_CONFIRMADO)
+                EstadoSubmissaoEnum.CODIGO_CONFIRMADO ||
+              submissionDetails.estado === EstadoSubmissaoEnum.ENCERRADA)
           "
         >
           <UCard>

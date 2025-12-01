@@ -8,7 +8,7 @@ import {
   useApplicationsStore,
   mapAplicacaoApiResponseToEntity,
 } from "~/store/applicationsStore";
-import type { IProgressoAluno } from "~/types/IMonitoring";
+import type { IProgressoAluno } from "~/types/interfaces/IMonitoring";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";

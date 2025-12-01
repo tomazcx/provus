@@ -10,7 +10,7 @@ import type TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 export interface PunicaoPorOcorrenciaEntity {
   tipoInfracao: TipoInfracaoEnum;
   quantidadeOcorrencias: number;
-  tipoPenalidade: TipoPenalidadeEnum;
+  tipoPenalidade?: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
   sempre: boolean;

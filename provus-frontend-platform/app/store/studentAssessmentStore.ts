@@ -387,6 +387,14 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     }
   }
 
+  function updateReleaseSettings(payload: {
+    mostrarPontuacao: boolean;
+    permitirRevisao: boolean;
+  }) {
+    mostrarPontuacao.value = payload.mostrarPontuacao;
+    permitirRevisao.value = payload.permitirRevisao;
+  }
+
   function aplicarPenalidadeTempo(segundos: number) {
     if (segundos > 0) {
       tempoPenalidade.value += segundos;
@@ -420,5 +428,6 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     submitStudentAnswers,
     fetchSubmissionReviewData,
     aplicarPenalidadeTempo,
+    updateReleaseSettings,
   };
 });

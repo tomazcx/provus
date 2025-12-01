@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IProgressoAluno } from "~/types/IMonitoring";
+import type { IProgressoAluno } from "~/types/interfaces/IMonitoring";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
 
 const props = defineProps<{

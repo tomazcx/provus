@@ -7,7 +7,7 @@ import type TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
 interface CreatePunicaoPorOcorrenciaRequest {
   tipoInfracao: TipoInfracaoEnum;
   quantidadeOcorrencias: number;
-  tipoPenalidade: TipoPenalidadeEnum;
+  tipoPenalidade?: TipoPenalidadeEnum;
   pontuacaoPerdida: number;
   tempoReduzido: number;
   sempre: boolean;

@@ -236,6 +236,42 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  async function updateReleaseConfig(
+    applicationId: number,
+    config: { mostrarPontuacao?: boolean; permitirRevisao?: boolean }
+  ) {
+    try {
+      const response = await $api<AplicacaoApiResponse>(
+        `/backoffice/aplicacao/${applicationId}/configuracoes-liberacao`,
+        {
+          method: "PATCH",
+          body: config,
+        }
+      );
+
+      const updatedEntity = mapAplicacaoApiResponseToEntity(response);
+
+      const index = applications.value.findIndex((a) => a.id === applicationId);
+      if (index !== -1) {
+        applications.value.splice(index, 1, updatedEntity);
+      }
+
+      toast.add({
+        title: "Configuração atualizada!",
+        color: "secondary",
+        icon: "i-lucide-check",
+      });
+
+      return updatedEntity;
+    } catch {
+      toast.add({
+        title: "Erro ao atualizar configuração",
+        color: "error",
+      });
+      return null;
+    }
+  }
+
   async function updateApplicationStatus(
     applicationId: number,
     newStatus: EstadoAplicacaoEnum
@@ -342,5 +378,6 @@ export const useApplicationsStore = defineStore("applications", () => {
     addOrUpdateApplication,
     updateApplicationData,
     deleteApplication,
+    updateReleaseConfig
   };
 });

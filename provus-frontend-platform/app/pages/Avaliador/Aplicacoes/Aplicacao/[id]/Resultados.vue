@@ -22,6 +22,17 @@ const isLoading = computed(
   () => submissionsStore.isLoading || applicationsStore.isLoading
 );
 
+const mostrarPontuacao = computed(
+  () =>
+    aplicacao.value?.configuracao?.configuracoesGerais?.mostrarPontuacao ??
+    false
+);
+
+const permitirRevisao = computed(
+  () =>
+    aplicacao.value?.configuracao?.configuracoesGerais?.permitirRevisao ?? false
+);
+
 const breadcrumbs = computed(() => [
   { label: "Aplicações", to: "/aplicacoes" },
   {
@@ -44,6 +55,24 @@ onMounted(async () => {
 });
 
 const submissionsData = computed(() => submissionsStore.submissions);
+
+async function togglePontuacao() {
+  if (!aplicacao.value) return;
+  const novoValor = !mostrarPontuacao.value;
+  const updated = await applicationsStore.updateReleaseConfig(applicationId, {
+    mostrarPontuacao: novoValor,
+  });
+  if (updated) aplicacao.value = updated;
+}
+
+async function toggleRevisao() {
+  if (!aplicacao.value) return;
+  const novoValor = !permitirRevisao.value;
+  const updated = await applicationsStore.updateReleaseConfig(applicationId, {
+    permitirRevisao: novoValor,
+  });
+  if (updated) aplicacao.value = updated;
+}
 </script>
 
 <template>
@@ -54,11 +83,57 @@ const submissionsData = computed(() => submissionsStore.submissions);
 
   <div v-else-if="aplicacao">
     <Breadcrumbs :items="breadcrumbs" />
-    <Header
-      :titulo="aplicacao.avaliacao.titulo"
-      :descricao="aplicacao.avaliacao.descricao"
-      :data-aplicacao="aplicacao.dataInicio.toISOString()"
-    />
+
+    <div
+      class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8"
+    >
+      <div class="flex-1 min-w-0">
+        <Header
+          class="!mb-0"
+          :titulo="aplicacao.avaliacao.titulo"
+          :descricao="aplicacao.avaliacao.descricao"
+          :data-aplicacao="aplicacao.dataInicio.toISOString()"
+        />
+      </div>
+
+      <div class="flex gap-3 shrink-0">
+        <UTooltip
+          :text="
+            mostrarPontuacao
+              ? 'Ocultar notas dos alunos'
+              : 'Liberar notas para os alunos'
+          "
+        >
+          <UButton
+            :color="mostrarPontuacao ? 'secondary' : 'primary'"
+            :variant="mostrarPontuacao ? 'solid' : 'soft'"
+            :icon="mostrarPontuacao ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+            class="shadow-sm ring-1 ring-gray-200 dark:ring-gray-700"
+            @click="togglePontuacao"
+          >
+            {{ mostrarPontuacao ? "Notas Visíveis" : "Notas Ocultas" }}
+          </UButton>
+        </UTooltip>
+
+        <UTooltip
+          :text="
+            permitirRevisao
+              ? 'Bloquear acesso à revisão'
+              : 'Liberar acesso à revisão'
+          "
+        >
+          <UButton
+            :color="permitirRevisao ? 'secondary' : 'primary'"
+            :variant="permitirRevisao ? 'solid' : 'soft'"
+            :icon="permitirRevisao ? 'i-lucide-file-check' : 'i-lucide-lock'"
+            class="shadow-sm ring-1 ring-gray-200 dark:ring-gray-700"
+            @click="toggleRevisao"
+          >
+            {{ permitirRevisao ? "Revisão Liberada" : "Revisão Bloqueada" }}
+          </UButton>
+        </UTooltip>
+      </div>
+    </div>
 
     <SubmissionsControls
       v-model:search="searchFilter"

@@ -37,7 +37,7 @@ function addOcorrenciaRule(tipoInfracao: TipoInfracaoEnum) {
   const newRule: PunicaoPorOcorrenciaEntity = {
     tipoInfracao: tipoInfracao,
     quantidadeOcorrencias: 1,
-    tipoPenalidade: TipoPenalidadeEnum.ALERTAR_ESTUDANTE,
+    tipoPenalidade: undefined,
     pontuacaoPerdida: 0,
     tempoReduzido: 0,
     sempre: false,
