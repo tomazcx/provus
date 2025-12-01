@@ -5,16 +5,22 @@ import EditQuestionDialog from "@/components/BancoDeQuestoes/EditQuestionDialog/
 import EditFolderDialog from "@/components/ui/EditFolderDialog/index.vue";
 import CreateFolderDialog from "@/components/ui/CreateFolderDialog/index.vue";
 import CreateQuestionDialog from "@/components/BancoDeQuestoes/CreateQuestionDialog/index.vue";
+import GenerateQuestionsIaDialog from "@/components/Avaliacao/GenerateQuestionsIaDialog/index.vue";
+import OpenMaterialsBankDialog from "@/components/Avaliacao/OpenMaterialsBankDialog/index.vue";
 import Breadcrumbs from "@/components/Breadcrumbs/index.vue";
 import { useQuestionBankStore } from "~/store/questionBankstore";
 import type {
   CreateQuestaoRequest,
   UpdateQuestaoRequest,
+  GenerateAndSaveAiQuestaoRequest,
 } from "~/types/api/request/Questao.request";
 import type { FolderEntity } from "~/types/entities/Item.entity";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
+import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
+import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 import TipoItemEnum from "~/enums/TipoItemEnum";
 import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import DificuldadeQuestaoEnum from "~/enums/DificuldadeQuestaoEnum";
 
 function isFolder(item: QuestaoEntity | FolderEntity): item is FolderEntity {
   return item.tipo === TipoItemEnum.PASTA;
@@ -32,6 +38,7 @@ const props = defineProps({
 });
 
 const questionBankStore = useQuestionBankStore();
+const toast = useToast();
 
 onMounted(() => {
   questionBankStore.initialize();
@@ -39,7 +46,11 @@ onMounted(() => {
 
 const showCreateFolder = ref(false);
 const showCreateQuestion = ref(false);
+const showGenerateAiDialog = ref(false);
+const showMaterialsBankDialog = ref(false);
+const configuringIaRule = ref<RegraGeracaoIaEntity | null>(null);
 const editingItem = ref<QuestaoEntity | FolderEntity | null>(null);
+
 const selectedItems = ref({
   folders: new Set<number>(),
   questions: new Set<number>(),
@@ -48,6 +59,7 @@ const selectedItems = ref({
 const filters = reactive({
   search: "",
   type: "Todos os tipos",
+  difficulty: "Todas as dificuldades",
   sort: "Última modificação",
 });
 
@@ -57,6 +69,13 @@ const typeOptions = [
   "Objetiva",
   "Verdadeiro ou Falso",
   "Discursiva",
+];
+
+const difficultyOptions = [
+  "Todas as dificuldades",
+  DificuldadeQuestaoEnum.FACIL,
+  DificuldadeQuestaoEnum.MEDIO,
+  DificuldadeQuestaoEnum.DIFICIL,
 ];
 
 const sortOptions = [
@@ -104,12 +123,85 @@ function handleUpdate(
   if (!editingItem.value) return;
   const dataToSend =
     "newTitle" in updatedData ? { titulo: updatedData.newTitle } : updatedData;
+
   questionBankStore.updateItem(editingItem.value, dataToSend);
   editingItem.value = null;
 }
 
 function handleDelete(itemToDelete: QuestaoEntity | FolderEntity) {
   questionBankStore.deleteItem(itemToDelete);
+}
+
+function handleOpenMaterialsBank(rule: RegraGeracaoIaEntity) {
+  configuringIaRule.value = rule;
+  showMaterialsBankDialog.value = true;
+}
+
+function handleMaterialsSelection(selection: { files: ArquivoEntity[] }) {
+  if (configuringIaRule.value) {
+    const selectedFileIds = selection.files.map((f) => f.id);
+    configuringIaRule.value.materiaisAnexadosIds = selectedFileIds;
+
+    toast.add({
+      title: "Materiais vinculados",
+      description: `${selectedFileIds.length} arquivo(s) selecionado(s) para a regra.`,
+      color: "secondary",
+      icon: "i-lucide-paperclip",
+    });
+
+    configuringIaRule.value = null;
+  }
+}
+
+function handleAiGenerationByTopic(data: any) {
+  const payload: GenerateAndSaveAiQuestaoRequest = {
+    assunto: data.assunto,
+    dificuldade: data.dificuldade,
+    quantidade: data.quantidade,
+    tipoQuestao: data.tipo,
+    paiId: undefined,
+  };
+
+  questionBankStore.createQuestionViaAi(payload);
+  showGenerateAiDialog.value = false;
+}
+
+async function handleAiGeneration(regras: RegraGeracaoIaEntity[]) {
+  let hasValidRule = false;
+
+  for (const regra of regras) {
+    if (
+      !regra.materiaisAnexadosIds ||
+      regra.materiaisAnexadosIds.length === 0
+    ) {
+      continue;
+    }
+
+    hasValidRule = true;
+    const formData = new FormData();
+    formData.append("dificuldade", regra.dificuldade);
+    formData.append("tipoQuestao", regra.tipo);
+    formData.append("quantidade", regra.quantidade.toString());
+
+    formData.append("assunto", regra.assunto || "");
+
+    regra.materiaisAnexadosIds.forEach((id) => {
+      formData.append("arquivoIds", id.toString());
+    });
+
+    await questionBankStore.createQuestionViaAi(formData);
+  }
+
+  if (!hasValidRule) {
+    toast.add({
+      title: "Atenção",
+      description: "Nenhuma regra possuía materiais selecionados.",
+      color: "warning",
+    });
+    return;
+  }
+
+  showGenerateAiDialog.value = false;
 }
 
 const breadcrumbItems = computed(() =>
@@ -145,6 +237,12 @@ const filteredItems = computed(() => {
         (item) => isQuestion(item) && item.tipoQuestao === targetType
       );
     }
+  }
+
+  if (filters.difficulty !== "Todas as dificuldades") {
+    result = result.filter(
+      (item) => isQuestion(item) && item.dificuldade === filters.difficulty
+    );
   }
 
   result.sort((a, b) => {
@@ -194,9 +292,24 @@ defineExpose({
       :current-path-label="currentPathLabel"
       @create="handleCreateFolder"
     />
+
     <CreateQuestionDialog
       v-model="showCreateQuestion"
       @create="handleCreateQuestion"
+    />
+
+    <GenerateQuestionsIaDialog
+      v-model="showGenerateAiDialog"
+      :materiais-anexados="[]"
+      :is-loading="questionBankStore.isGenerating"
+      @generate-by-topic="handleAiGenerationByTopic"
+      @generate="handleAiGeneration"
+      @open-materials-bank="handleOpenMaterialsBank"
+    />
+
+    <OpenMaterialsBankDialog
+      v-model="showMaterialsBankDialog"
+      @add-materials="handleMaterialsSelection"
     />
 
     <template v-if="editingItem">
@@ -212,14 +325,22 @@ defineExpose({
         :model-value="true"
         :question="editingItem"
         @update:model-value="editingItem = null"
-        @update:question="handleUpdate"
+        @update="handleUpdate"
       />
     </template>
 
     <div class="flex justify-end mb-8">
-      <div class="mt-4 sm:mt-0 space-x-3">
+      <div class="mt-4 sm:mt-0 flex gap-3">
         <UButton icon="i-lucide-folder-plus" @click="showCreateFolder = true">
           Nova pasta
+        </UButton>
+        <UButton
+          color="primary"
+          variant="soft"
+          icon="i-lucide-brain-circuit"
+          @click="showGenerateAiDialog = true"
+        >
+          Gerar com I.A.
         </UButton>
         <UButton
           color="secondary"
@@ -246,6 +367,13 @@ defineExpose({
         <UFormField label="Tipo de questão" class="w-full">
           <USelect v-model="filters.type" :items="typeOptions" class="w-full" />
         </UFormField>
+        <UFormField label="Dificuldade" class="w-full md:w-auto md:flex-1">
+          <USelect
+            v-model="filters.difficulty"
+            :items="difficultyOptions"
+            class="w-full"
+          />
+        </UFormField>
         <UFormField label="Ordenar por" class="w-full">
           <USelect v-model="filters.sort" :items="sortOptions" class="w-full" />
         </UFormField>
@@ -254,7 +382,21 @@ defineExpose({
 
     <div class="space-y-4">
       <div
-        v-if="filteredItems.length === 0"
+        v-if="questionBankStore.isGenerating"
+        class="text-center text-gray-500 py-10 border border-dashed border-gray-300 rounded-lg bg-gray-50"
+      >
+        <Icon
+          name="i-lucide-loader-2"
+          class="animate-spin h-8 w-8 text-secondary mb-2"
+        />
+        <p class="font-medium text-gray-700">
+          A I.A. está criando suas questões...
+        </p>
+        <p class="text-xs text-gray-500">Isso pode levar alguns segundos.</p>
+      </div>
+
+      <div
+        v-else-if="filteredItems.length === 0"
         class="text-center text-gray-500 py-10"
       >
         <span v-if="questionBankStore.isLoading">Carregando...</span>

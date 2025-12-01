@@ -3,6 +3,7 @@ import type { QuestaoApiResponse } from "~/types/api/response/Questao.response";
 import type {
   CreateQuestaoRequest,
   UpdateQuestaoRequest,
+  GenerateAndSaveAiQuestaoRequest,
 } from "~/types/api/request/Questao.request";
 import type { FolderEntity, ItemEntity } from "~/types/entities/Item.entity";
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
@@ -56,6 +57,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
   const items = ref<(QuestaoEntity | FolderEntity)[]>([]);
   const breadcrumbs = ref<{ id: number; titulo: string }[]>([]);
   const isLoading = ref(false);
+  const isGenerating = ref(false);
   const rootFolderId = ref<number | null>(null);
   const isInitialized = ref(false);
 
@@ -72,6 +74,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
         folderId === rootFolderId.value
           ? "/backoffice/bancos-de-conteudo/QUESTOES/conteudo"
           : `/backoffice/pastas/${folderId}/conteudo`;
+
       const response = await $api<
         (QuestaoApiResponse | ItemSistemaArquivosApiResponse)[]
       >(endpoint);
@@ -157,11 +160,56 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
           ? { paiId: currentFolderId.value }
           : {}),
       };
+
       await $api("/backoffice/questao/nova", { method: "POST", body: payload });
       toast.add({ title: "Questão criada com sucesso!", color: "secondary" });
       await refreshCurrentFolder();
     } catch (error) {
       toast.add({ title: "Erro ao criar questão", color: "error" });
+    }
+  }
+
+  async function createQuestionViaAi(
+    payload: GenerateAndSaveAiQuestaoRequest | FormData
+  ) {
+    isGenerating.value = true;
+    try {
+      if (payload instanceof FormData) {
+        if (currentFolderId.value) {
+          payload.append("paiId", String(currentFolderId.value));
+        }
+
+        await $api("/backoffice/questao/generate-by-ai/save-from-file", {
+          method: "POST",
+          body: payload,
+        });
+      } else {
+        const jsonPayload = {
+          ...payload,
+          paiId: currentFolderId.value,
+        };
+
+        await $api("/backoffice/questao/generate-by-ai/save", {
+          method: "POST",
+          body: jsonPayload,
+        });
+      }
+
+      toast.add({
+        title: "Questões geradas e salvas com sucesso!",
+        color: "secondary",
+        icon: "i-lucide-wand-2",
+      });
+      await refreshCurrentFolder();
+    } catch (error) {
+      console.error("Erro ao gerar questões via IA:", error);
+      toast.add({
+        title: "Erro ao gerar questões",
+        description: "Ocorreu um erro na comunicação com a I.A.",
+        color: "error",
+      });
+    } finally {
+      isGenerating.value = false;
     }
   }
 
@@ -186,7 +234,9 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
         ? `/backoffice/item-sistema-arquivos/${itemToUpdate.id}`
         : `/backoffice/questao/${itemToUpdate.id}`;
 
-      await $api(endpoint, { method: "PATCH", body: updatedData });
+      const method = isFolderEntity(itemToUpdate) ? "PATCH" : "PUT";
+
+      await $api(endpoint, { method, body: updatedData });
       toast.add({ title: "Item atualizado com sucesso!", color: "secondary" });
       await refreshCurrentFolder();
     } catch (error) {
@@ -244,6 +294,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     items,
     breadcrumbs,
     isLoading,
+    isGenerating,
     currentFolderId,
     rootFolderId,
     initialize,
@@ -251,6 +302,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     navigateToBreadcrumb,
     createFolder,
     createQuestion,
+    createQuestionViaAi,
     deleteItem,
     updateItem,
     fetchAllQuestionIdsInFolders,

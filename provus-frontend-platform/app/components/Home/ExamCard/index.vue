@@ -71,9 +71,11 @@ const participantsLabel = computed(() => {
 });
 
 const mediaLabel = computed(() => {
-  return props.item.mediaGeralPercentual !== null
-    ? `Média ${props.item.mediaGeralPercentual.toFixed(0)}%`
-    : "Sem média";
+  const media = props.item.mediaGeralPercentual;
+  if (media !== null && media !== undefined && typeof media === "number") {
+    return `Média ${media.toFixed(0)}%`;
+  }
+  return "Sem média";
 });
 </script>
 

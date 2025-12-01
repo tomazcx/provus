@@ -13,6 +13,10 @@ export interface CreateAiQuestaoDto {
   quantidade: number;
 }
 
+export interface GenerateAndSaveAiQuestaoRequest extends CreateAiQuestaoDto {
+  paiId?: number | null;
+}
+
 export interface CreateQuestaoRequest {
   titulo: string;
   paiId?: number;
