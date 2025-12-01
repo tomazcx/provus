@@ -954,7 +954,6 @@ export class SubmissaoService {
           'aplicacao.avaliacao.configuracaoAvaliacao',
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
           'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-          'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
         ],
       });
 

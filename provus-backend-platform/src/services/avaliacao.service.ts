@@ -44,7 +44,6 @@ export class AvaliacaoService {
         'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'configuracaoAvaliacao.configuracoesSeguranca',
         'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
       ],
     });
 
@@ -109,7 +108,6 @@ export class AvaliacaoService {
         'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'configuracaoAvaliacao.configuracoesSeguranca',
         'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
       ],
     });
 

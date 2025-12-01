@@ -113,7 +113,6 @@ export const getBlankAssessment = (): AvaliacaoEntity => ({
       quantidadeTentativas: 1,
       ativarCorrecaoDiscursivaViaIa: false,
       punicoes: [],
-      notificacoes: [],
     },
   },
 });

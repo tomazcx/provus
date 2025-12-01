@@ -22,7 +22,7 @@ class PunicaoPorOcorrenciaResponse {
 
   @ApiProperty({
     description: 'Tipo de penalidade',
-    example: 'Notificar professor',
+    example: 'Reduzir pontos',
   })
   tipoPenalidade: TipoPenalidadeEnum;
 

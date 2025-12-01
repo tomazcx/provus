@@ -296,11 +296,9 @@ export class SubmissaoGateway
             pontuacaoPerdida: registroPunicao.pontuacaoPerdida,
           };
 
-          switch (registroPunicao.tipoPenalidade) {
-            case TipoPenalidadeEnum.ALERTAR_ESTUDANTE:
-              this.emitAlertaEstudante(client, payloadAlerta);
-              break;
+          this.emitAlertaEstudante(client, payloadAlerta);
 
+          switch (registroPunicao.tipoPenalidade) {
             case TipoPenalidadeEnum.REDUZIR_PONTOS:
               this.emitAlertaEstudante(client, payloadAlerta);
               break;
@@ -356,9 +354,6 @@ export class SubmissaoGateway
               }
               break;
             }
-
-            case TipoPenalidadeEnum.NOTIFICAR_PROFESSOR:
-              break;
           }
         }
       } else {

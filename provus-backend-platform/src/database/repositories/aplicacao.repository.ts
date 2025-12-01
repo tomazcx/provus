@@ -36,7 +36,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
           'configuracaoAvaliacao.configuracoesSeguranca',
           'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-          'configuracaoAvaliacao.configuracoesSeguranca.notificacoes',
         ],
       });
 
@@ -126,7 +125,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       ...original.configuracoesSeguranca,
       id: undefined,
       punicoes: undefined,
-      notificacoes: undefined,
     });
     const savedSeguranca = await manager.save(novasSeguranca);
 
@@ -258,7 +256,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         'configuracao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'configuracao.configuracoesSeguranca',
         'configuracao.configuracoesSeguranca.punicoes',
-        'configuracao.configuracoesSeguranca.notificacoes',
       ],
     });
   }

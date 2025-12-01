@@ -134,7 +134,7 @@ export class CreatePunicaoPorOcorrenciaRequest {
 
   @ApiProperty({
     description: 'Tipo de penalidade',
-    example: 'Notificar professor',
+    example: 'Reduzir pontos',
   })
   @IsEnum(TipoPenalidadeEnum)
   @IsNotEmpty()

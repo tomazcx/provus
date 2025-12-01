@@ -73,10 +73,6 @@ export function mapAvaliacaoApiResponseToEntity(
       },
       configuracoesSeguranca: {
         ...apiResponse.configuracaoAvaliacao.configuracoesSeguranca,
-        notificacoes:
-          apiResponse.configuracaoAvaliacao.configuracoesSeguranca.notificacoes.map(
-            (nObj) => nObj.tipoNotificacao
-          ),
       },
     },
   };

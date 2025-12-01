@@ -34,9 +34,6 @@ function mapConfiguracaoResponseToEntity(
     },
     configuracoesSeguranca: {
       ...configResponse.configuracoesSeguranca,
-      notificacoes: configResponse.configuracoesSeguranca.notificacoes.map(
-        (n: any) => (typeof n === "string" ? n : n.tipoNotificacao)
-      ),
     },
   };
 }
