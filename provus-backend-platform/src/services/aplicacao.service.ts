@@ -368,14 +368,95 @@ export class AplicacaoService {
       throw new NotFoundException('Aplicação não encontrada');
     }
 
-    const aplicacaoId = await this.aplicacaoRepository.updateAplicacao(
-      id,
-      aplicacao.avaliacao,
-      estado,
-      avaliador,
-    );
+    await this.dataSource.transaction(async (manager) => {
+      const appRepo = manager.getRepository(AplicacaoModel);
+      const subRepo = manager.getRepository(SubmissaoModel);
+      const now = new Date();
 
-    return this.findById(aplicacaoId, avaliador);
+      if (estado === EstadoAplicacaoEnum.PAUSADA) {
+        if (aplicacao.estado !== EstadoAplicacaoEnum.PAUSADA) {
+          aplicacao.pausedAt = now;
+        }
+      } else if (
+        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+        aplicacao.estado === EstadoAplicacaoEnum.PAUSADA
+      ) {
+        if (aplicacao.pausedAt) {
+          const pauseDurationMs = now.getTime() - aplicacao.pausedAt.getTime();
+
+          if (pauseDurationMs > 0) {
+            const novoFim = new Date(
+              aplicacao.dataFim.getTime() + pauseDurationMs,
+            );
+            aplicacao.dataFim = novoFim;
+          }
+        }
+        aplicacao.pausedAt = null;
+      } else if (
+        estado === EstadoAplicacaoEnum.EM_ANDAMENTO &&
+        (aplicacao.estado === EstadoAplicacaoEnum.CRIADA ||
+          aplicacao.estado === EstadoAplicacaoEnum.AGENDADA)
+      ) {
+        const configGerais =
+          aplicacao.configuracao?.configuracoesGerais ??
+          aplicacao.avaliacao.configuracaoAvaliacao.configuracoesGerais;
+
+        const tempoMaximoMs = (configGerais?.tempoMaximo || 120) * 60 * 1000;
+
+        aplicacao.dataInicio = now;
+        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
+        aplicacao.pausedAt = null;
+      }
+
+      aplicacao.estado = estado;
+
+      const estadosFinaisApp = [
+        EstadoAplicacaoEnum.FINALIZADA,
+        EstadoAplicacaoEnum.CONCLUIDA,
+        EstadoAplicacaoEnum.CANCELADA,
+      ];
+
+      if (estadosFinaisApp.includes(estado)) {
+        aplicacao.dataFim = now;
+        aplicacao.pausedAt = null;
+
+        const submissoesAbertas = await subRepo.find({
+          where: {
+            aplicacao: { id: aplicacao.id },
+            estado: In([
+              EstadoSubmissaoEnum.INICIADA,
+              EstadoSubmissaoEnum.PAUSADA,
+              EstadoSubmissaoEnum.REABERTA,
+            ]),
+          },
+          relations: ['respostas'],
+        });
+
+        const novoEstadoSubmissao =
+          estado === EstadoAplicacaoEnum.CANCELADA
+            ? EstadoSubmissaoEnum.CANCELADA
+            : EstadoSubmissaoEnum.ENCERRADA;
+
+        for (const sub of submissoesAbertas) {
+          sub.estado = novoEstadoSubmissao;
+          sub.finalizadoEm = now;
+
+          const totalScore = sub.respostas
+            ? sub.respostas.reduce(
+                (acc, r) => acc + (Number(r.pontuacao) || 0),
+                0,
+              )
+            : 0;
+
+          sub.pontuacaoTotal = parseFloat(totalScore.toFixed(2));
+          await subRepo.save(sub);
+        }
+      }
+
+      await appRepo.save(aplicacao);
+    });
+
+    return this.findById(id, avaliador);
   }
 
   async delete(id: number, avaliador: AvaliadorModel): Promise<void> {

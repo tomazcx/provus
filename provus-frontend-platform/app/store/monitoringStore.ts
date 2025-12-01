@@ -150,6 +150,13 @@ export const useMonitoringStore = defineStore("monitoring", () => {
         icon: "i-lucide-shield-alert",
         iconColor: "text-red-500",
       });
+
+      toast.add({
+        title: `Infração: ${data.tipoInfracao}`,
+        description: `${data.nomeEstudante} - Ocorrência #${data.quantidadeOcorrencias}`,
+        color: "error",
+        icon: "i-lucide-shield-alert",
+      });
     } else {
       addActivityLog(
         TipoAtividadeEnum.PENALIDADE,

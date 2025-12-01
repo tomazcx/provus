@@ -30,6 +30,7 @@ import { AlertaEstudanteInfracaoMessage } from '../messages/alerta-estudante-inf
 import { SubmissaoCanceladaMessage } from '../messages/submissao-cancelada.message';
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
+import { ReduzirPontosAlunoPayload } from '../messages/reduzir-pontos-aluno.message';
 
 interface AlunoSaiuPayload {
   submissaoId: number;
@@ -300,7 +301,9 @@ export class SubmissaoGateway
 
           switch (registroPunicao.tipoPenalidade) {
             case TipoPenalidadeEnum.REDUZIR_PONTOS:
-              this.emitAlertaEstudante(client, payloadAlerta);
+              this.emitReduzirPontosAluno(client, {
+                pontosPerdidos: registroPunicao.pontuacaoPerdida,
+              });
               break;
 
             case TipoPenalidadeEnum.REDUZIR_TEMPO:
@@ -471,6 +474,26 @@ export class SubmissaoGateway
       this.connectedClients.set(hash, updatedConnections);
       this.logger.log(
         `Cliente ${clientId} desconectado, mas ainda restam ${updatedConnections.length} conexões para o hash ${hash}.`,
+      );
+    }
+  }
+
+  emitReduzirPontosAluno(
+    client: Socket,
+    payload: ReduzirPontosAlunoPayload,
+  ): void {
+    if (!client) return;
+    try {
+      const result = client.emit('reduzir-pontos-aluno', payload);
+      if (result) {
+        this.logger.log(
+          `Evento 'reduzir-pontos-aluno' (-${payload.pontosPerdidos}) emitido para aluno ${client.id}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao emitir 'reduzir-pontos-aluno' para aluno ${client.id}:`,
+        error,
       );
     }
   }

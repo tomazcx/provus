@@ -360,8 +360,11 @@ export class FindSubmissaoByHashResponse {
 
   static fromModel(model: SubmissaoModel): FindSubmissaoByHashResponse {
     const configGerais =
+      model.aplicacao.configuracao?.configuracoesGerais ??
       model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesGerais;
+
     const configSeguranca =
+      model.aplicacao.configuracao?.configuracoesSeguranca ??
       model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesSeguranca;
 
     const totalPontosPerdidos = (

@@ -38,6 +38,10 @@ interface EstadoAplicacaoAtualizadoPayloadSubmissao {
   novaDataFimISO: string;
 }
 
+interface ReduzirPontosPayload {
+  pontosPerdidos: number;
+}
+
 interface TempoReduzidoPayload {
   tempoReduzido: number;
 }
@@ -428,10 +432,9 @@ function connectWebSocket(hash: string) {
 
   studentWebSocket.on<AlertaEstudantePayload>("alerta-estudante", (data) => {
     let desc = `Infração: ${data.tipoInfracao} (${data.quantidadeOcorrencias}x).`;
-    if (data.pontuacaoPerdida) desc += ` -${data.pontuacaoPerdida} pontos.`;
 
     if (data.pontuacaoPerdida && data.pontuacaoPerdida > 0) {
-      studentAssessmentStore.aplicarPenalidadePontos(data.pontuacaoPerdida);
+      desc += ` -${data.pontuacaoPerdida} pontos.`;
     }
 
     toast.add({
@@ -440,6 +443,14 @@ function connectWebSocket(hash: string) {
       icon: "i-lucide-alert-triangle",
       color: "warning",
     });
+  });
+
+  studentWebSocket.on<ReduzirPontosPayload>("reduzir-pontos-aluno", (data) => {
+    if (data.pontosPerdidos && data.pontosPerdidos > 0) {
+      studentAssessmentStore.aplicarPenalidadePontos(data.pontosPerdidos);
+
+      console.log(`[Proctoring] Pontos reduzidos: -${data.pontosPerdidos}`);
+    }
   });
 
   studentWebSocket.on<TempoReduzidoPayload>("reduzir-tempo-aluno", (data) => {

@@ -15,6 +15,8 @@ export function usePageVisibility(onViolation: () => void) {
   };
 
   const handleBlur = () => {
+    if (document.visibilityState === "hidden") return;
+
     if (!document.hasFocus() && !isUnloading) {
       console.log(
         "[Proctoring] Violação detectada: Perda de Foco (Clicou fora/Split Screen)"
@@ -25,9 +27,7 @@ export function usePageVisibility(onViolation: () => void) {
 
   onMounted(() => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
     window.addEventListener("blur", handleBlur);
-
     window.addEventListener("beforeunload", handleBeforeUnload);
   });
 
