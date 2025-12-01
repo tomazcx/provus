@@ -31,6 +31,7 @@ import { SubmissaoCanceladaMessage } from '../messages/submissao-cancelada.messa
 import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
 import { ReduzirPontosAlunoPayload } from '../messages/reduzir-pontos-aluno.message';
+import { ConfiguracaoLiberacaoPayload } from '../messages/configuracao-liberacao.message';
 
 interface AlunoSaiuPayload {
   submissaoId: number;
@@ -118,6 +119,10 @@ export class SubmissaoGateway
       const estadosValidos = [
         EstadoSubmissaoEnum.INICIADA,
         EstadoSubmissaoEnum.REABERTA,
+        EstadoSubmissaoEnum.ENVIADA,
+        EstadoSubmissaoEnum.AVALIADA,
+        EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
+        EstadoSubmissaoEnum.ENCERRADA,
       ];
 
       if (!estadosValidos.includes(submissaoData.estado)) {
@@ -202,7 +207,15 @@ export class SubmissaoGateway
         avaliacao: submissaoData.aplicacao.avaliacao.item.titulo,
       });
 
-      if (submissaoData.aplicacao?.avaliacao?.item?.avaliador?.id) {
+      const estadosAtivos = [
+        EstadoSubmissaoEnum.INICIADA,
+        EstadoSubmissaoEnum.REABERTA,
+      ];
+
+      if (
+        submissaoData.aplicacao?.avaliacao?.item?.avaliador?.id &&
+        estadosAtivos.includes(submissaoData.estado)
+      ) {
         const avaliadorId = submissaoData.aplicacao.avaliacao.item.avaliador.id;
         const totalQuestoes =
           submissaoData.aplicacao.avaliacao.questoes?.length || 0;
@@ -474,6 +487,24 @@ export class SubmissaoGateway
       this.connectedClients.set(hash, updatedConnections);
       this.logger.log(
         `Cliente ${clientId} desconectado, mas ainda restam ${updatedConnections.length} conexões para o hash ${hash}.`,
+      );
+    }
+  }
+
+  emitConfiguracaoLiberacaoToRoom(payload: ConfiguracaoLiberacaoPayload): void {
+    const roomAplicacao = `aplicacao_${payload.aplicacaoId}`;
+    try {
+      this.server
+        .to(roomAplicacao)
+        .emit('configuracao-liberacao-atualizada', payload);
+
+      this.logger.log(
+        `Evento 'configuracao-liberacao-atualizada' emitido para sala ${roomAplicacao}. Pontuação: ${payload.mostrarPontuacao}, Revisão: ${payload.permitirRevisao}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao emitir 'configuracao-liberacao-atualizada' para sala ${roomAplicacao}:`,
+        error,
       );
     }
   }

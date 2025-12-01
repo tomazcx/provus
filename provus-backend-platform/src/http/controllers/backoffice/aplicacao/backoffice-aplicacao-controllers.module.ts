@@ -12,6 +12,7 @@ import { FindSubmissoesByAplicacaoController } from './find-submissoes-by-aplica
 import { FindSubmissionDetailsForEvaluatorController } from './find-submissao-detalhe-avaliador/controller';
 import { UpdateAplicacaoSubmissaoEstadoController } from './update-aplicacao-submissao-estado/controller';
 import { EvaluateSubmissaoRespostaDiscursivaController } from './evaluate-submissao-resposta-discursiva/controller';
+import { UpdateReleaseConfigController } from './update-release-config/controller';
 
 @Module({
   imports: [ServiceModule],
@@ -26,6 +27,7 @@ import { EvaluateSubmissaoRespostaDiscursivaController } from './evaluate-submis
     FindSubmissionDetailsForEvaluatorController,
     EvaluateSubmissaoRespostaDiscursivaController,
     UpdateAplicacaoSubmissaoEstadoController,
+    UpdateReleaseConfigController,
   ],
 })
 export class BackofficeAplicacaoControllersModule {}

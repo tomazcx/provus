@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject } from '@nestjs/common';
 import { EntityManager, DataSource, In, Repository } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
@@ -25,6 +25,9 @@ import { ItemSistemaArquivosRepository } from 'src/database/repositories/item-si
 import { AvaliacaoDto } from 'src/dto/result/avaliacao/avaliacao.dto';
 import { EstudanteModel } from 'src/database/config/models/estudante.model';
 import { SubmissaoRespostasModel } from 'src/database/config/models/submissao-respostas.model';
+import { ConfiguracoesGeraisModel } from 'src/database/config/models/configuracoes-gerais.model';
+import { UpdateReleaseConfigDto } from 'src/dto/request/aplicacao/update-release-config.dto';
+import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
 
 @Injectable()
 export class AplicacaoService {
@@ -36,6 +39,8 @@ export class AplicacaoService {
     @InjectRepository(RegistroPunicaoPorOcorrenciaModel)
     private readonly registroPunicaoRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
     private readonly itemSistemaArquivosRepository: ItemSistemaArquivosRepository,
+    @Inject(forwardRef(() => SubmissaoGateway))
+    private readonly submissaoGateway: SubmissaoGateway,
   ) {}
 
   async findById(id: number, avaliador: AvaliadorModel): Promise<AplicacaoDto> {
@@ -457,6 +462,61 @@ export class AplicacaoService {
     });
 
     return this.findById(id, avaliador);
+  }
+
+  async updateReleaseConfig(
+    aplicacaoId: number,
+    dto: UpdateReleaseConfigDto,
+    avaliador: AvaliadorModel,
+  ): Promise<AplicacaoDto> {
+    const aplicacao = await this.aplicacaoRepository.findOne({
+      where: {
+        id: aplicacaoId,
+        avaliacao: { item: { avaliador: { id: avaliador.id } } },
+      },
+      relations: [
+        'configuracao',
+        'configuracao.configuracoesGerais',
+        'avaliacao',
+        'avaliacao.item',
+      ],
+    });
+
+    if (!aplicacao) {
+      throw new NotFoundException('Aplicação não encontrada');
+    }
+
+    if (
+      !aplicacao.configuracao ||
+      !aplicacao.configuracao.configuracoesGerais
+    ) {
+      throw new BadRequestException(
+        'Esta aplicação não possui configurações vinculadas para atualização.',
+      );
+    }
+
+    const configGerais = aplicacao.configuracao.configuracoesGerais;
+    const configGeraisRepo = this.dataSource.getRepository(
+      ConfiguracoesGeraisModel,
+    );
+
+    if (dto.mostrarPontuacao !== undefined) {
+      configGerais.mostrarPontuacao = dto.mostrarPontuacao;
+    }
+
+    if (dto.permitirRevisao !== undefined) {
+      configGerais.permitirRevisao = dto.permitirRevisao;
+    }
+
+    await configGeraisRepo.save(configGerais);
+
+    this.submissaoGateway.emitConfiguracaoLiberacaoToRoom({
+      aplicacaoId: aplicacao.id,
+      mostrarPontuacao: configGerais.mostrarPontuacao,
+      permitirRevisao: configGerais.permitirRevisao,
+    });
+
+    return this.findById(aplicacaoId, avaliador);
   }
 
   async delete(id: number, avaliador: AvaliadorModel): Promise<void> {

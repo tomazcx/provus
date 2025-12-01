@@ -6,4 +6,5 @@ export class CreateAiQuestaoDto {
   dificuldade: DificuldadeQuestaoEnum;
   tipoQuestao: TipoQuestaoEnum;
   quantidade: number;
+  paiId?: number;
 }

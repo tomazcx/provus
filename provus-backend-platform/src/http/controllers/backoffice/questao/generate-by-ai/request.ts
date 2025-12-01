@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import DificuldadeQuestaoEnum from 'src/enums/dificuldade-questao.enum';
 import TipoQuestaoEnum from 'src/enums/tipo-questao.enum';
 
@@ -38,4 +45,14 @@ export class GenerateAiQuestaoRequestDto {
   @IsEnum(TipoQuestaoEnum)
   @IsNotEmpty()
   tipoQuestao: TipoQuestaoEnum;
+
+  @ApiProperty({
+    description:
+      'ID da pasta onde as questões serão salvas (opcional, usado para salvar direto no banco).',
+    example: 12,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  paiId?: number;
 }

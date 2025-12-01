@@ -55,7 +55,6 @@ export class QuestaoService {
     }
 
     const path = await this.itemSistemaArquivosRepository.findPathById(id);
-
     return new QuestaoResultDto(questaoModel, path);
   }
 
@@ -82,24 +81,27 @@ export class QuestaoService {
     dto: CreateQuestaoRequest,
     avaliador: AvaliadorModel,
   ): Promise<QuestaoResultDto> {
-    const pai = await this.itemSistemaArquivosRepository.findOne({
-      where: {
-        id: dto.paiId,
-        tipo: TipoItemEnum.PASTA,
-        avaliador: { id: avaliador.id },
-      },
-    });
+    if (dto.paiId) {
+      const pai = await this.itemSistemaArquivosRepository.findOne({
+        where: {
+          id: dto.paiId,
+          tipo: TipoItemEnum.PASTA,
+          avaliador: { id: avaliador.id },
+        },
+      });
 
-    if (!pai) {
-      throw new BadRequestException(
-        `Pasta com id ${dto.paiId} não encontrada.`,
-      );
+      if (!pai) {
+        throw new BadRequestException(
+          `Pasta com id ${dto.paiId} não encontrada.`,
+        );
+      }
     }
 
     const newQuestaoId = await this.questaoRepository.createQuestao(
       dto,
       avaliador,
     );
+
     return this.findById(newQuestaoId, avaliador);
   }
 
@@ -159,7 +161,6 @@ export class QuestaoService {
       const path = await this.itemSistemaArquivosRepository.findPathById(id);
       return new QuestaoResultDto(questaoAtualizada, path);
     });
-
     return resultDto;
   }
 
@@ -170,7 +171,6 @@ export class QuestaoService {
     if (questionIds.length === 0) {
       return [];
     }
-
     const questoesModels = await this.questaoRepository.find({
       where: {
         id: In(questionIds),
@@ -212,7 +212,6 @@ export class QuestaoService {
           const response = await fetch(fileDto.url);
           const arrayBuffer = await response.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-
           let mimeType = response.headers.get('content-type');
 
           if (
@@ -273,6 +272,7 @@ export class QuestaoService {
     const cleanedTexts = validTexts.map((text) =>
       this._cleanExtractedText(text),
     );
+
     let contexto = cleanedTexts.join('\n\n---\n\n');
 
     if (contexto.length > MAX_CONTEXT_LENGTH) {
@@ -296,7 +296,6 @@ export class QuestaoService {
 
   async createByAi(dto: CreateAiQuestaoDto): Promise<GeneratedQuestaoDto[]> {
     const { assunto, dificuldade, tipoQuestao, quantidade } = dto;
-
     let promptTemplate = '';
 
     if (tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
@@ -317,6 +316,73 @@ export class QuestaoService {
     return this._callAiAndParseResponse(promptTemplate);
   }
 
+  async generateAndSaveByAi(
+    dto: CreateAiQuestaoDto,
+    avaliador: AvaliadorModel,
+  ): Promise<QuestaoResultDto[]> {
+    const questoesGeradas = await this.createByAi(dto);
+
+    const resultados: QuestaoResultDto[] = [];
+
+    for (const qGerada of questoesGeradas) {
+      const createDto: CreateQuestaoRequest = {
+        titulo: qGerada.titulo,
+        descricao: qGerada.descricao,
+        dificuldade: qGerada.dificuldade,
+        tipoQuestao: dto.tipoQuestao,
+        paiId: dto.paiId,
+        isModelo: true,
+        exemploRespostaIa: qGerada.exemplo_resposta,
+        alternativas: qGerada.alternativas?.map((a) => ({
+          descricao: a.descricao,
+          isCorreto: a.isCorreto,
+        })),
+        pontuacao: 1,
+      };
+
+      const novaQuestao = await this.create(createDto, avaliador);
+      resultados.push(novaQuestao);
+    }
+
+    return resultados;
+  }
+
+  async generateAndSaveByFile(
+    dto: GenerateQuestaoFromFileRequestDto,
+    uploadedFiles: Express.Multer.File[],
+    avaliador: AvaliadorModel,
+  ): Promise<QuestaoResultDto[]> {
+    const questoesGeradas = await this.createByFile(
+      dto,
+      uploadedFiles,
+      avaliador,
+    );
+
+    const resultados: QuestaoResultDto[] = [];
+
+    for (const qGerada of questoesGeradas) {
+      const createDto: CreateQuestaoRequest = {
+        titulo: qGerada.titulo,
+        descricao: qGerada.descricao,
+        dificuldade: qGerada.dificuldade,
+        tipoQuestao: dto.tipoQuestao,
+        paiId: dto.paiId,
+        isModelo: true,
+        exemploRespostaIa: qGerada.exemplo_resposta,
+        alternativas: qGerada.alternativas?.map((a) => ({
+          descricao: a.descricao,
+          isCorreto: a.isCorreto,
+        })),
+        pontuacao: 1,
+      };
+
+      const novaQuestao = await this.create(createDto, avaliador);
+      resultados.push(novaQuestao);
+    }
+
+    return resultados;
+  }
+
   async evaluateByAi(
     dto: EvaluateByAiRequestDto,
   ): Promise<EvaluateByAiResultDto> {
@@ -332,7 +398,6 @@ export class QuestaoService {
     }
 
     const prompt = this._getEvaluationPrompt(questao, resposta);
-
     const responseArray =
       await this._callAiAndParseResponse<EvaluateByAiResultDto>(prompt);
 
@@ -466,7 +531,6 @@ export class QuestaoService {
       instrucaoCorretas =
         "UMA OU MAIS alternativas podem ter o campo 'isCorreto' como true.";
     }
-
     const assuntoClause = assunto
       ? `A questão deve ser especificamente sobre '${assunto}'.`
       : 'A questão deve ser sobre o tema geral do conteúdo.';
@@ -511,7 +575,6 @@ export class QuestaoService {
     ) {
       return 'application/pdf';
     }
-
     if (
       buffer.length >= 4 &&
       buffer[0] === 0x50 &&
@@ -521,7 +584,6 @@ export class QuestaoService {
     ) {
       return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     }
-
     return 'application/octet-stream';
   }
 
@@ -530,11 +592,9 @@ export class QuestaoService {
       const parsedUrl = new URL(url);
       const pathname = parsedUrl.pathname;
       const extension = pathname.split('.').pop()?.toLowerCase();
-
       if (!extension || extension === pathname || extension.includes('/')) {
         return 'application/octet-stream';
       }
-
       switch (extension) {
         case 'pdf':
           return 'application/pdf';
@@ -559,17 +619,14 @@ export class QuestaoService {
   ): string {
     return `Aja como um especialista em avaliar questões para avaliações educacionais.
     Sua tarefa é avaliar a questão discursiva '${questao.item.titulo}' com a resposta '${resposta}' e pontuação '${questao.pontuacao}'.
-
     A sua resposta deve ser APENAS um objeto JSON, seguindo a estrutura:
     {
       "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" ou "${EstadoQuestaoCorrigida.INCORRETA}" ou "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
       "pontuacao": ${questao.pontuacao},
       "textoRevisao": "Um texto de revisão da resposta do aluno, de forma clara e objetiva."
     }
-
     O valor do campo "estadoCorrecao" deve ser "${EstadoQuestaoCorrigida.CORRETA}" se a resposta estiver correta, "${EstadoQuestaoCorrigida.INCORRETA}" se a resposta estiver incorreta e "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}" se a resposta estiver parcialmente correta.
     Caso o "estadoCorrecao" seja "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", o valor do campo "pontuacao" deve ser a pontuação parcial da questão de acordo com a resposta do aluno.
-
     Considere o seguinte gabarito da questão para avaliar a resposta:
     ${questao.exemploRespostaIa}
     `;
@@ -577,13 +634,15 @@ export class QuestaoService {
 
   private async _callAiAndParseResponse<T>(prompt: string): Promise<T[]> {
     try {
+      console.log('testando: ', prompt);
       const rawResponse = await this.aiProvider.generateText(prompt);
+      console.log('recebendo: ', rawResponse);
 
       const jsonMatch = rawResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
+
       if (!jsonMatch) {
         throw new Error('Resposta da IA não continha um JSON válido.');
       }
-
       const jsonString = jsonMatch[0];
       const generatedData = JSON.parse(jsonString) as T[] | T;
 

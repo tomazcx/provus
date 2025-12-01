@@ -74,4 +74,8 @@ export class GenerateQuestaoFromFileRequestDto {
   @Min(1)
   @Transform(({ value }) => Number(value))
   quantidade: number;
+
+  @IsOptional()
+  @IsNumber()
+  paiId?: number;
 }
