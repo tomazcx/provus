@@ -38,10 +38,15 @@ export class SubmissaoRevisaoResultDto {
       }));
 
     const configGerais =
+      model.aplicacao?.configuracao?.configuracoesGerais ??
       model.aplicacao?.avaliacao?.configuracaoAvaliacao?.configuracoesGerais;
+
     const configSeguranca =
+      model.aplicacao?.configuracao?.configuracoesSeguranca ??
       model.aplicacao?.avaliacao?.configuracaoAvaliacao?.configuracoesSeguranca;
+
     const avaliacaoItem = model.aplicacao?.avaliacao?.item;
+
     this.dataInicioAplicacao =
       model.aplicacao?.dataInicio?.toISOString() ?? null;
     this.tempoMaximoAvaliacao = configGerais?.tempoMaximo ?? null;

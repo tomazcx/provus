@@ -753,6 +753,8 @@ export class SubmissaoService {
       relations: [
         'estudante',
         'aplicacao',
+        'aplicacao.configuracao',
+        'aplicacao.configuracao.configuracoesGerais',
         'aplicacao.avaliacao',
         'aplicacao.avaliacao.item',
         'aplicacao.avaliacao.item.avaliador',
@@ -773,9 +775,12 @@ export class SubmissaoService {
       throw new NotFoundException('Submissão não encontrada.');
     }
 
-    const permitirRevisaoConfig =
-      submissao.aplicacao?.avaliacao?.configuracaoAvaliacao?.configuracoesGerais
-        ?.permitirRevisao;
+    const configGerais =
+      submissao.aplicacao?.configuracao?.configuracoesGerais ??
+      submissao.aplicacao?.avaliacao?.configuracaoAvaliacao
+        ?.configuracoesGerais;
+
+    const permitirRevisaoConfig = configGerais?.permitirRevisao;
     const estadoSubmissao = submissao.estado;
 
     const estadosPermitidosParaRevisao = [
