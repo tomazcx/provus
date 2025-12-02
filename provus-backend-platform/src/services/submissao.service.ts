@@ -509,7 +509,19 @@ export class SubmissaoService {
         (pontuacaoTotalCalculada - reducaoDePontuacao).toFixed(2),
       );
 
-      submissaoAtualizada = await submissaoRepo.save(submissao);
+      await submissaoRepo.save(submissao);
+
+      submissaoAtualizada = await submissaoRepo.findOne({
+        where: { id: submissao.id },
+        relations: [
+          'estudante',
+          'aplicacao',
+          'aplicacao.avaliacao',
+          'aplicacao.avaliacao.item',
+          'respostas',
+          'respostas.questao',
+        ],
+      });
     });
 
     if (
