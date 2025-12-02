@@ -48,74 +48,67 @@ export class AuthService {
 
   async signUp(dto: SignUpDto): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
-      try {
-        const avaliadorRepo = manager.getRepository(AvaliadorModel);
+      const avaliadorRepo = manager.getRepository(AvaliadorModel);
+      const emailExists = await avaliadorRepo.findOne({
+        where: { email: dto.email },
+      });
 
-        const emailExists = await avaliadorRepo.findOne({
-          where: { email: dto.email },
-        });
-        if (emailExists) {
-          throw new ConflictException('Email já cadastrado');
-        }
-
-        const salt = await bcrypt.genSalt(Env.HASH_SALT);
-        const senha = await bcrypt.hash(dto.senha, salt);
-
-        const novoAvaliador = avaliadorRepo.create({
-          nome: dto.nome,
-          email: dto.email,
-          senha: senha,
-        });
-        await avaliadorRepo.save(novoAvaliador);
-
-        const itemRepo = manager.getRepository(ItemSistemaArquivosModel);
-        const bancoRepo = manager.getRepository(BancoDeConteudoModel);
-
-        const bancosPadrao = [
-          { tipo: TipoBancoEnum.QUESTOES, titulo: 'Banco de Questões' },
-          { tipo: TipoBancoEnum.AVALIACOES, titulo: 'Banco de Avaliações' },
-          { tipo: TipoBancoEnum.MATERIAIS, titulo: 'Banco de Materiais' },
-        ];
-
-        for (const bancoInfo of bancosPadrao) {
-          const novaPasta = itemRepo.create({
-            titulo: bancoInfo.titulo,
-            tipo: TipoItemEnum.PASTA,
-            avaliador: novoAvaliador,
-            pai: null,
-          });
-          await itemRepo.save(novaPasta);
-
-          const novoBanco = bancoRepo.create({
-            tipoBanco: bancoInfo.tipo,
-            avaliadorId: novoAvaliador.id,
-            pastaRaiz: novaPasta,
-          });
-          await bancoRepo.save(novoBanco);
-        }
-
-        const confirmEmailRepo = manager.getRepository(
-          AvaliadorConfirmarEmailModel,
-        );
-        const confirmacao = confirmEmailRepo.create({
-          avaliadorId: novoAvaliador.id,
-          hash: crypto.createHash('md5').update(uuid()).digest('hex'),
-          isConfirmado: false,
-          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        });
-        await confirmEmailRepo.save(confirmacao);
-
-        const url = `${Env.FRONTEND_URL}/confirmar-email/${confirmacao.hash}`;
-        const html = this.emailTemplatesProvider.confirmEmail(url);
-        await this.notificationProvider.sendEmail(
-          dto.email,
-          'Provus - Confirmação de Email',
-          html,
-        );
-      } catch (error) {
-        console.error('ERRO CRÍTICO DENTRO DA TRANSAÇÃO DO SIGNUP:', error);
-        throw error;
+      if (emailExists) {
+        throw new ConflictException('Email já cadastrado');
       }
+
+      const salt = await bcrypt.genSalt(Env.HASH_SALT);
+      const senha = await bcrypt.hash(dto.senha, salt);
+
+      const novoAvaliador = avaliadorRepo.create({
+        nome: dto.nome,
+        email: dto.email,
+        senha: senha,
+      });
+
+      await avaliadorRepo.save(novoAvaliador);
+
+      const itemRepo = manager.getRepository(ItemSistemaArquivosModel);
+      const bancoRepo = manager.getRepository(BancoDeConteudoModel);
+      const bancosPadrao = [
+        { tipo: TipoBancoEnum.QUESTOES, titulo: 'Banco de Questões' },
+        { tipo: TipoBancoEnum.AVALIACOES, titulo: 'Banco de Avaliações' },
+        { tipo: TipoBancoEnum.MATERIAIS, titulo: 'Banco de Materiais' },
+      ];
+
+      for (const bancoInfo of bancosPadrao) {
+        const novaPasta = itemRepo.create({
+          titulo: bancoInfo.titulo,
+          tipo: TipoItemEnum.PASTA,
+          avaliador: novoAvaliador,
+          pai: null,
+        });
+        await itemRepo.save(novaPasta);
+
+        const novoBanco = bancoRepo.create({
+          tipoBanco: bancoInfo.tipo,
+          avaliadorId: novoAvaliador.id,
+          pastaRaiz: novaPasta,
+        });
+        await bancoRepo.save(novoBanco);
+      }
+
+      const confirmEmailRepo = manager.getRepository(
+        AvaliadorConfirmarEmailModel,
+      );
+
+      const confirmacao = confirmEmailRepo.create({
+        avaliadorId: novoAvaliador.id,
+        hash: crypto.createHash('md5').update(uuid()).digest('hex'),
+        isConfirmado: true,
+        expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+      await confirmEmailRepo.save(confirmacao);
+
+      console.log(
+        `[AuthService] Usuário ${dto.email} criado e ativado automaticamente.`,
+      );
     });
   }
 
