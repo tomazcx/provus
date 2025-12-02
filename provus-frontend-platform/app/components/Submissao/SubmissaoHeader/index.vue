@@ -28,15 +28,29 @@ const formattedDate = computed(() => {
 });
 
 const timeTaken = computed(() => {
-  if (!props.submission.criadoEm || !props.submission.finalizadoEm) return "-";
+  if (!props.submission.criadoEm || !props.submission.finalizadoEm) {
+    return "--";
+  }
+
   try {
-    const inicio = new Date(props.submission.criadoEm);
-    const fim = new Date(props.submission.finalizadoEm);
-    const diffMinutos = Math.round((fim.getTime() - inicio.getTime()) / 60000);
-    if (isNaN(diffMinutos) || diffMinutos < 0) return "-";
+    const inicio = new Date(props.submission.criadoEm).getTime();
+    const fim = new Date(props.submission.finalizadoEm).getTime();
+
+    if (isNaN(inicio) || isNaN(fim)) return "--";
+
+    const diffMs = fim - inicio;
+    if (diffMs < 0) return "--";
+
+    const diffMinutos = Math.floor(diffMs / 60000);
+
+    if (diffMinutos === 0) {
+      const diffSegundos = Math.floor(diffMs / 1000);
+      return `${diffSegundos} segundos`;
+    }
+
     return `${diffMinutos} minutos`;
   } catch {
-    return "-";
+    return "--";
   }
 });
 
