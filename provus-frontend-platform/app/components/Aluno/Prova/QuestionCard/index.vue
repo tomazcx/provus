@@ -207,7 +207,9 @@ function toggleMultipleChoice(id: number) {
           class="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm font-medium"
           >{{ numero }}</span
         >
-        <span class="text-sm font-medium text-gray-500"
+        <span
+          v-if="questao.pontuacao !== null"
+          class="text-sm font-medium text-gray-500"
           >{{ questao.pontuacao }} pontos</span
         >
       </div>

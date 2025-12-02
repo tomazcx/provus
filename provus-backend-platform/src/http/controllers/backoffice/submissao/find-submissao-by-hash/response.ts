@@ -122,8 +122,9 @@ class QuestaoSubmissaoResponse {
   @ApiProperty({
     description: 'Pontuação da questão',
     example: 10,
+    nullable: true,
   })
-  pontuacao: number;
+  pontuacao: number | null;
 
   @ApiProperty({
     description: 'Dificuldade da questão',
@@ -176,12 +177,15 @@ class QuestaoSubmissaoResponse {
   })
   textoRevisao: string | null;
 
-  static fromModel(model: SubmissaoRespostasModel): QuestaoSubmissaoResponse {
+  static fromModel(
+    model: SubmissaoRespostasModel,
+    exibirPontuacao: boolean,
+  ): QuestaoSubmissaoResponse {
     return {
       id: model.questao.id,
       titulo: model.questao.item.titulo,
       descricao: model.questao.descricao,
-      pontuacao: model.questao.pontuacao,
+      pontuacao: exibirPontuacao ? model.questao.pontuacao : null,
       dificuldade: model.questao.dificuldade,
       tipo: model.questao.tipoQuestao,
       alternativas: model.questao.alternativas.map((alternativa) =>
@@ -370,6 +374,9 @@ export class FindSubmissaoByHashResponse {
       model.aplicacao.configuracao?.configuracoesSeguranca ??
       model.aplicacao.avaliacao.configuracaoAvaliacao?.configuracoesSeguranca;
 
+    const exibirPontuacaoDasQuestoes =
+      configGerais?.exibirPontuacaoQuestoes ?? true;
+
     const totalPontosPerdidos = (
       model.registrosPunicaoPorOcorrencia || []
     ).reduce((acc, registro) => acc + (registro.pontuacaoPerdida || 0), 0);
@@ -384,7 +391,12 @@ export class FindSubmissaoByHashResponse {
       submissao: SubmissaoResponse.fromModel(model),
       questoes: model.respostas
         .sort((a, b) => a.ordem - b.ordem)
-        .map((resposta) => QuestaoSubmissaoResponse.fromModel(resposta)),
+        .map((resposta) =>
+          QuestaoSubmissaoResponse.fromModel(
+            resposta,
+            exibirPontuacaoDasQuestoes,
+          ),
+        ),
       arquivos: model.aplicacao.avaliacao.arquivos
         .filter((arquivo) => arquivo.permitirConsultaPorEstudante)
         .map((arquivo) => ArquivoSubmissaoResponse.fromModel(arquivo.arquivo)),
