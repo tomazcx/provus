@@ -302,6 +302,9 @@ export class FindSubmissaoByHashResponse {
   })
   tempoMaximoAvaliacao: number | null;
 
+  @ApiProperty({ nullable: true })
+  tempoMinimoAvaliacao: number | null;
+
   @ApiProperty({
     description: 'Pontuação máxima possível da avaliação.',
     example: 100,
@@ -387,6 +390,7 @@ export class FindSubmissaoByHashResponse {
         .map((arquivo) => ArquivoSubmissaoResponse.fromModel(arquivo.arquivo)),
       dataInicioAplicacao: model.aplicacao.dataInicio?.toISOString() ?? null,
       tempoMaximoAvaliacao: configGerais?.tempoMaximo ?? null,
+      tempoMinimoAvaliacao: configGerais?.tempoMinimo ?? null,
       descricaoAvaliacao: model.aplicacao.avaliacao.descricao ?? null,
       mostrarPontuacao: configGerais?.mostrarPontuacao ?? null,
       permitirRevisao: configGerais?.permitirRevisao ?? null,
