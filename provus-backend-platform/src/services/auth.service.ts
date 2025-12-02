@@ -238,8 +238,10 @@ export class AuthService {
   async validateToken(token: string): Promise<AvaliadorModel> {
     try {
       const decoded = await this.jwtProvider.verify(token);
-
       if (!decoded) {
+        console.error(
+          '[AuthService] Token inválido ou expirado na verificação JWT.',
+        );
         return null;
       }
 
@@ -250,6 +252,9 @@ export class AuthService {
       });
 
       if (!avaliador) {
+        console.error(
+          `[AuthService] Avaliador ID ${decodedToken.id} não encontrado no banco.`,
+        );
         return null;
       }
 
@@ -258,12 +263,26 @@ export class AuthService {
           where: { avaliadorId: avaliador.id },
         });
 
+      if (!avaliadorConfirmacaoEmail) {
+        console.error(
+          `[AuthService] Registro de confirmação de e-mail não encontrado para ID ${avaliador.id}.`,
+        );
+        return null;
+      }
+
       if (!avaliadorConfirmacaoEmail.isConfirmado) {
+        console.error(
+          `[AuthService] E-mail do avaliador ${avaliador.id} não está confirmado.`,
+        );
         return null;
       }
 
       return avaliador;
     } catch (error) {
+      console.error(
+        '[AuthService] Erro crítico ao validar token:',
+        error.message,
+      );
       return null;
     }
   }
