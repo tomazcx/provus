@@ -634,23 +634,31 @@ export class QuestaoService {
 
   private async _callAiAndParseResponse<T>(prompt: string): Promise<T[]> {
     try {
-      console.log('testando: ', prompt);
+      this.logger.log('Enviando prompt para IA...');
       const rawResponse = await this.aiProvider.generateText(prompt);
-      console.log('recebendo: ', rawResponse);
 
-      const jsonMatch = rawResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
+      this.logger.log('Resposta bruta da IA:', rawResponse);
+
+      const cleanResponse = rawResponse
+        .replace(/```json/g, '')
+        .replace(/```/g, '');
+
+      const jsonMatch = cleanResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
 
       if (!jsonMatch) {
-        throw new Error('Resposta da IA não continha um JSON válido.');
+        throw new Error('JSON não encontrado na resposta da IA.');
       }
+
       const jsonString = jsonMatch[0];
+
       const generatedData = JSON.parse(jsonString) as T[] | T;
 
       return Array.isArray(generatedData) ? generatedData : [generatedData];
     } catch (error) {
-      console.error('Falha ao gerar ou parsear a questão da IA:', error);
+      this.logger.error('FALHA AO PROCESSAR RESPOSTA DA IA:', error);
+
       throw new UnprocessableEntityException(
-        'A resposta da IA não pôde ser processada.',
+        'A IA não retornou um formato válido. Tente novamente.',
       );
     }
   }
