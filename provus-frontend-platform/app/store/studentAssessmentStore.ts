@@ -38,6 +38,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
   const reviewQuestions = ref<QuestaoRevisaoResponse[] | null>(null);
   const quantidadeTentativas = ref<number | null>(null);
   const pontuacaoMaximaAvaliacao = ref<number | null>(null);
+  const tempoMinimoAvaliacao = ref<number | null>(null);
 
   const tituloAvaliacao = ref<string | null>(null);
   const nomeAvaliador = ref<string | null>(null);
@@ -126,6 +127,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
         submissionFiles.value = response.arquivos;
         dataInicioAplicacao.value = response.dataInicioAplicacao;
         tempoMaximoAvaliacao.value = response.tempoMaximoAvaliacao;
+        tempoMinimoAvaliacao.value = response.tempoMinimoAvaliacao;
         descricaoAvaliacao.value = response.descricaoAvaliacao;
         mostrarPontuacao.value = response.mostrarPontuacao;
         permitirRevisao.value = response.permitirRevisao;
@@ -422,6 +424,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     pontosPerdidos,
     tempoPenalidade,
     pontuacaoMaximaAvaliacao,
+    tempoMinimoAvaliacao,
     aplicarPenalidadePontos,
     createStudentSubmission,
     fetchSubmissionDataByHash,

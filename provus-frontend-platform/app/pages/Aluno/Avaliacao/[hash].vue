@@ -76,7 +76,9 @@ const isFullscreen = ref(true);
 const showFullscreenBlocker = computed(() => {
   return proibirTrocarAbas.value && isTimerActive.value && !isFullscreen.value;
 });
-
+const tempoMinimoAvaliacao = computed(
+  () => studentAssessmentStore.tempoMinimoAvaliacao
+);
 const isTimerActive = computed(
   () =>
     currentSubmissionStatus.value === EstadoSubmissaoEnum.INICIADA ||
@@ -291,6 +293,27 @@ function updateAnswer(questionId: number, answer: StudentAnswerData | null) {
 }
 
 async function submit() {
+  if (
+    tempoMinimoAvaliacao.value &&
+    tempoMinimoAvaliacao.value > 0 &&
+    submissionDetails.value?.criadoEm
+  ) {
+    const inicio = new Date(submissionDetails.value.criadoEm).getTime();
+    const agora = new Date().getTime();
+    const decorridoMinutos = (agora - inicio) / 1000 / 60;
+
+    if (decorridoMinutos < tempoMinimoAvaliacao.value) {
+      const falta = Math.ceil(tempoMinimoAvaliacao.value - decorridoMinutos);
+      toast.add({
+        title: "Tempo Mínimo Não Atingido",
+        description: `Você precisa permanecer na prova por pelo menos ${tempoMinimoAvaliacao.value} minutos. Faltam ${falta} min.`,
+        color: "warning",
+        icon: "i-lucide-clock-alert",
+      });
+      return;
+    }
+  }
+
   isSubmitConfirmOpen.value = true;
 }
 

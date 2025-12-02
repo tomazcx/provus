@@ -66,6 +66,7 @@ export interface FindSubmissaoByHashResponse {
 
   dataInicioAplicacao: string | null;
   tempoMaximoAvaliacao: number | null;
+  tempoMinimoAvaliacao: number | null;
   descricaoAvaliacao: string | null;
   mostrarPontuacao: boolean | null;
   permitirRevisao: boolean | null;
