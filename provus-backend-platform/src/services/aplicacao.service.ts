@@ -103,7 +103,7 @@ export class AplicacaoService {
         'menorPontuacaoBruta',
       )
       .addSelect(
-        'AVG(EXTRACT(EPOCH FROM (submissao.finalizado_em - submissao.criado_em)))',
+        'AVG(GREATEST(EXTRACT(EPOCH FROM (submissao.finalizado_em - submissao.criado_em)), 0))',
         'tempoMedioSegundos',
       )
       .where('submissao.aplicacao_id = :aplicacaoId', { aplicacaoId: id })
@@ -130,7 +130,8 @@ export class AplicacaoService {
       })
       .andWhere(
         "submissao.pontuacao_total IS NOT NULL AND submissao.pontuacao_total::text != 'NaN'",
-      );
+      )
+      .andWhere('submissao.finalizado_em >= submissao.criado_em');
 
     const rawScores = await scoresQuery.getRawMany<{ score: string }>();
     const finalScores = rawScores
