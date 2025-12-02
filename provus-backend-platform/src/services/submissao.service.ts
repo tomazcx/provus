@@ -277,6 +277,28 @@ export class SubmissaoService {
       throw new BadRequestException('O tempo para esta avaliação já expirou.');
     }
 
+    const configGerais =
+      submissao.aplicacao?.configuracao?.configuracoesGerais ??
+      submissao.aplicacao?.avaliacao?.configuracaoAvaliacao
+        ?.configuracoesGerais;
+
+    const tempoMinimoMinutos = configGerais?.tempoMinimo || 0;
+
+    if (tempoMinimoMinutos > 0) {
+      const agora = new Date();
+      const inicioSubmissao = submissao.criadoEm;
+
+      const tempoDecorridoMinutos =
+        (agora.getTime() - inicioSubmissao.getTime()) / 1000 / 60;
+
+      if (tempoDecorridoMinutos < tempoMinimoMinutos) {
+        const falta = Math.ceil(tempoMinimoMinutos - tempoDecorridoMinutos);
+        throw new BadRequestException(
+          `Você deve aguardar pelo menos ${tempoMinimoMinutos} minutos de prova. Faltam aproximadamente ${falta} minutos.`,
+        );
+      }
+    }
+
     let submissaoAtualizada: SubmissaoModel | null = null;
 
     await this.dataSource.transaction(async (manager) => {
