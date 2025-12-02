@@ -10,9 +10,12 @@ async function performTokenRefresh() {
     throw new Error("No refresh token available.");
   }
 
+  const config = useRuntimeConfig();
+  const baseURL = config.public.provusApiUrl || "http://localhost:8000/api";
+
   try {
     const { access } = await ofetch<{ access: string }>("/token/refresh/", {
-      baseURL: process.env.PROVUS_API_URL || "http://localhost:8000/api",
+      baseURL: baseURL,
       method: "POST",
       body: { refresh: refreshTokenCookie.value },
     });
@@ -32,9 +35,10 @@ async function performTokenRefresh() {
 }
 
 export default defineNuxtPlugin(() => {
-  const api: typeof $fetch = $fetch.create({
-    baseURL: process.env.PROVUS_API_URL || "http://localhost:8000/api",
+  const config = useRuntimeConfig();
 
+  const api: typeof $fetch = $fetch.create({
+    baseURL: config.public.provusApiUrl || "http://localhost:8000/api",
     onRequest({ request, options }) {
       if (publicRoutes.includes(request.toString())) {
         return;

@@ -2,12 +2,15 @@ import { io, type Socket } from "socket.io-client";
 
 export function useWebSocket() {
   const config = useRuntimeConfig();
+
+  const apiUrl =
+    (config.public.provusApiUrl as string) || "http://localhost:8000/api";
+
+  const baseURL = apiUrl.replace("/api", "");
   const socket = ref<Socket | null>(null);
   const isConnected = ref(false);
   const socketId = ref<string | null>(null);
   const error = ref<Error | null>(null);
-
-  const baseURL = config.public.provusApiUrl || "http://172.18.0.3:8000";
 
   const connect = (
     namespace: string,
