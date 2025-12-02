@@ -190,13 +190,13 @@ export class AuthService {
 
     await this.avaliadorRecuperarSenhaRepository.save(avaliadorRecuperarSenha);
 
-    const url = `${Env.FRONTEND_URL}/recuperar-senha/${avaliadorRecuperarSenha.hash}`;
+    const url = `${Env.FRONTEND_URL}/auth/recuperar-senha/${avaliadorRecuperarSenha.hash}`;
 
     const html = this.emailTemplatesProvider.recoverPassword(url);
 
     await this.notificationProvider.sendEmail(
       dto.email,
-      'Provus -Recuperação de Senha',
+      'Provus - Recuperação de Senha',
       html,
     );
   }
