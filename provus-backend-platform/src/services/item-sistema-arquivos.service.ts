@@ -10,7 +10,7 @@ import TipoItemEnum from 'src/enums/tipo-item.enum';
 import { ArquivoModel } from 'src/database/config/models/arquivo.model';
 import { AvaliacaoModel } from 'src/database/config/models/avaliacao.model';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import { AlternativaModel } from 'src/database/config/models/alternativa.model';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { ConfiguracaoAvaliacaoModel } from 'src/database/config/models/configuracao-avaliacao.model';
@@ -27,6 +27,10 @@ import { QuestaoResponse } from 'src/http/models/response/questao.response';
 import { ArquivoResponse } from 'src/http/models/response/arquivo.response';
 import { AvaliacaoResponse } from 'src/http/models/response/avaliacao.response';
 import { AplicacaoModel } from 'src/database/config/models/aplicacao.model';
+import { EstudanteModel } from 'src/database/config/models/estudante.model';
+import { RegistroPunicaoPorOcorrenciaModel } from 'src/database/config/models/registro-punicao-por-ocorrencia.model';
+import { SubmissaoRespostasModel } from 'src/database/config/models/submissao-respostas.model';
+import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 
 type ConteudoPastaResponse =
   | ItemSistemaArquivosResponse
@@ -183,22 +187,51 @@ export class ItemSistemaArquivosService {
     await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
     await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
 
-    await manager.delete(AplicacaoModel, { avaliacao: { id: avaliacaoId } });
+    const aplicacoes = await manager.find(AplicacaoModel, {
+      where: { avaliacao: { id: avaliacaoId } },
+      select: ['id'],
+    });
+
+    if (aplicacoes.length > 0) {
+      const aplicacaoIds = aplicacoes.map((app) => app.id);
+
+      const submissoes = await manager.find(SubmissaoModel, {
+        where: { aplicacao: { id: In(aplicacaoIds) } },
+        select: ['id'],
+      });
+
+      if (submissoes.length > 0) {
+        const submissaoIds = submissoes.map((s) => s.id);
+
+        await manager.delete(RegistroPunicaoPorOcorrenciaModel, {
+          submissao: { id: In(submissaoIds) },
+        });
+
+        await manager.delete(SubmissaoRespostasModel, {
+          submissaoId: In(submissaoIds),
+        });
+
+        await manager.delete(EstudanteModel, { id: In(submissaoIds) });
+
+        await manager.delete(SubmissaoModel, { id: In(submissaoIds) });
+      }
+
+      await manager.delete(AplicacaoModel, { id: In(aplicacaoIds) });
+    }
 
     if (!avaliacao || !avaliacao.configuracaoAvaliacao) {
       await manager.delete(AvaliacaoModel, { id: avaliacaoId });
       return;
     }
+
     const configuracaoAvaliacaoId = avaliacao.configuracaoAvaliacao.id;
     const configuracoesGeraisId =
       avaliacao.configuracaoAvaliacao.configuracoesGerais?.id;
     const configuracoesSegurancaId =
       avaliacao.configuracaoAvaliacao.configuracoesSeguranca?.id;
 
-    await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
-    await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
-
     if (configuracoesGeraisId) {
+      // Limpar randomização antes de deletar config geral
       const configuracoesRandomizacao = await manager.find(
         ConfiguracoesRandomizacaoModel,
         {
@@ -216,7 +249,6 @@ export class ItemSistemaArquivosService {
           await manager.save(configRandomizacao);
         }
       }
-
       await manager.delete(ConfiguracoesRandomizacaoModel, {
         configuracoesGerais: { id: configuracoesGeraisId },
       });
@@ -229,7 +261,6 @@ export class ItemSistemaArquivosService {
     }
 
     await manager.delete(AvaliacaoModel, { id: avaliacaoId });
-
     await manager.delete(ConfiguracaoAvaliacaoModel, {
       id: configuracaoAvaliacaoId,
     });

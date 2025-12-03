@@ -93,6 +93,10 @@ export class Env {
     return process.env.GEMINI_API_KEY || '';
   }
 
+  static get OPENAI_API_KEY(): string {
+    return process.env.OPENAI_API_KEY || '';
+  }
+
   static get GEMINI_MODEL(): string {
     return process.env.GEMINI_MODEL || '';
   }
