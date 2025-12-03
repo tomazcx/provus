@@ -270,6 +270,17 @@ function backToHome() {
           </UCard>
         </template>
 
+        <template v-else-if="mostrarPontuacao === false">
+          <UAlert
+            icon="i-lucide-lock"
+            color="primary"
+            variant="subtle"
+            title="Pontuação Oculta"
+            description="A pontuação desta avaliação será divulgada pelo professor posteriormente."
+            class="mt-4"
+          />
+        </template>
+
         <template
           v-else-if="submissionDetails.estado === EstadoSubmissaoEnum.ENVIADA"
         >
@@ -279,17 +290,6 @@ function backToHome() {
             variant="subtle"
             title="Aguardando Correção"
             description="Sua avaliação foi enviada. Algumas questões estão aguardando a correção do professor. Sua nota final aparecerá aqui assim que for liberada."
-            class="mt-4"
-          />
-        </template>
-
-        <template v-else-if="mostrarPontuacao === false">
-          <UAlert
-            icon="i-lucide-lock"
-            color="primary"
-            variant="subtle"
-            title="Pontuação Oculta"
-            description="A pontuação desta avaliação será divulgada pelo professor posteriormente."
             class="mt-4"
           />
         </template>
