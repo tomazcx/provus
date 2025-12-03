@@ -284,36 +284,78 @@ export class QuestaoService {
         '\n\n[...CONTEÚDO TRUNCADO...]';
     }
 
+    const singleQuestionDto = { ...dto, quantidade: 1 };
+
     let promptTemplate = '';
     if (dto.tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
-      promptTemplate = this._getDiscursivePromptFromFile(contexto, dto);
+      promptTemplate = this._getDiscursivePromptFromFile(
+        contexto,
+        singleQuestionDto,
+      );
     } else {
-      promptTemplate = this._getAlternativesPromptFromFile(contexto, dto);
+      promptTemplate = this._getAlternativesPromptFromFile(
+        contexto,
+        singleQuestionDto,
+      );
     }
 
-    return this._callAiAndParseResponse(promptTemplate);
+    const promises = Array.from({ length: dto.quantidade }).map(() =>
+      this._callAiAndParseResponse<GeneratedQuestaoDto>(promptTemplate),
+    );
+
+    this.logger.log(
+      `Disparando ${dto.quantidade} requisições paralelas para criação por arquivo...`,
+    );
+
+    const resultsArrays = await Promise.all(promises);
+
+    return resultsArrays.flat();
   }
 
   async createByAi(dto: CreateAiQuestaoDto): Promise<GeneratedQuestaoDto[]> {
     const { assunto, dificuldade, tipoQuestao, quantidade } = dto;
-    let promptTemplate = '';
 
-    if (tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
-      promptTemplate = this._getDiscursivePrompt(
-        assunto,
-        dificuldade,
-        quantidade,
-      );
-    } else {
-      promptTemplate = this._getAlternativesPrompt(
-        assunto,
-        dificuldade,
-        tipoQuestao,
-        quantidade,
-      );
+    if (quantidade <= 1) {
+      let promptTemplate = '';
+      if (tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
+        promptTemplate = this._getDiscursivePrompt(
+          assunto,
+          dificuldade,
+          quantidade,
+        );
+      } else {
+        promptTemplate = this._getAlternativesPrompt(
+          assunto,
+          dificuldade,
+          tipoQuestao,
+          quantidade,
+        );
+      }
+      return this._callAiAndParseResponse(promptTemplate);
     }
 
-    return this._callAiAndParseResponse(promptTemplate);
+    const promises = Array.from({ length: quantidade }).map(() => {
+      let prompt = '';
+      if (tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
+        prompt = this._getDiscursivePrompt(assunto, dificuldade, 1);
+      } else {
+        prompt = this._getAlternativesPrompt(
+          assunto,
+          dificuldade,
+          tipoQuestao,
+          1,
+        );
+      }
+      return this._callAiAndParseResponse<GeneratedQuestaoDto>(prompt);
+    });
+
+    this.logger.log(
+      `Disparando ${quantidade} requisições paralelas para criação por tópico...`,
+    );
+
+    const resultsArrays = await Promise.all(promises);
+
+    return resultsArrays.flat();
   }
 
   async generateAndSaveByAi(
