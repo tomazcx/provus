@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { AvaliadorModel } from 'src/database/config/models/avaliador.model';
 import { DataSource, Repository } from 'typeorm';
@@ -29,6 +30,8 @@ import TipoItemEnum from 'src/enums/tipo-item.enum';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly dataSource: DataSource,
 
@@ -47,69 +50,92 @@ export class AuthService {
   ) {}
 
   async signUp(dto: SignUpDto): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const avaliadorRepo = manager.getRepository(AvaliadorModel);
-      const emailExists = await avaliadorRepo.findOne({
-        where: { email: dto.email },
-      });
+    // 1. Executa a transação e retorna os dados necessários para o email
+    const dadosEmail = await this.dataSource.transaction(async (manager) => {
+      try {
+        const avaliadorRepo = manager.getRepository(AvaliadorModel);
 
-      if (emailExists) {
-        throw new ConflictException('Email já cadastrado');
-      }
-
-      const salt = await bcrypt.genSalt(Env.HASH_SALT);
-      const senha = await bcrypt.hash(dto.senha, salt);
-
-      const novoAvaliador = avaliadorRepo.create({
-        nome: dto.nome,
-        email: dto.email,
-        senha: senha,
-      });
-
-      await avaliadorRepo.save(novoAvaliador);
-
-      const itemRepo = manager.getRepository(ItemSistemaArquivosModel);
-      const bancoRepo = manager.getRepository(BancoDeConteudoModel);
-      const bancosPadrao = [
-        { tipo: TipoBancoEnum.QUESTOES, titulo: 'Banco de Questões' },
-        { tipo: TipoBancoEnum.AVALIACOES, titulo: 'Banco de Avaliações' },
-        { tipo: TipoBancoEnum.MATERIAIS, titulo: 'Banco de Materiais' },
-      ];
-
-      for (const bancoInfo of bancosPadrao) {
-        const novaPasta = itemRepo.create({
-          titulo: bancoInfo.titulo,
-          tipo: TipoItemEnum.PASTA,
-          avaliador: novoAvaliador,
-          pai: null,
+        const emailExists = await avaliadorRepo.findOne({
+          where: { email: dto.email },
         });
-        await itemRepo.save(novaPasta);
+        if (emailExists) {
+          throw new ConflictException('Email já cadastrado');
+        }
 
-        const novoBanco = bancoRepo.create({
-          tipoBanco: bancoInfo.tipo,
+        const salt = await bcrypt.genSalt(Env.HASH_SALT);
+        const senha = await bcrypt.hash(dto.senha, salt);
+
+        const novoAvaliador = avaliadorRepo.create({
+          nome: dto.nome,
+          email: dto.email,
+          senha: senha,
+        });
+        await avaliadorRepo.save(novoAvaliador);
+
+        const itemRepo = manager.getRepository(ItemSistemaArquivosModel);
+        const bancoRepo = manager.getRepository(BancoDeConteudoModel);
+
+        const bancosPadrao = [
+          { tipo: TipoBancoEnum.QUESTOES, titulo: 'Banco de Questões' },
+          { tipo: TipoBancoEnum.AVALIACOES, titulo: 'Banco de Avaliações' },
+          { tipo: TipoBancoEnum.MATERIAIS, titulo: 'Banco de Materiais' },
+        ];
+
+        for (const bancoInfo of bancosPadrao) {
+          const novaPasta = itemRepo.create({
+            titulo: bancoInfo.titulo,
+            tipo: TipoItemEnum.PASTA,
+            avaliador: novoAvaliador,
+            pai: null,
+          });
+          await itemRepo.save(novaPasta);
+
+          const novoBanco = bancoRepo.create({
+            tipoBanco: bancoInfo.tipo,
+            avaliadorId: novoAvaliador.id,
+            pastaRaiz: novaPasta,
+          });
+          await bancoRepo.save(novoBanco);
+        }
+
+        const confirmEmailRepo = manager.getRepository(
+          AvaliadorConfirmarEmailModel,
+        );
+        const confirmacao = confirmEmailRepo.create({
           avaliadorId: novoAvaliador.id,
-          pastaRaiz: novaPasta,
+          hash: crypto.createHash('md5').update(uuid()).digest('hex'),
+          isConfirmado: false,
+          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
         });
-        await bancoRepo.save(novoBanco);
+        await confirmEmailRepo.save(confirmacao);
+
+        return {
+          email: dto.email,
+          hash: confirmacao.hash,
+        };
+      } catch (error) {
+        this.logger.error('ERRO CRÍTICO DENTRO DA TRANSAÇÃO DO SIGNUP:', error);
+        throw error;
       }
-
-      const confirmEmailRepo = manager.getRepository(
-        AvaliadorConfirmarEmailModel,
-      );
-
-      const confirmacao = confirmEmailRepo.create({
-        avaliadorId: novoAvaliador.id,
-        hash: crypto.createHash('md5').update(uuid()).digest('hex'),
-        isConfirmado: true,
-        expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      });
-
-      await confirmEmailRepo.save(confirmacao);
-
-      console.log(
-        `[AuthService] Usuário ${dto.email} criado e ativado automaticamente.`,
-      );
     });
+
+    if (dadosEmail) {
+      const url = `${Env.FRONTEND_URL}/confirmar-email/${dadosEmail.hash}`;
+      const html = this.emailTemplatesProvider.confirmEmail(url);
+
+      this.notificationProvider
+        .sendEmail(dadosEmail.email, 'Provus - Confirmação de Email', html)
+        .then(() => {
+          this.logger.log(
+            `Email de boas-vindas enviado para ${dadosEmail.email} em background.`,
+          );
+        })
+        .catch((err) => {
+          this.logger.error(
+            `Falha no envio de email em background para ${dadosEmail.email}: ${err.message}`,
+          );
+        });
+    }
   }
 
   async confirmEmail(dto: ConfirmEmailDto): Promise<void> {
@@ -122,7 +148,7 @@ export class AuthService {
       return;
     }
     if (avaliadorConfirmacaoEmail.expiraEm < new Date()) {
-      throw new ForbiddenException('Hash expirado');
+      throw new ForbiddenException('Link de confirmação expirado');
     }
 
     await this.avaliadorConfirmacaoEmailRepository.update(
@@ -146,15 +172,6 @@ export class AuthService {
       throw new UnauthorizedException('Email ou senha inválidos');
     }
 
-    const avaliadorConfirmacaoEmail =
-      await this.avaliadorConfirmacaoEmailRepository.findOne({
-        where: { avaliadorId: avaliador.id },
-      });
-
-    if (!avaliadorConfirmacaoEmail.isConfirmado) {
-      throw new UnauthorizedException('Email ou senha inválidos');
-    }
-
     const token = await this.jwtProvider.sign({ id: avaliador.id });
 
     return {
@@ -172,11 +189,9 @@ export class AuthService {
     }
 
     const hash = crypto.createHash('md5').update(uuid()).digest('hex');
-
     const twentyFourHours = 1000 * 60 * 60 * 24;
 
     const avaliadorRecuperarSenha = new AvaliadorRecuperarSenhaModel();
-
     avaliadorRecuperarSenha.email = dto.email;
     avaliadorRecuperarSenha.hash = hash;
     avaliadorRecuperarSenha.expiraEm = new Date(Date.now() + twentyFourHours);
@@ -184,14 +199,15 @@ export class AuthService {
     await this.avaliadorRecuperarSenhaRepository.save(avaliadorRecuperarSenha);
 
     const url = `${Env.FRONTEND_URL}/auth/recuperar-senha/${avaliadorRecuperarSenha.hash}`;
-
     const html = this.emailTemplatesProvider.recoverPassword(url);
 
-    await this.notificationProvider.sendEmail(
-      dto.email,
-      'Provus - Recuperação de Senha',
-      html,
-    );
+    this.notificationProvider
+      .sendEmail(dto.email, 'Provus - Recuperação de Senha', html)
+      .catch((err) =>
+        this.logger.error(
+          `Erro ao enviar email de recuperação: ${err.message}`,
+        ),
+      );
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
@@ -201,11 +217,11 @@ export class AuthService {
       });
 
     if (!avaliadorRecuperarSenha) {
-      throw new ForbiddenException('Não autorizado');
+      throw new ForbiddenException('Token inválido ou não encontrado');
     }
 
     if (avaliadorRecuperarSenha.expiraEm < new Date()) {
-      throw new ForbiddenException('Não autorizado');
+      throw new ForbiddenException('Token expirado');
     }
 
     const salt = await bcrypt.genSalt(Env.HASH_SALT);
@@ -216,7 +232,7 @@ export class AuthService {
     });
 
     if (!avaliador) {
-      throw new ForbiddenException('Não autorizado');
+      throw new ForbiddenException('Usuário não encontrado');
     }
 
     avaliador.senha = senha;
@@ -232,9 +248,6 @@ export class AuthService {
     try {
       const decoded = await this.jwtProvider.verify(token);
       if (!decoded) {
-        console.error(
-          '[AuthService] Token inválido ou expirado na verificação JWT.',
-        );
         return null;
       }
 
@@ -245,37 +258,11 @@ export class AuthService {
       });
 
       if (!avaliador) {
-        console.error(
-          `[AuthService] Avaliador ID ${decodedToken.id} não encontrado no banco.`,
-        );
-        return null;
-      }
-
-      const avaliadorConfirmacaoEmail =
-        await this.avaliadorConfirmacaoEmailRepository.findOne({
-          where: { avaliadorId: avaliador.id },
-        });
-
-      if (!avaliadorConfirmacaoEmail) {
-        console.error(
-          `[AuthService] Registro de confirmação de e-mail não encontrado para ID ${avaliador.id}.`,
-        );
-        return null;
-      }
-
-      if (!avaliadorConfirmacaoEmail.isConfirmado) {
-        console.error(
-          `[AuthService] E-mail do avaliador ${avaliador.id} não está confirmado.`,
-        );
         return null;
       }
 
       return avaliador;
     } catch (error) {
-      console.error(
-        '[AuthService] Erro crítico ao validar token:',
-        error.message,
-      );
       return null;
     }
   }
