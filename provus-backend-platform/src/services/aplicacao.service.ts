@@ -29,6 +29,14 @@ import { ConfiguracoesGeraisModel } from 'src/database/config/models/configuraco
 import { UpdateReleaseConfigDto } from 'src/dto/request/aplicacao/update-release-config.dto';
 import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
 
+import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-avaliacoes.model';
+import { ArquivosAvaliacoesModel } from 'src/database/config/models/arquivos-avaliacoes.model';
+import { AvaliacaoModel } from 'src/database/config/models/avaliacao.model';
+import { ItemSistemaArquivosModel } from 'src/database/config/models/item-sistema-arquivos.model';
+import { ConfiguracoesRandomizacaoModel } from 'src/database/config/models/configuracoes-randomizacao.model';
+import { PunicaoPorOcorrenciaModel } from 'src/database/config/models/punicao-por-ocorrencia.model';
+import { ConfiguracaoAvaliacaoModel } from 'src/database/config/models/configuracao-avaliacao.model';
+import { ConfiguracoesSegurancaModel } from 'src/database/config/models/configuracoes-seguranca.model';
 @Injectable()
 export class AplicacaoService {
   constructor(
@@ -523,6 +531,7 @@ export class AplicacaoService {
   async delete(id: number, avaliador: AvaliadorModel): Promise<void> {
     const aplicacao = await this.aplicacaoRepository.findOne({
       where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
+      relations: ['avaliacao'], // Importante para checar se é snapshot
     });
 
     if (!aplicacao) {
@@ -556,8 +565,51 @@ export class AplicacaoService {
       }
 
       await manager.delete(AplicacaoModel, { id: id });
+
+      if (aplicacao.avaliacao && aplicacao.avaliacao.isModelo === false) {
+        const avaliacaoId = aplicacao.avaliacao.id;
+
+        await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
+        await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
+
+        const avaliacaoCompleta = await manager.findOne(AvaliacaoModel, {
+          where: { id: avaliacaoId },
+          relations: [
+            'configuracaoAvaliacao',
+            'configuracaoAvaliacao.configuracoesGerais',
+            'configuracaoAvaliacao.configuracoesSeguranca',
+          ],
+        });
+
+        await manager.delete(AvaliacaoModel, { id: avaliacaoId });
+
+        if (avaliacaoCompleta?.configuracaoAvaliacao) {
+          const config = avaliacaoCompleta.configuracaoAvaliacao;
+          if (config.configuracoesGerais) {
+            // Limpa randomização
+            await manager.delete(ConfiguracoesRandomizacaoModel, {
+              configuracoesGerais: { id: config.configuracoesGerais.id },
+            });
+            await manager.delete(ConfiguracoesGeraisModel, {
+              id: config.configuracoesGerais.id,
+            });
+          }
+          if (config.configuracoesSeguranca) {
+            await manager.delete(PunicaoPorOcorrenciaModel, {
+              configuracoesSegurancaId: config.configuracoesSeguranca.id,
+            });
+            await manager.delete(ConfiguracoesSegurancaModel, {
+              id: config.configuracoesSeguranca.id,
+            });
+          }
+          await manager.delete(ConfiguracaoAvaliacaoModel, { id: config.id });
+        }
+
+        await manager.delete(ItemSistemaArquivosModel, { id: avaliacaoId });
+      }
     });
   }
+
   private async generateUniqueAccessCode(
     manager: EntityManager,
   ): Promise<string> {

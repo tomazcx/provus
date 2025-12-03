@@ -11,6 +11,10 @@ import { ConfiguracoesGeraisModel } from '../config/models/configuracoes-gerais.
 import { ConfiguracoesRandomizacaoModel } from '../config/models/configuracoes-randomizacao.model';
 import { ConfiguracoesSegurancaModel } from '../config/models/configuracoes-seguranca.model';
 import { PunicaoPorOcorrenciaModel } from '../config/models/punicao-por-ocorrencia.model';
+import TipoItemEnum from 'src/enums/tipo-item.enum';
+import { ArquivosAvaliacoesModel } from '../config/models/arquivos-avaliacoes.model';
+import { ItemSistemaArquivosModel } from '../config/models/item-sistema-arquivos.model';
+import { QuestoesAvaliacoesModel } from '../config/models/questoes-avaliacoes.model';
 
 @Injectable()
 export class AplicacaoRepository extends Repository<AplicacaoModel> {
@@ -24,12 +28,15 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
     avaliador: AvaliadorModel,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
-      const avaliacaoEntity = await manager.findOne(AvaliacaoModel, {
+      const modeloOriginal = await manager.findOne(AvaliacaoModel, {
         where: {
           id: dto.avaliacaoId,
           item: { avaliador: { id: avaliador.id } },
         },
         relations: [
+          'item',
+          'questoes',
+          'arquivos',
           'configuracaoAvaliacao',
           'configuracaoAvaliacao.configuracoesGerais',
           'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
@@ -39,20 +46,60 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         ],
       });
 
-      if (!avaliacaoEntity) {
+      if (!modeloOriginal) {
         throw new BadRequestException(
-          `Avaliação com ID ${dto.avaliacaoId} não encontrada.`,
+          `Avaliação modelo com ID ${dto.avaliacaoId} não encontrada.`,
         );
       }
 
       const snapshotConfig = await this._snapshotConfiguration(
         manager,
-        avaliacaoEntity.configuracaoAvaliacao,
+        modeloOriginal.configuracaoAvaliacao,
       );
+
+      const novoItem = manager.create(ItemSistemaArquivosModel, {
+        titulo: `${modeloOriginal.item.titulo} (Snapshot ${new Date().toISOString()})`,
+        tipo: TipoItemEnum.AVALIACAO,
+        avaliador: avaliador,
+        pai: null,
+      });
+      await manager.save(novoItem);
+
+      const novaAvaliacaoSnapshot = manager.create(AvaliacaoModel, {
+        id: novoItem.id,
+        item: novoItem,
+        descricao: modeloOriginal.descricao,
+        isModelo: false,
+        configuracaoAvaliacao: snapshotConfig,
+      });
+      await manager.save(novaAvaliacaoSnapshot);
+
+      if (modeloOriginal.questoes && modeloOriginal.questoes.length > 0) {
+        const novasQuestoes = modeloOriginal.questoes.map((qa) =>
+          manager.create(QuestoesAvaliacoesModel, {
+            avaliacaoId: novaAvaliacaoSnapshot.id,
+            questaoId: qa.questaoId,
+            ordem: qa.ordem,
+            pontuacao: qa.pontuacao,
+          }),
+        );
+        await manager.save(novasQuestoes);
+      }
+
+      if (modeloOriginal.arquivos && modeloOriginal.arquivos.length > 0) {
+        const novosArquivos = modeloOriginal.arquivos.map((aa) =>
+          manager.create(ArquivosAvaliacoesModel, {
+            avaliacaoId: novaAvaliacaoSnapshot.id,
+            arquivoId: aa.arquivoId,
+            permitirConsultaPorEstudante: aa.permitirConsultaPorEstudante,
+          }),
+        );
+        await manager.save(novosArquivos);
+      }
 
       const aplicacao = new AplicacaoModel();
       aplicacao.codigoAcesso = codigoAcesso;
-      aplicacao.avaliacao = avaliacaoEntity;
+      aplicacao.avaliacao = novaAvaliacaoSnapshot;
       aplicacao.configuracao = snapshotConfig;
 
       const configGerais = snapshotConfig.configuracoesGerais;
@@ -77,15 +124,12 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
           configGerais.dataAgendamento.getTime() + tempoMaximoMs,
         );
       } else {
-        if (dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO) {
-          aplicacao.estado = EstadoAplicacaoEnum.EM_ANDAMENTO;
-          aplicacao.dataInicio = now;
-          aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-        } else {
-          aplicacao.estado = EstadoAplicacaoEnum.CRIADA;
-          aplicacao.dataInicio = now;
-          aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
-        }
+        aplicacao.estado =
+          dto.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
+            ? EstadoAplicacaoEnum.EM_ANDAMENTO
+            : EstadoAplicacaoEnum.CRIADA;
+        aplicacao.dataInicio = now;
+        aplicacao.dataFim = new Date(now.getTime() + tempoMaximoMs);
       }
 
       const savedAplicacao = await manager.save(aplicacao);
@@ -149,7 +193,6 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
     const novaConfig = new ConfiguracaoAvaliacaoModel();
     novaConfig.configuracoesGerais = savedGerais;
     novaConfig.configuracoesSeguranca = savedSeguranca;
-
     return await manager.save(novaConfig);
   }
 
