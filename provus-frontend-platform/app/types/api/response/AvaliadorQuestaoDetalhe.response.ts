@@ -8,7 +8,7 @@ export interface AvaliadorQuestaoDetalheApiResponse {
   id: number;
   titulo: string;
   descricao: string | null;
-  pontuacao: number | null;
+  pontuacaoMaxima: number | null;
   dificuldade: DificuldadeQuestaoEnum;
   tipo: TipoQuestaoEnum;
   alternativas: AvaliadorAlternativaDetalheApiResponse[];

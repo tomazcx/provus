@@ -188,19 +188,35 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const onSubmissaoFinalizada = (data: SubmissaoFinalizadaPayload) => {
     if (data.aplicacaoId !== currentApplicationId.value) return;
 
-    const aluno = studentProgress.value.find(
+    const index = studentProgress.value.findIndex(
       (s) => s.submissaoId === data.submissaoId
     );
 
-    if (aluno) {
-      aluno.estado = data.estado;
+    if (index !== -1) {
+      const alunoExistente = studentProgress.value[index];
+
+      if (!alunoExistente) return;
+
+      console.log(
+        `[MonitoringStore] Submissão finalizada recebida para aluno ${data.alunoNome}. Atualizando estado para ${data.estado}.`
+      );
+
+      const alunoAtualizado: IProgressoAluno = {
+        ...alunoExistente,
+        estado: data.estado,
+      };
+
+      studentProgress.value.splice(index, 1, alunoAtualizado);
 
       addActivityLog(
         TipoAtividadeEnum.FINALIZOU,
-        aluno.aluno.nome,
+        alunoAtualizado.aluno.nome,
         `finalizou a avaliação. (Estado: ${data.estado})`
       );
     } else {
+      console.warn(
+        `[MonitoringStore] Submissão finalizada recebida para aluno não encontrado na lista: ${data.alunoNome}`
+      );
       addActivityLog(
         TipoAtividadeEnum.FINALIZOU,
         data.alunoNome,
@@ -208,6 +224,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       );
     }
   };
+
 
   const onAlunoSaiu = (data: AlunoSaiuPayload) => {
     if (data.aplicacaoId !== currentApplicationId.value) return;

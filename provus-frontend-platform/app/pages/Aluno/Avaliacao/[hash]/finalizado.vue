@@ -51,11 +51,6 @@ const pontuacaoTotalPossivel = computed(() => {
   );
 });
 
-interface ResultadoProcessadoPayload {
-  estado: EstadoSubmissaoEnum;
-  pontuacaoTotal: number;
-}
-
 interface ConfigLiberacaoPayload {
   aplicacaoId: number;
   mostrarPontuacao: boolean;
@@ -72,25 +67,6 @@ function connectWebSocket(hash: string) {
   } else {
     $websocket.connect(`/submissao`, authPayload);
   }
-
-  $websocket.on<ResultadoProcessadoPayload>("resultado-processado", (data) => {
-    console.log("Resultado processado recebido:", data);
-
-    if (studentAssessmentStore.submissionDetails) {
-      studentAssessmentStore.submissionDetails.estado = data.estado;
-      studentAssessmentStore.submissionDetails.pontuacaoTotal =
-        data.pontuacaoTotal;
-    }
-
-    studentAssessmentStore.fetchSubmissionDataByHash(hash);
-
-    toast.add({
-      title: "Correção Finalizada!",
-      description: "Sua nota já está disponível.",
-      color: "success",
-      icon: "i-lucide-party-popper",
-    });
-  });
 
   $websocket.on<ConfigLiberacaoPayload>(
     "configuracao-liberacao-atualizada",
