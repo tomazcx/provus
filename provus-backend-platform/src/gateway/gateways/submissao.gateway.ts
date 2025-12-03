@@ -737,4 +737,19 @@ export class SubmissaoGateway
       );
     }
   }
+
+  emitResultadoProcessado(
+    hash: string,
+    payload: { estado: string; pontuacaoTotal: number },
+  ) {
+    const connections = this.connectedClients.get(hash);
+    if (connections) {
+      connections.forEach((conn) => {
+        this.server.to(conn.clientId).emit('resultado-processado', payload);
+      });
+      this.logger.log(
+        `Resultado processado enviado para aluno(s) da submissão ${hash}. Estado: ${payload.estado}`,
+      );
+    }
+  }
 }

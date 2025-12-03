@@ -5,6 +5,8 @@ import {
   Logger,
   ForbiddenException,
   InternalServerErrorException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, In } from 'typeorm';
@@ -46,6 +48,7 @@ import TipoPenalidadeEnum from 'src/enums/tipo-penalidade.enum';
 import { QuestaoService } from './questao.service';
 import { EvaluateSubmissaoRespostaDto } from 'src/dto/result/submissao/evaluate-submissao-resposta.dto';
 import { FindSubmissaoByHashResponse } from 'src/http/controllers/backoffice/submissao/find-submissao-by-hash/response';
+import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
 
 interface SubmissaoFinalizadaPayload {
   submissaoId: number;
@@ -76,6 +79,8 @@ export class SubmissaoService {
     private readonly registroPunicaoPorOcorrenciaRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
     @InjectRepository(QuestaoModel)
     private readonly questaoRepository: Repository<QuestaoModel>,
+    @Inject(forwardRef(() => SubmissaoGateway))
+    private readonly submissaoGateway: SubmissaoGateway,
   ) {}
 
   async createSubmissao(
@@ -248,10 +253,7 @@ export class SubmissaoService {
         'aplicacao.avaliacao.configuracaoAvaliacao',
         'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         'respostas.questao',
-        'respostas.questao.alternativas',
         'estudante',
-        'aplicacao.avaliacao.configuracaoAvaliacao',
-        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
       ],
     });
 
@@ -283,11 +285,9 @@ export class SubmissaoService {
         ?.configuracoesGerais;
 
     const tempoMinimoMinutos = configGerais?.tempoMinimo || 0;
-
     if (tempoMinimoMinutos > 0) {
       const agora = new Date();
       const inicioSubmissao = submissao.criadoEm;
-
       const tempoDecorridoMinutos =
         (agora.getTime() - inicioSubmissao.getTime()) / 1000 / 60;
 
@@ -299,7 +299,7 @@ export class SubmissaoService {
       }
     }
 
-    let submissaoAtualizada: SubmissaoModel | null = null;
+    let submissaoSalva: SubmissaoModel | null = null;
 
     await this.dataSource.transaction(async (manager) => {
       const submissaoRepo = manager.getRepository(SubmissaoModel);
@@ -309,6 +309,8 @@ export class SubmissaoService {
       submissao.respostas.forEach((r) =>
         respostasExistentesMap.set(r.questaoId, r),
       );
+
+      const respostasParaSalvar: SubmissaoRespostasModel[] = [];
 
       for (const respostaDto of respostasDto) {
         const respostaExistente = respostasExistentesMap.get(
@@ -341,206 +343,38 @@ export class SubmissaoService {
         }
 
         respostaExistente.dadosResposta = novosDadosResposta;
-      }
+        respostaExistente.pontuacao = 0;
+        respostaExistente.estadoCorrecao =
+          EstadoQuestaoCorrigida.NAO_RESPONDIDA;
 
-      let pontuacaoTotalCalculada = 0;
-      let correcaoManualPendente = false;
-      const respostasParaSalvar: SubmissaoRespostasModel[] = [];
-
-      for (const resposta of submissao.respostas) {
-        const questaoGabarito = resposta.questao;
-        const dadosRespostaAluno = resposta.dadosResposta;
-
-        let isConsideredAnswered = false;
-
-        if (dadosRespostaAluno) {
-          if (
-            isDadosRespostaDiscursiva(dadosRespostaAluno) &&
-            dadosRespostaAluno.texto.trim() !== ''
-          ) {
-            isConsideredAnswered = true;
-          } else if (
-            isDadosRespostaObjetiva(dadosRespostaAluno) &&
-            dadosRespostaAluno.alternativa_id !== null
-          ) {
-            isConsideredAnswered = true;
-          } else if (
-            isDadosRespostaMultipla(dadosRespostaAluno) &&
-            dadosRespostaAluno.alternativas_id.length > 0
-          ) {
-            isConsideredAnswered = true;
-          }
-        }
-
-        let pontuacaoObtida = 0;
-        let estadoCorrecao: EstadoQuestaoCorrigida | null = null;
-
-        if (!isConsideredAnswered) {
-          pontuacaoObtida = 0;
-          estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
-        } else {
-          switch (questaoGabarito.tipoQuestao) {
-            case TipoQuestaoEnum.OBJETIVA: {
-              const alternativaCorretaObj = questaoGabarito.alternativas.find(
-                (a) => a.isCorreto,
-              );
-              let respostaAlunoObjId: number | null = null;
-              if (isDadosRespostaObjetiva(dadosRespostaAluno)) {
-                respostaAlunoObjId = dadosRespostaAluno.alternativa_id;
-              }
-
-              if (
-                alternativaCorretaObj &&
-                respostaAlunoObjId === alternativaCorretaObj.id
-              ) {
-                pontuacaoObtida = questaoGabarito.pontuacao;
-                estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
-              } else {
-                pontuacaoObtida = 0;
-                estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
-              }
-              break;
-            }
-            case TipoQuestaoEnum.MULTIPLA_ESCOLHA:
-            case TipoQuestaoEnum.VERDADEIRO_FALSO: {
-              const idsCorretas = new Set(
-                questaoGabarito.alternativas
-                  .filter((a) => a.isCorreto)
-                  .map((a) => a.id),
-              );
-
-              let idsAluno = new Set<number>();
-              if (isDadosRespostaMultipla(dadosRespostaAluno)) {
-                idsAluno = new Set(dadosRespostaAluno.alternativas_id);
-              }
-
-              const totalCorretas = idsCorretas.size;
-              const acertos = [...idsAluno].filter((id) =>
-                idsCorretas.has(id),
-              ).length;
-              const erros = [...idsAluno].filter(
-                (id) => !idsCorretas.has(id),
-              ).length;
-
-              let pontuacaoCalculada = 0;
-              if (totalCorretas > 0) {
-                const pontosPorAcerto =
-                  questaoGabarito.pontuacao / totalCorretas;
-                const penalidadePorErro = pontosPorAcerto;
-
-                pontuacaoCalculada =
-                  acertos * pontosPorAcerto - erros * penalidadePorErro;
-              }
-
-              pontuacaoObtida = Math.max(0, pontuacaoCalculada);
-
-              if (
-                pontuacaoObtida === questaoGabarito.pontuacao &&
-                erros === 0 &&
-                acertos === totalCorretas &&
-                idsAluno.size === totalCorretas
-              ) {
-                estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
-              } else if (pontuacaoObtida > 0) {
-                estadoCorrecao = EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA;
-              } else {
-                estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
-              }
-              break;
-            }
-            case TipoQuestaoEnum.DISCURSIVA: {
-              const isAiCorrectionEnabled =
-                submissao.aplicacao.avaliacao.configuracaoAvaliacao
-                  .configuracoesSeguranca.ativarCorrecaoDiscursivaViaIa;
-
-              let respostaExistente = '';
-              if (isDadosRespostaDiscursiva(dadosRespostaAluno)) {
-                respostaExistente = dadosRespostaAluno?.texto ?? '';
-              }
-
-              if (isAiCorrectionEnabled) {
-                const result = await this.questaoService.evaluateByAi({
-                  questaoId: questaoGabarito.id,
-                  resposta: respostaExistente,
-                });
-
-                pontuacaoObtida = parseFloat(result.pontuacao.toFixed(2));
-                estadoCorrecao = result.estadoCorrecao;
-                resposta.textoRevisao = result.textoRevisao;
-              } else {
-                correcaoManualPendente = true;
-                pontuacaoObtida = 0;
-                estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
-                resposta.textoRevisao =
-                  'Esta questão será corrigida manualmente pelo professor.';
-              }
-              break;
-            }
-            default: {
-              this.logger.warn(
-                `Tipo de questão desconhecido encontrado durante a correção: ${String(questaoGabarito.tipoQuestao)}`,
-              );
-              pontuacaoObtida = 0;
-              estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
-              break;
-            }
-          }
-        }
-
-        resposta.pontuacao = parseFloat(pontuacaoObtida.toFixed(2));
-        resposta.estadoCorrecao = estadoCorrecao;
-        respostasParaSalvar.push(resposta);
-        pontuacaoTotalCalculada += resposta.pontuacao ?? 0;
+        respostasParaSalvar.push(respostaExistente);
       }
 
       if (respostasParaSalvar.length > 0) {
         await respostasRepo.save(respostasParaSalvar);
       }
 
-      const reducaoDePontuacao = await this._calculateReductionOfPoints(
-        submissao.id,
-      );
-
-      submissao.estado = correcaoManualPendente
-        ? EstadoSubmissaoEnum.ENVIADA
-        : EstadoSubmissaoEnum.AVALIADA;
+      submissao.estado = EstadoSubmissaoEnum.ENVIADA;
       submissao.finalizadoEm = new Date();
-      submissao.pontuacaoTotal = parseFloat(
-        (pontuacaoTotalCalculada - reducaoDePontuacao).toFixed(2),
-      );
+      submissao.pontuacaoTotal = 0;
 
-      await submissaoRepo.save(submissao);
-
-      submissaoAtualizada = await submissaoRepo.findOne({
-        where: { id: submissao.id },
-        relations: [
-          'estudante',
-          'aplicacao',
-          'aplicacao.avaliacao',
-          'aplicacao.avaliacao.item',
-          'respostas',
-          'respostas.questao',
-        ],
-      });
+      submissaoSalva = await submissaoRepo.save(submissao);
     });
 
     if (
-      submissaoAtualizada &&
-      submissaoAtualizada.aplicacao?.avaliacao?.item?.avaliador?.id
+      submissaoSalva &&
+      submissaoSalva.aplicacao?.avaliacao?.item?.avaliador?.id
     ) {
-      const avaliadorId =
-        submissaoAtualizada.aplicacao.avaliacao.item.avaliador.id;
-      const aplicacaoId = submissaoAtualizada.aplicacao.id;
-      const alunoNome =
-        submissaoAtualizada.estudante?.nome ?? 'Aluno Desconhecido';
+      const avaliadorId = submissaoSalva.aplicacao.avaliacao.item.avaliador.id;
+      const aplicacaoId = submissaoSalva.aplicacao.id;
+      const alunoNome = submissaoSalva.estudante?.nome ?? 'Aluno Desconhecido';
       const timestamp =
-        submissaoAtualizada.finalizadoEm?.toISOString() ??
-        new Date().toISOString();
+        submissaoSalva.finalizadoEm?.toISOString() ?? new Date().toISOString();
 
-      const payloadFinalizacao: SubmissaoFinalizadaPayload = {
-        submissaoId: submissaoAtualizada.id,
+      const payloadFinalizacao = {
+        submissaoId: submissaoSalva.id,
         aplicacaoId: aplicacaoId,
-        estado: submissaoAtualizada.estado,
+        estado: submissaoSalva.estado,
         alunoNome: alunoNome,
         timestamp: timestamp,
       };
@@ -551,38 +385,235 @@ export class SubmissaoService {
           'submissao-finalizada',
           payloadFinalizacao,
         );
-        this.logger.log(
-          `Evento 'submissao-finalizada' (SubId: ${submissaoAtualizada.id}, AppId: ${aplicacaoId}, Estado: ${submissaoAtualizada.estado}) enviado para avaliador ${avaliadorId}`,
-        );
       } catch (wsError) {
         this.logger.error(
-          `Falha ao enviar notificação WebSocket 'submissao-finalizada' para avaliador ${avaliadorId}: ${wsError}`,
+          `Falha ao enviar notificação WebSocket 'submissao-finalizada': ${wsError}`,
         );
       }
-    } else {
+    }
+
+    this._processarCorrecaoAssincrona(submissaoSalva.id).catch((err) => {
       this.logger.error(
-        `Não foi possível enviar notificação 'submissao-finalizada' para submissão hash ${hash}. Dados ausentes.`,
+        `Erro crítico na correção assíncrona da submissão ${submissaoSalva.id}`,
+        err,
       );
+    });
+
+    return new SubmissaoResultDto(submissaoSalva);
+  }
+
+  private async _processarCorrecaoAssincrona(
+    submissaoId: number,
+  ): Promise<void> {
+    this.logger.log(
+      `Iniciando correção assíncrona para submissão ${submissaoId}...`,
+    );
+
+    const submissao = await this.submissaoRepository.findOne({
+      where: { id: submissaoId },
+      relations: [
+        'respostas',
+        'respostas.questao',
+        'respostas.questao.alternativas',
+        'respostas.questao.item',
+        'aplicacao',
+        'aplicacao.avaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao',
+        'aplicacao.avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
+        'estudante',
+      ],
+    });
+
+    if (!submissao) return;
+
+    const configSeguranca =
+      submissao.aplicacao?.configuracao?.configuracoesSeguranca ??
+      submissao.aplicacao?.avaliacao?.configuracaoAvaliacao
+        ?.configuracoesSeguranca;
+
+    const isAiCorrectionEnabled =
+      configSeguranca?.ativarCorrecaoDiscursivaViaIa ?? false;
+
+    let pontuacaoTotalCalculada = 0;
+    let correcaoManualPendente = false;
+    const respostasParaSalvar: SubmissaoRespostasModel[] = [];
+
+    for (const resposta of submissao.respostas) {
+      const questaoGabarito = resposta.questao;
+      const dadosRespostaAluno = resposta.dadosResposta;
+      let isConsideredAnswered = false;
+
+      if (dadosRespostaAluno) {
+        if (
+          isDadosRespostaDiscursiva(dadosRespostaAluno) &&
+          dadosRespostaAluno.texto.trim() !== ''
+        ) {
+          isConsideredAnswered = true;
+        } else if (
+          isDadosRespostaObjetiva(dadosRespostaAluno) &&
+          dadosRespostaAluno.alternativa_id !== null
+        ) {
+          isConsideredAnswered = true;
+        } else if (
+          isDadosRespostaMultipla(dadosRespostaAluno) &&
+          dadosRespostaAluno.alternativas_id.length > 0
+        ) {
+          isConsideredAnswered = true;
+        }
+      }
+
+      let pontuacaoObtida = 0;
+      let estadoCorrecao: EstadoQuestaoCorrigida | null = null;
+
+      if (!isConsideredAnswered) {
+        pontuacaoObtida = 0;
+        estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
+      } else {
+        switch (questaoGabarito.tipoQuestao) {
+          case TipoQuestaoEnum.OBJETIVA: {
+            const alternativaCorretaObj = questaoGabarito.alternativas.find(
+              (a) => a.isCorreto,
+            );
+            let respostaAlunoObjId: number | null = null;
+            if (isDadosRespostaObjetiva(dadosRespostaAluno)) {
+              respostaAlunoObjId = dadosRespostaAluno.alternativa_id;
+            }
+
+            if (
+              alternativaCorretaObj &&
+              respostaAlunoObjId === alternativaCorretaObj.id
+            ) {
+              pontuacaoObtida = questaoGabarito.pontuacao;
+              estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
+            } else {
+              pontuacaoObtida = 0;
+              estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+            }
+            break;
+          }
+          case TipoQuestaoEnum.MULTIPLA_ESCOLHA:
+          case TipoQuestaoEnum.VERDADEIRO_FALSO: {
+            const idsCorretas = new Set(
+              questaoGabarito.alternativas
+                .filter((a) => a.isCorreto)
+                .map((a) => a.id),
+            );
+            let idsAluno = new Set<number>();
+            if (isDadosRespostaMultipla(dadosRespostaAluno)) {
+              idsAluno = new Set(dadosRespostaAluno.alternativas_id);
+            }
+
+            const totalCorretas = idsCorretas.size;
+            const acertos = [...idsAluno].filter((id) =>
+              idsCorretas.has(id),
+            ).length;
+            const erros = [...idsAluno].filter(
+              (id) => !idsCorretas.has(id),
+            ).length;
+
+            let pontuacaoCalculada = 0;
+            if (totalCorretas > 0) {
+              const pontosPorAcerto = questaoGabarito.pontuacao / totalCorretas;
+              const penalidadePorErro = pontosPorAcerto;
+              pontuacaoCalculada =
+                acertos * pontosPorAcerto - erros * penalidadePorErro;
+            }
+
+            pontuacaoObtida = Math.max(0, pontuacaoCalculada);
+
+            if (
+              pontuacaoObtida === questaoGabarito.pontuacao &&
+              erros === 0 &&
+              acertos === totalCorretas &&
+              idsAluno.size === totalCorretas
+            ) {
+              estadoCorrecao = EstadoQuestaoCorrigida.CORRETA;
+            } else if (pontuacaoObtida > 0) {
+              estadoCorrecao = EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA;
+            } else {
+              estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+            }
+            break;
+          }
+          case TipoQuestaoEnum.DISCURSIVA: {
+            let respostaExistente = '';
+            if (isDadosRespostaDiscursiva(dadosRespostaAluno)) {
+              respostaExistente = dadosRespostaAluno?.texto ?? '';
+            }
+
+            if (isAiCorrectionEnabled) {
+              try {
+                const result = await this.questaoService.evaluateByAi({
+                  questaoId: questaoGabarito.id,
+                  resposta: respostaExistente,
+                });
+
+                pontuacaoObtida = parseFloat(result.pontuacao.toFixed(2));
+                estadoCorrecao = result.estadoCorrecao;
+                resposta.textoRevisao = result.textoRevisao;
+              } catch (error) {
+                this.logger.error(
+                  `Falha na correção IA questão ${questaoGabarito.id}:`,
+                  error,
+                );
+                correcaoManualPendente = true;
+                pontuacaoObtida = 0;
+                estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
+                resposta.textoRevisao =
+                  'Erro na correção automática. Aguardando professor.';
+              }
+            } else {
+              correcaoManualPendente = true;
+              pontuacaoObtida = 0;
+              estadoCorrecao = EstadoQuestaoCorrigida.NAO_RESPONDIDA;
+              resposta.textoRevisao =
+                'Esta questão será corrigida manualmente pelo professor.';
+            }
+            break;
+          }
+          default: {
+            this.logger.warn(
+              `Tipo de questão desconhecido: ${String(questaoGabarito.tipoQuestao)}`,
+            );
+            pontuacaoObtida = 0;
+            estadoCorrecao = EstadoQuestaoCorrigida.INCORRETA;
+            break;
+          }
+        }
+      }
+
+      resposta.pontuacao = parseFloat(pontuacaoObtida.toFixed(2));
+      resposta.estadoCorrecao = estadoCorrecao;
+      respostasParaSalvar.push(resposta);
+      pontuacaoTotalCalculada += resposta.pontuacao ?? 0;
     }
 
-    if (!submissaoAtualizada) {
-      const submissaoFinal = await this.submissaoRepository.findOneOrFail({
-        where: { hash },
-        relations: ['estudante'],
-      });
-      return new SubmissaoResultDto(submissaoFinal);
+    if (respostasParaSalvar.length > 0) {
+      await this.submissaoRespostasRepository.save(respostasParaSalvar);
     }
 
-    if (!submissaoAtualizada.estudante) {
-      const submissaoComEstudante =
-        await this.submissaoRepository.findOneOrFail({
-          where: { id: submissaoAtualizada.id },
-          relations: ['estudante'],
-        });
-      return new SubmissaoResultDto(submissaoComEstudante);
-    }
+    const reducaoDePontuacao = await this._calculateReductionOfPoints(
+      submissao.id,
+    );
 
-    return new SubmissaoResultDto(submissaoAtualizada);
+    submissao.estado = correcaoManualPendente
+      ? EstadoSubmissaoEnum.ENVIADA
+      : EstadoSubmissaoEnum.AVALIADA;
+
+    submissao.pontuacaoTotal = parseFloat(
+      (pontuacaoTotalCalculada - reducaoDePontuacao).toFixed(2),
+    );
+
+    await this.submissaoRepository.save(submissao);
+
+    this.logger.log(
+      `Correção assíncrona finalizada (ID: ${submissao.id}). Estado Final: ${submissao.estado}`,
+    );
+
+    this.submissaoGateway.emitResultadoProcessado(submissao.hash, {
+      estado: submissao.estado,
+      pontuacaoTotal: submissao.pontuacaoTotal,
+    });
   }
 
   async evaluateDiscursiva(
@@ -593,6 +624,7 @@ export class SubmissaoService {
   ): Promise<void> {
     const submissao = await this.submissaoRepository.findOne({
       where: { id: submissaoId, aplicacao: { id: aplicacaoId } },
+      relations: ['estudante'],
     });
 
     if (!submissao) {
@@ -640,7 +672,17 @@ export class SubmissaoService {
     submissao.pontuacaoTotal = parseFloat(
       (pontuacaoTotal - reducaoDePontuacao).toFixed(2),
     );
+
     await this.submissaoRepository.save(submissao);
+
+    this.submissaoGateway.emitResultadoProcessado(submissao.hash, {
+      estado: submissao.estado,
+      pontuacaoTotal: submissao.pontuacaoTotal,
+    });
+
+    this.logger.log(
+      `Correção manual da questão ${questaoId} salva. Notificação enviada para submissão ${submissao.hash}`,
+    );
   }
 
   async updateSubmissaoEstado(
@@ -658,6 +700,15 @@ export class SubmissaoService {
 
     submissao.estado = estado;
     await this.submissaoRepository.save(submissao);
+
+    this.submissaoGateway.emitResultadoProcessado(submissao.hash, {
+      estado: submissao.estado,
+      pontuacaoTotal: submissao.pontuacaoTotal,
+    });
+
+    this.logger.log(
+      `Estado da submissão ${submissaoId} atualizado para ${estado}. Notificação enviada.`,
+    );
   }
 
   private async _generateUniqueSubmissionCode(

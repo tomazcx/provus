@@ -57,11 +57,15 @@ interface ConfigLiberacaoPayload {
   permitirRevisao: boolean;
 }
 
+interface SubmissaoAtualizadaPayload {
+  estado: EstadoSubmissaoEnum;
+  pontuacaoTotal: number;
+}
+
 function connectWebSocket(hash: string) {
   if (!$websocket) return;
 
   const authPayload = { hash: hash };
-
   if ($websocket.isConnected.value) {
     $websocket.connect(`/submissao`, authPayload);
   } else {
@@ -72,12 +76,10 @@ function connectWebSocket(hash: string) {
     "configuracao-liberacao-atualizada",
     (data) => {
       console.log("Configuração atualizada via WS:", data);
-
       studentAssessmentStore.updateReleaseSettings({
         mostrarPontuacao: data.mostrarPontuacao,
         permitirRevisao: data.permitirRevisao,
       });
-
       toast.add({
         title: "Atualização",
         description: "O professor atualizou as permissões de visualização.",
@@ -86,6 +88,23 @@ function connectWebSocket(hash: string) {
       });
     }
   );
+
+  $websocket.on<SubmissaoAtualizadaPayload>("resultado-processado", (data) => {
+    console.log("Submissão atualizada via WS:", data);
+    studentAssessmentStore.updateSubmissionRealTime({
+      estado: data.estado,
+      pontuacaoTotal: data.pontuacaoTotal,
+    });
+
+    if (data.estado === EstadoSubmissaoEnum.AVALIADA) {
+      toast.add({
+        title: "Correção Concluída!",
+        description: "Sua nota foi liberada. Confira o resultado.",
+        color: "success",
+        icon: "i-lucide-check-circle",
+      });
+    }
+  });
 }
 
 onMounted(async () => {

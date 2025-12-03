@@ -403,6 +403,21 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     }
   }
 
+  function updateSubmissionRealTime(payload: {
+    estado: EstadoSubmissaoEnum;
+    pontuacaoTotal: number;
+  }) {
+    if (submissionDetails.value) {
+      console.log(
+        "Atualizando submissão em tempo real:",
+        payload.estado,
+        payload.pontuacaoTotal
+      );
+      submissionDetails.value.estado = payload.estado;
+      submissionDetails.value.pontuacaoTotal = payload.pontuacaoTotal;
+    }
+  }
+
   return {
     submissionDetails,
     submissionQuestions,
@@ -425,6 +440,7 @@ export const useStudentAssessmentStore = defineStore("studentExam", () => {
     tempoPenalidade,
     pontuacaoMaximaAvaliacao,
     tempoMinimoAvaliacao,
+    updateSubmissionRealTime,
     aplicarPenalidadePontos,
     createStudentSubmission,
     fetchSubmissionDataByHash,
