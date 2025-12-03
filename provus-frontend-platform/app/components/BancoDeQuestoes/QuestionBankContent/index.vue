@@ -260,18 +260,21 @@ const filteredItems = computed(() => {
   return result;
 });
 
-function handleAiGenerationByTopic(data: any) {
+function handleAiGenerationByTopic(regras: any[]) {
   showGenerateAiDialog.value = false;
 
-  const payload: GenerateAndSaveAiQuestaoRequest = {
-    assunto: data.assunto,
-    dificuldade: data.dificuldade,
-    quantidade: data.quantidade,
-    tipoQuestao: data.tipo,
-  };
+  for (const data of regras) {
+    const payload = {
+      assunto: data.assunto,
+      dificuldade: data.dificuldade,
+      quantidade: data.quantidade,
+      tipoQuestao: data.tipo,
+    };
 
-  questionBankStore.startGenerationStream(payload);
+    questionBankStore.startGenerationStream(payload);
+  }
 }
+
 defineExpose({
   selectedItems,
 });

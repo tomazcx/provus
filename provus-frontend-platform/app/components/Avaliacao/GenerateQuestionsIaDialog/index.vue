@@ -4,11 +4,21 @@ import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
 import type { RegraGeracaoIaEntity } from "~/types/entities/Configuracoes.entity";
 import type { ArquivoEntity } from "~/types/entities/Arquivo.entity";
 
+interface TemaRule {
+  id: number;
+  assunto: string;
+  quantidade: number;
+  tipo: TipoQuestaoEnum;
+  dificuldade: DificuldadeQuestaoEnum;
+  pontuacao: number;
+}
+
 const props = defineProps<{
   modelValue: boolean;
   materiaisAnexados: ArquivoEntity[];
   isLoading: boolean;
 }>();
+
 const emit = defineEmits([
   "update:modelValue",
   "generate",
@@ -17,29 +27,20 @@ const emit = defineEmits([
   "view-materials",
 ]);
 
-const regras = ref<RegraGeracaoIaEntity[]>([]);
+const regrasArquivo = ref<RegraGeracaoIaEntity[]>([]);
+
+const regrasTema = ref<TemaRule[]>([]);
+
 const dificuldadeOptions = Object.values(DificuldadeQuestaoEnum);
 const tipoQuestaoOptions = Object.values(TipoQuestaoEnum);
-
 const tabItems = [
   { key: "tema", label: "Gerar por Tema", slot: "tema" },
   { key: "material", label: "Gerar por Material", slot: "material" },
 ];
-
 const selectedTab = ref("0");
 
-const getBlankFormTema = () => ({
-  assunto: "",
-  quantidade: 1,
-  tipo: TipoQuestaoEnum.OBJETIVA,
-  dificuldade: DificuldadeQuestaoEnum.FACIL,
-  pontuacao: 1,
-});
-
-const formTema = reactive(getBlankFormTema());
-
 function addIaRule() {
-  regras.value.push({
+  regrasArquivo.value.push({
     id: Date.now(),
     quantidade: 1,
     tipo: TipoQuestaoEnum.OBJETIVA,
@@ -51,7 +52,24 @@ function addIaRule() {
 }
 
 function removeIaRule(ruleId: number) {
-  regras.value = regras.value.filter((rule) => rule.id !== ruleId);
+  regrasArquivo.value = regrasArquivo.value.filter(
+    (rule) => rule.id !== ruleId
+  );
+}
+
+function addTopicRule() {
+  regrasTema.value.push({
+    id: Date.now() + Math.random(),
+    assunto: "",
+    quantidade: 1,
+    tipo: TipoQuestaoEnum.OBJETIVA,
+    dificuldade: DificuldadeQuestaoEnum.FACIL,
+    pontuacao: 1,
+  });
+}
+
+function removeTopicRule(ruleId: number) {
+  regrasTema.value = regrasTema.value.filter((rule) => rule.id !== ruleId);
 }
 
 function openMaterialsBankForRule(rule: RegraGeracaoIaEntity) {
@@ -64,20 +82,22 @@ function viewMaterialsForRule(rule: RegraGeracaoIaEntity) {
 
 async function handleGenerate() {
   if (selectedTab.value === "0") {
-    console.log("Gerando por Tema:", formTema);
-    emit("generate-by-topic", { ...formTema });
+    emit("generate-by-topic", regrasTema.value);
   } else {
-    console.log("Gerando por Material:", regras.value);
-    emit("generate", regras.value);
+    emit("generate", regrasArquivo.value);
   }
 }
+
 watch(
   () => props.modelValue,
   (isOpen) => {
     if (isOpen) {
-      regras.value = [];
+      regrasArquivo.value = [];
       addIaRule();
-      Object.assign(formTema, getBlankFormTema());
+
+      regrasTema.value = [];
+      addTopicRule();
+
       selectedTab.value = "0";
     }
   }
@@ -116,69 +136,101 @@ function handleModal(event: boolean) {
     <template #body>
       <UTabs v-model="selectedTab" :items="tabItems" class="w-full">
         <template #tema>
-          <UCard variant="subtle" class="mt-4">
-            <div class="flex items-center flex-wrap gap-x-2 gap-y-4 text-sm">
-              <span>Gerar</span>
-              <UFormField>
-                <UInputNumber
-                  v-model="formTema.quantidade"
-                  :min="1"
-                  class="w-20"
-                />
-              </UFormField>
-              <span>questões do tipo</span>
-              <UFormField>
-                <USelect
-                  v-model="formTema.tipo"
-                  :items="tipoQuestaoOptions"
-                  class="w-30"
-                />
-              </UFormField>
-              <span>de nível</span>
-              <UFormField>
-                <USelect
-                  v-model="formTema.dificuldade"
-                  :items="dificuldadeOptions"
-                  class="w-22"
-                />
-              </UFormField>
-              <span>valendo</span>
-              <UFormField>
-                <UInputNumber
-                  v-model="formTema.pontuacao"
-                  :min="0"
-                  class="w-20"
-                />
-              </UFormField>
-              <span>pontos.</span>
-            </div>
-            <UFormField label="Sobre o seguinte tema/assunto" class="mt-4">
-              <UInput
-                v-model="formTema.assunto"
-                placeholder="Ex: Revolução Francesa"
-              />
-            </UFormField>
-          </UCard>
-        </template>
-
-        <template #material>
-          <div class="flex flex-col gap-4 mt-4">
+          <div
+            class="flex flex-col gap-4 mt-4 max-h-[60vh] overflow-y-auto px-1"
+          >
             <UCard
-              v-for="(rule, index) in regras"
+              v-for="(rule, index) in regrasTema"
               :key="rule.id"
               variant="subtle"
             >
               <div class="flex items-center justify-between mb-4">
                 <p class="font-bold text-sm text-gray-600">
-                  Regra de Geração #{{ index + 1 }}
+                  Regra de Tema #{{ index + 1 }}
                 </p>
                 <UButton
-                  v-if="regras.length > 1"
+                  v-if="regrasTema.length > 1"
                   color="error"
                   variant="solid"
                   size="sm"
                   icon="i-lucide-trash-2"
-                  @click="removeIaRule(rule.id!)"
+                  @click="removeTopicRule(rule.id)"
+                />
+              </div>
+
+              <div class="flex items-center flex-wrap gap-x-2 gap-y-4 text-sm">
+                <span>Gerar</span>
+                <UFormField>
+                  <UInputNumber
+                    v-model="rule.quantidade"
+                    :min="1"
+                    class="w-20"
+                  />
+                </UFormField>
+                <span>questões do tipo</span>
+                <UFormField>
+                  <USelect
+                    v-model="rule.tipo"
+                    :items="tipoQuestaoOptions"
+                    class="w-30"
+                  />
+                </UFormField>
+                <span>de nível</span>
+                <UFormField>
+                  <USelect
+                    v-model="rule.dificuldade"
+                    :items="dificuldadeOptions"
+                    class="w-28"
+                  />
+                </UFormField>
+                <span>valendo</span>
+                <UFormField>
+                  <UInputNumber
+                    v-model="rule.pontuacao"
+                    :min="0"
+                    class="w-20"
+                  />
+                </UFormField>
+                <span>pontos.</span>
+              </div>
+              <UFormField label="Sobre o seguinte tema/assunto" class="mt-4">
+                <UInput
+                  v-model="rule.assunto"
+                  placeholder="Ex: Revolução Francesa"
+                />
+              </UFormField>
+            </UCard>
+
+            <UButton
+              label="Adicionar Outra Regra de Tema"
+              variant="outline"
+              icon="i-lucide-plus"
+              class="w-fit"
+              @click="addTopicRule"
+            />
+          </div>
+        </template>
+
+        <template #material>
+          <div
+            class="flex flex-col gap-4 mt-4 max-h-[60vh] overflow-y-auto px-1"
+          >
+            <UCard
+              v-for="(rule, index) in regrasArquivo"
+              :key="rule.id"
+              variant="subtle"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <p class="font-bold text-sm text-gray-600">
+                  Regra de Material #{{ index + 1 }}
+                </p>
+                <UButton
+                  v-if="regrasArquivo.length > 1"
+                  color="error"
+                  variant="solid"
+                  size="sm"
+                  icon="i-lucide-trash-2"
+                  @click="removeIaRule(rule.id)"
                 />
               </div>
               <div class="flex items-center flex-wrap gap-x-2 gap-y-4 text-sm">
@@ -203,7 +255,7 @@ function handleModal(event: boolean) {
                   <USelect
                     v-model="rule.dificuldade"
                     :items="dificuldadeOptions"
-                    class="w-22"
+                    class="w-28"
                   />
                 </UFormField>
                 <span>valendo</span>
@@ -241,7 +293,7 @@ function handleModal(event: boolean) {
               </div>
             </UCard>
             <UButton
-              label="Adicionar Outra Regra"
+              label="Adicionar Outra Regra de Material"
               variant="outline"
               icon="i-lucide-plus"
               class="w-fit"

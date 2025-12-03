@@ -216,18 +216,20 @@ async function handleAIGeneration(regras: RegraGeracaoIaEntity[]) {
   }
 }
 
-function handleAIGenerationByTopic(regra: TemaForm) {
+function handleAIGenerationByTopic(regras: TemaForm[]) {
   isGenerateAIDialogOpen.value = false;
 
-  const payload = {
-    assunto: regra.assunto,
-    dificuldade: regra.dificuldade,
-    quantidade: regra.quantidade,
-    tipoQuestao: regra.tipo,
-    pontuacao: regra.pontuacao,
-  };
+  for (const regra of regras) {
+    const payload = {
+      assunto: regra.assunto,
+      quantidade: regra.quantidade,
+      tipoQuestao: regra.tipo,
+      dificuldade: regra.dificuldade,
+      pontuacao: regra.pontuacao,
+    };
 
-  assessmentStore.generateQuestionsStream(payload);
+    assessmentStore.generateQuestionsStream(payload);
+  }
 }
 
 function handleOpenMaterialsBankForIa(rule: RegraGeracaoIaEntity) {
