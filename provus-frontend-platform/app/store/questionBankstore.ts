@@ -60,6 +60,9 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
   const isGenerating = ref(false);
   const rootFolderId = ref<number | null>(null);
   const isInitialized = ref(false);
+  const pendingGenerations = ref(0);
+
+  const isSocketListening = ref(false);
 
   const currentFolderId = computed(
     () => breadcrumbs.value[breadcrumbs.value.length - 1]?.id ?? null
@@ -114,6 +117,36 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
       });
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  async function startFileGenerationStream(
+    payload: FormData,
+    quantidade: number
+  ) {
+    pendingGenerations.value += quantidade;
+
+    initializeWebSocket();
+
+    try {
+      if (currentFolderId.value) {
+        payload.append("paiId", String(currentFolderId.value));
+      }
+
+      await $api("/backoffice/questao/generate-by-ai/stream-from-file", {
+        method: "POST",
+        body: payload,
+      });
+
+      toast.add({
+        title: "Processamento iniciado",
+        description: "Lendo arquivos e gerando questões...",
+        color: "info",
+      });
+    } catch (error) {
+      console.error("Erro no stream de arquivo:", error);
+      pendingGenerations.value -= quantidade;
+      toast.add({ title: "Erro ao iniciar geração", color: "error" });
     }
   }
 
@@ -244,6 +277,95 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     }
   }
 
+  function initializeWebSocket() {
+    const nuxtApp = useNuxtApp();
+    const $websocket = nuxtApp.$websocket as
+      | ReturnType<typeof useWebSocket>
+      | undefined;
+
+    if (!$websocket || !$websocket.socket.value) {
+      return;
+    }
+
+    if (isSocketListening.value) {
+      return;
+    }
+
+    const socket = $websocket.socket.value;
+
+    socket.off("nova-questao-ia-gerada");
+    socket.off("erro-geracao-ia");
+
+    socket.on("nova-questao-ia-gerada", (data: any) => {
+      const itemPaiId = data.questao.paiId;
+      const currentId = currentFolderId.value;
+
+      const isSameFolder = itemPaiId == currentId || (!itemPaiId && !currentId);
+      if (isSameFolder) {
+        const entity = mapApiResponseToEntity(data.questao);
+
+        const exists = items.value.some((i) => i.id === entity.id);
+
+        if (!exists) {
+          items.value = [entity, ...items.value];
+          console.log("Questão adicionada ao banco:", entity.id);
+        }
+      }
+
+      if (pendingGenerations.value > 0) {
+        pendingGenerations.value--;
+      }
+
+      toast.add({
+        title: "Questão gerada!",
+        description: isSameFolder
+          ? "Adicionada ao topo da lista."
+          : "Salva em outra pasta.",
+        color: "success",
+        icon: "i-lucide-check",
+      });
+    });
+
+    socket.on("erro-geracao-ia", (data: any) => {
+      if (pendingGenerations.value > 0) {
+        pendingGenerations.value--;
+      }
+      toast.add({
+        title: "Falha ao gerar uma questão",
+        description: data.message,
+        color: "error",
+      });
+    });
+
+    isSocketListening.value = true;
+  }
+
+  function cleanupWebSocket() {
+    const nuxtApp = useNuxtApp();
+    const $websocket = nuxtApp.$websocket as
+      | ReturnType<typeof useWebSocket>
+      | undefined;
+
+    const socket = $websocket?.socket.value;
+
+    if (socket) {
+      socket.off("nova-questao-ia-gerada");
+      socket.off("erro-geracao-ia");
+    }
+    isSocketListening.value = false;
+  }
+
+  async function startGenerationStream(payload: any) {
+    pendingGenerations.value += payload.quantidade;
+
+    initializeWebSocket();
+
+    await $api("/backoffice/questao/generate-by-ai/stream", {
+      method: "POST",
+      body: { ...payload, paiId: currentFolderId.value },
+    });
+  }
+
   async function fetchAllQuestionIdsInFolders(
     folderIds: number[]
   ): Promise<number[]> {
@@ -297,6 +419,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     isGenerating,
     currentFolderId,
     rootFolderId,
+    pendingGenerations,
     initialize,
     navigateToFolder,
     navigateToBreadcrumb,
@@ -307,5 +430,9 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     updateItem,
     fetchAllQuestionIdsInFolders,
     fetchQuestionsByIds,
+    startGenerationStream,
+    initializeWebSocket,
+    cleanupWebSocket,
+    startFileGenerationStream,
   };
 });

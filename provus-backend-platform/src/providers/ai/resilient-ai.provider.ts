@@ -9,8 +9,8 @@ export class ResilientAiProvider extends AbstractAiProvider {
 
   constructor(
     private readonly primary: GeminiProvider,
-    private readonly secondary: GroqProvider,
-    private readonly terciary: OpenAiProvider,
+    private readonly secondary: OpenAiProvider,
+    private readonly terciary: GroqProvider,
   ) {
     super();
   }
@@ -30,14 +30,14 @@ export class ResilientAiProvider extends AbstractAiProvider {
         return await this.secondary.generateText(prompt, jsonMode);
       } catch (secondaryError) {
         this.logger.warn(
-          `Falha no provedor secundário (Groq). Tentando fallback... Erro: ${secondaryError.message}`,
+          `Falha no provedor secundário (OpenAI). Tentando fallback... Erro: ${secondaryError.message}`,
         );
 
         try {
           return await this.terciary.generateText(prompt, jsonMode);
         } catch (terciaryError) {
           this.logger.warn(
-            `Falha no provedor terciário (OpenAI). Tentando fallback... Erro: ${terciaryError.message}`,
+            `Falha no provedor terciário (Groq). Tentando fallback... Erro: ${terciaryError.message}`,
           );
 
           this.logger.error(

@@ -41,7 +41,7 @@ const questionBankStore = useQuestionBankStore();
 const toast = useToast();
 
 onMounted(() => {
-  questionBankStore.initialize();
+  questionBankStore.initializeWebSocket();
 });
 
 const showCreateFolder = ref(false);
@@ -153,46 +153,12 @@ function handleMaterialsSelection(selection: { files: ArquivoEntity[] }) {
   }
 }
 
-function handleAiGenerationByTopic(data: any) {
-  const payload: GenerateAndSaveAiQuestaoRequest = {
-    assunto: data.assunto,
-    dificuldade: data.dificuldade,
-    quantidade: data.quantidade,
-    tipoQuestao: data.tipo,
-    paiId: undefined,
-  };
-
-  questionBankStore.createQuestionViaAi(payload);
-  showGenerateAiDialog.value = false;
-}
-
 async function handleAiGeneration(regras: RegraGeracaoIaEntity[]) {
-  let hasValidRule = false;
+  const validRules = regras.filter(
+    (r) => r.materiaisAnexadosIds && r.materiaisAnexadosIds.length > 0
+  );
 
-  for (const regra of regras) {
-    if (
-      !regra.materiaisAnexadosIds ||
-      regra.materiaisAnexadosIds.length === 0
-    ) {
-      continue;
-    }
-
-    hasValidRule = true;
-    const formData = new FormData();
-    formData.append("dificuldade", regra.dificuldade);
-    formData.append("tipoQuestao", regra.tipo);
-    formData.append("quantidade", regra.quantidade.toString());
-
-    formData.append("assunto", regra.assunto || "");
-
-    regra.materiaisAnexadosIds.forEach((id) => {
-      formData.append("arquivoIds", id.toString());
-    });
-
-    await questionBankStore.createQuestionViaAi(formData);
-  }
-
-  if (!hasValidRule) {
+  if (validRules.length === 0) {
     toast.add({
       title: "Atenção",
       description: "Nenhuma regra possuía materiais selecionados.",
@@ -202,6 +168,20 @@ async function handleAiGeneration(regras: RegraGeracaoIaEntity[]) {
   }
 
   showGenerateAiDialog.value = false;
+
+  for (const regra of validRules) {
+    const formData = new FormData();
+    formData.append("dificuldade", regra.dificuldade);
+    formData.append("tipoQuestao", regra.tipo);
+    formData.append("quantidade", regra.quantidade.toString());
+    formData.append("assunto", regra.assunto || "");
+
+    regra.materiaisAnexadosIds.forEach((id) => {
+      formData.append("arquivoIds", id.toString());
+    });
+
+    questionBankStore.startFileGenerationStream(formData, regra.quantidade);
+  }
 }
 
 const breadcrumbItems = computed(() =>
@@ -280,6 +260,18 @@ const filteredItems = computed(() => {
   return result;
 });
 
+function handleAiGenerationByTopic(data: any) {
+  showGenerateAiDialog.value = false;
+
+  const payload: GenerateAndSaveAiQuestaoRequest = {
+    assunto: data.assunto,
+    dificuldade: data.dificuldade,
+    quantidade: data.quantidade,
+    tipoQuestao: data.tipo,
+  };
+
+  questionBankStore.startGenerationStream(payload);
+}
 defineExpose({
   selectedItems,
 });
@@ -382,26 +374,36 @@ defineExpose({
 
     <div class="space-y-4">
       <div
-        v-if="questionBankStore.isGenerating"
-        class="text-center text-gray-500 py-10 border border-dashed border-gray-300 rounded-lg bg-gray-50"
-      >
-        <Icon
-          name="i-lucide-loader-2"
-          class="animate-spin h-8 w-8 text-secondary mb-2"
-        />
-        <p class="font-medium text-gray-700">
-          A I.A. está criando suas questões...
-        </p>
-        <p class="text-xs text-gray-500">Isso pode levar alguns segundos.</p>
-      </div>
-
-      <div
-        v-else-if="filteredItems.length === 0"
+        v-if="filteredItems.length === 0"
         class="text-center text-gray-500 py-10"
       >
         <span v-if="questionBankStore.isLoading">Carregando...</span>
         <span v-else>Nenhum item encontrado nesta pasta.</span>
       </div>
+
+      <template v-if="questionBankStore.pendingGenerations > 0">
+        <div
+          v-for="i in questionBankStore.pendingGenerations"
+          :key="`skeleton-${i}`"
+          class="border border-gray-200 rounded-lg p-4 bg-white animate-pulse flex items-start gap-4"
+        >
+          <div class="w-10 h-10 bg-gray-200 rounded-lg" />
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-3/4" />
+            <div class="h-3 bg-gray-200 rounded w-1/2" />
+            <div class="flex gap-2 mt-2">
+              <div class="h-5 w-16 bg-gray-200 rounded-full" />
+              <div class="h-5 w-24 bg-gray-200 rounded-full" />
+            </div>
+          </div>
+          <div
+            class="text-xs text-gray-400 font-medium flex items-center gap-1"
+          >
+            <Icon name="i-lucide-sparkles" class="animate-spin" />
+            Gerando I.A...
+          </div>
+        </div>
+      </template>
 
       <div
         v-for="item in filteredItems"

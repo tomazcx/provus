@@ -185,17 +185,49 @@ function handleSaveQuestionToBank(question: QuestaoEntity) {
   questionToSave.value = JSON.parse(JSON.stringify(question));
   saveToBankDialog.value = true;
 }
-
 async function handleAIGeneration(regras: RegraGeracaoIaEntity[]) {
-  console.log("Regras de Geração por IA recebidas:", regras);
-  await assessmentStore.generateQuestionsByFile(regras);
+  const validRules = regras.filter(
+    (r) => r.materiaisAnexadosIds && r.materiaisAnexadosIds.length > 0
+  );
+
+  if (validRules.length === 0) {
+    toast.add({
+      title: "Atenção",
+      description: "Nenhuma regra possuía materiais selecionados.",
+      color: "warning",
+    });
+    return;
+  }
+
   isGenerateAIDialogOpen.value = false;
+
+  for (const regra of validRules) {
+    const formData = new FormData();
+    formData.append("dificuldade", regra.dificuldade);
+    formData.append("tipoQuestao", regra.tipo);
+    formData.append("quantidade", regra.quantidade.toString());
+    formData.append("assunto", regra.assunto || "");
+
+    regra.materiaisAnexadosIds.forEach((id) => {
+      formData.append("arquivoIds", id.toString());
+    });
+
+    assessmentStore.generateQuestionsStreamFromFile(formData, regra.quantidade);
+  }
 }
 
-async function handleAIGenerationByTopic(regra: TemaForm) {
-  console.log("Regra de Geração por IA (Tema) recebida:", regra);
-  await assessmentStore.generateQuestionsByTopic(regra);
+function handleAIGenerationByTopic(regra: TemaForm) {
   isGenerateAIDialogOpen.value = false;
+
+  const payload = {
+    assunto: regra.assunto,
+    dificuldade: regra.dificuldade,
+    quantidade: regra.quantidade,
+    tipoQuestao: regra.tipo,
+    pontuacao: regra.pontuacao,
+  };
+
+  assessmentStore.generateQuestionsStream(payload);
 }
 
 function handleOpenMaterialsBankForIa(rule: RegraGeracaoIaEntity) {

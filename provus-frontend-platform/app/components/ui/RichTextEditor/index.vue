@@ -172,4 +172,8 @@ onBeforeUnmount(() => {
 .ProseMirror[contenteditable="false"] span[data-type="math"] {
   cursor: default;
 }
+
+.cursor-text {
+  padding: 12px;
+}
 </style>

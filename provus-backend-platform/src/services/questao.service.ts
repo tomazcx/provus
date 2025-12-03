@@ -32,6 +32,14 @@ import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
 import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-avaliacoes.model';
 import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
 
+const PERSPECTIVAS_VARIABILIDADE = [
+  'MODO: DEFINIÇÃO. Pergunte sobre o conceito central ou ideia principal. Objetivo: Verificar compreensão básica.',
+  'MODO: CENÁRIO PRÁTICO. Crie uma situação hipotética ou exemplo de uso onde o conceito é aplicado. PROIBIDO: Não pergunte "o que é" ou definições teóricas.',
+  'MODO: EXCEÇÃO/FALSO. A pergunta deve focar no que NÃO é verdade, ou em uma limitação/exceção do conceito. Ex: "Qual das opções está INCORRETA...".',
+  'MODO: DETALHE TÉCNICO. Encontre um detalhe específico, uma classificação, uma data ou um sub-tópico mencionado no texto e pergunte sobre ele. Evite o tema macro.',
+  'MODO: ANALÍTICO. Pergunte sobre a consequência de uma ação descrita no texto ou a causa de um fenômeno. Foco no "Porquê" e não no "O quê".',
+  'MODO: COMPARAÇÃO. Peça para distinguir entre dois conceitos mencionados ou diferenciar o tema principal de outra ideia similar.',
+];
 @Injectable()
 export class QuestaoService {
   private readonly logger = new Logger(QuestaoService.name);
@@ -290,27 +298,30 @@ export class QuestaoService {
         '\n\n[...CONTEÚDO TRUNCADO...]';
     }
 
-    const singleQuestionDto = { ...dto, quantidade: 1 };
+    const promises = Array.from({ length: dto.quantidade }).map((_, index) => {
+      const singleQuestionDto = { ...dto, quantidade: 1 };
+      const focoIndex = index % PERSPECTIVAS_VARIABILIDADE.length;
+      const focoDaVez = PERSPECTIVAS_VARIABILIDADE[focoIndex];
 
-    let promptTemplate = '';
-    if (dto.tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
-      promptTemplate = this._getDiscursivePromptFromFile(
-        contexto,
-        singleQuestionDto,
-      );
-    } else {
-      promptTemplate = this._getAlternativesPromptFromFile(
-        contexto,
-        singleQuestionDto,
-      );
-    }
-
-    const promises = Array.from({ length: dto.quantidade }).map(() =>
-      this._callAiAndParseResponse<GeneratedQuestaoDto>(promptTemplate),
-    );
+      let promptTemplate = '';
+      if (dto.tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
+        promptTemplate = this._getDiscursivePromptFromFile(
+          contexto,
+          singleQuestionDto,
+          focoDaVez,
+        );
+      } else {
+        promptTemplate = this._getAlternativesPromptFromFile(
+          contexto,
+          singleQuestionDto,
+          focoDaVez,
+        );
+      }
+      return this._callAiAndParseResponse<GeneratedQuestaoDto>(promptTemplate);
+    });
 
     this.logger.log(
-      `Disparando ${dto.quantidade} requisições paralelas para criação por arquivo...`,
+      `Disparando ${dto.quantidade} requisições paralelas para criação por arquivo com variabilidade...`,
     );
 
     const resultsArrays = await Promise.all(promises);
@@ -321,42 +332,27 @@ export class QuestaoService {
   async createByAi(dto: CreateAiQuestaoDto): Promise<GeneratedQuestaoDto[]> {
     const { assunto, dificuldade, tipoQuestao, quantidade } = dto;
 
-    if (quantidade <= 1) {
-      let promptTemplate = '';
-      if (tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
-        promptTemplate = this._getDiscursivePrompt(
-          assunto,
-          dificuldade,
-          quantidade,
-        );
-      } else {
-        promptTemplate = this._getAlternativesPrompt(
-          assunto,
-          dificuldade,
-          tipoQuestao,
-          quantidade,
-        );
-      }
-      return this._callAiAndParseResponse(promptTemplate);
-    }
+    const promises = Array.from({ length: quantidade }).map((_, index) => {
+      const focoIndex = index % PERSPECTIVAS_VARIABILIDADE.length;
+      const focoDaVez = PERSPECTIVAS_VARIABILIDADE[focoIndex];
 
-    const promises = Array.from({ length: quantidade }).map(() => {
       let prompt = '';
       if (tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
-        prompt = this._getDiscursivePrompt(assunto, dificuldade, 1);
+        prompt = this._getDiscursivePrompt(assunto, dificuldade, 1, focoDaVez);
       } else {
         prompt = this._getAlternativesPrompt(
           assunto,
           dificuldade,
           tipoQuestao,
           1,
+          focoDaVez,
         );
       }
       return this._callAiAndParseResponse<GeneratedQuestaoDto>(prompt);
     });
 
     this.logger.log(
-      `Disparando ${quantidade} requisições paralelas para criação por tópico...`,
+      `Disparando ${quantidade} requisições paralelas para criação por tópico com variabilidade...`,
     );
 
     const resultsArrays = await Promise.all(promises);
@@ -532,18 +528,43 @@ export class QuestaoService {
   private async _callAiAndParseResponse<T>(prompt: string): Promise<T[]> {
     try {
       this.logger.log('Enviando prompt para IA (Modo JSON)...');
-
       const rawResponse = await this.aiProvider.generateText(prompt, true);
-
       this.logger.log('Resposta bruta da IA:', rawResponse);
 
       const cleanResponse = rawResponse
         .replace(/```json/g, '')
         .replace(/```/g, '');
 
-      const generatedData = JSON.parse(cleanResponse) as T[] | T;
+      let generatedData: any;
+      try {
+        generatedData = JSON.parse(cleanResponse);
+      } catch (e) {
+        const jsonMatch = cleanResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
+        if (!jsonMatch) throw new Error('JSON não encontrado na resposta.');
+        generatedData = JSON.parse(jsonMatch[0]);
+      }
 
-      return Array.isArray(generatedData) ? generatedData : [generatedData];
+      if (Array.isArray(generatedData)) {
+        return generatedData as T[];
+      }
+
+      if (typeof generatedData === 'object' && generatedData !== null) {
+        if ('titulo' in generatedData || 'estadoCorrecao' in generatedData) {
+          return [generatedData as T];
+        }
+
+        const keys = Object.keys(generatedData);
+        for (const key of keys) {
+          if (Array.isArray(generatedData[key])) {
+            this.logger.log(
+              `Array encontrado dentro da chave wrapper '${key}'. Extraindo...`,
+            );
+            return generatedData[key] as T[];
+          }
+        }
+      }
+
+      return [generatedData as T];
     } catch (error) {
       this.logger.error('FALHA AO PROCESSAR RESPOSTA DA IA:', error);
       throw new UnprocessableEntityException(
@@ -551,159 +572,292 @@ export class QuestaoService {
       );
     }
   }
-
-  private _getDiscursivePrompt(
-    assunto: string,
-    dificuldade: DificuldadeQuestaoEnum,
-    quantidade: number,
-  ): string {
-    return `Crie ${quantidade} questão(ões) discursiva(s).
-    Assunto: "${assunto}"
-    Dificuldade: "${dificuldade}"
-    
-    Retorne um ARRAY JSON com esta estrutura exata:
-    [
-      {
-        "titulo": "Título curto",
-        "descricao": "Enunciado completo da questão",
-        "dificuldade": "${dificuldade}",
-        "exemplo_resposta": "Gabarito/Resposta esperada detalhada"
-      }
-    ]`;
-  }
-
-  private _getAlternativesPrompt(
-    assunto: string,
-    dificuldade: DificuldadeQuestaoEnum,
-    tipoQuestao: TipoQuestaoEnum,
-    quantidade: number,
-  ): string {
-    const isObjetiva = tipoQuestao === TipoQuestaoEnum.OBJETIVA;
-
-    return `Crie ${quantidade} questão(ões) do tipo "${tipoQuestao}".
-    Assunto: "${assunto}"
-    Dificuldade: "${dificuldade}"
-    
-    Requisitos:
-    - 5 alternativas por questão.
-    - ${isObjetiva ? 'Apenas 1 correta (isCorreto: true).' : 'Pelo menos 1 correta.'}
-
-    Retorne um ARRAY JSON com esta estrutura exata:
-    [
-      {
-        "titulo": "Título curto",
-        "descricao": "Enunciado completo",
-        "dificuldade": "${dificuldade}",
-        "exemplo_resposta": "Justificativa curta do gabarito",
-        "alternativas": [
-          { "descricao": "Texto da alternativa", "isCorreto": boolean }
-        ]
-      }
-    ]`;
-  }
-
-  private _getDiscursivePromptFromFile(
-    contexto: string,
-    dto: GenerateQuestaoFromFileRequestDto,
-  ): string {
-    const { dificuldade, quantidade, assunto } = dto;
-    const foco = assunto
-      ? `Foco específico: "${assunto}"`
-      : 'Foco: Tema geral do texto';
-
-    return `Baseado no CONTEÚDO abaixo, crie ${quantidade} questão(ões) discursiva(s).
-    Dificuldade: "${dificuldade}"
-    ${foco}
-    
-    Regras de Estilo:
-    - A questão deve ser autossuficiente (o aluno deve conseguir responder com base no conhecimento do tema, sem precisar ler o texto de apoio na hora).
-    - NÃO faça referências diretas como "conforme o texto", "de acordo com o conteúdo" ou "na seção X".
-    
-    Retorne um ARRAY JSON:
-    [
-      {
-        "titulo": "Título curto",
-        "descricao": "Enunciado da questão (claro e sem citar 'o texto')",
-        "dificuldade": "${dificuldade}",
-        "exemplo_resposta": "Gabarito esperado baseado no conteúdo"
-      }
-    ]
-
-    CONTEÚDO:
-    ${contexto}`;
-  }
-
-  private _getAlternativesPromptFromFile(
-    contexto: string,
-    dto: GenerateQuestaoFromFileRequestDto,
-  ): string {
-    const { dificuldade, quantidade, tipoQuestao, assunto } = dto;
-    const foco = assunto
-      ? `Foco específico: "${assunto}"`
-      : 'Foco: Tema geral do texto';
-    const isObjetiva = tipoQuestao === TipoQuestaoEnum.OBJETIVA;
-
-    return `Baseado no CONTEÚDO abaixo, crie ${quantidade} questão(ões) do tipo "${tipoQuestao}".
-    Dificuldade: "${dificuldade}"
-    ${foco}
-
-    Regras de Estilo:
-    - A questão deve ser autossuficiente.
-    - NÃO faça referências diretas como "conforme o texto", "de acordo com o conteúdo" ou "na seção X".
-
-    Requisitos Técnicos:
-    - 5 alternativas por questão.
-    - ${isObjetiva ? 'Apenas 1 correta.' : 'Pelo menos 1 correta.'}
-
-    Retorne um ARRAY JSON:
-    [
-      {
-        "titulo": "Título curto",
-        "descricao": "Enunciado (claro e sem citar 'o texto')",
-        "dificuldade": "${dificuldade}",
-        "exemplo_resposta": "Justificativa do gabarito",
-        "alternativas": [
-          { "descricao": "Alternativa", "isCorreto": boolean }
-        ]
-      }
-    ]
-
-    CONTEÚDO:
-    ${contexto}`;
-  }
-
-  private _getEvaluationPrompt(
-    questao: QuestaoModel,
-    resposta: string,
-  ): string {
-    return `Avalie a resposta do aluno para a questão discursiva.
-    
-    Questão: "${questao.item.titulo}"
-    Enunciado: "${questao.descricao}"
-    Gabarito Esperado: "${questao.exemploRespostaIa}"
-    Pontuação Máxima: ${questao.pontuacao}
-    
-    Resposta do Aluno: "${resposta}"
-
-    Retorne um OBJETO JSON único:
-    {
-      "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" | "${EstadoQuestaoCorrigida.INCORRETA}" | "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
-      "pontuacao": number,
-      "textoRevisao": "Feedback curto e direto para o aluno"
-    }
-    
-    Regras:
-    - Se "estadoCorrecao" for "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", "pontuacao" deve ser menor que a máxima e maior que 0.
-    - Se for "${EstadoQuestaoCorrigida.CORRETA}", "pontuacao" deve ser igual a máxima.
-    - Se for "${EstadoQuestaoCorrigida.INCORRETA}", "pontuacao" deve ser 0.`;
-  }
-
   private _cleanExtractedText(text: string): string {
     const cleanedText = text.replace(
       /[^\p{L}\p{N}\p{Z}\s.,;:?!()[\]{}'"+\-−*/=<>≤≥∆%]/gu,
       '',
     );
     return cleanedText.replace(/\s+/g, ' ').trim();
+  }
+
+  generateAndStreamByFile(
+    dto: GenerateQuestaoFromFileRequestDto,
+    uploadedFiles: Express.Multer.File[],
+    avaliador: AvaliadorModel,
+    paiId?: number | null,
+    avaliacaoId?: number | null,
+  ): void {
+    const { quantidade } = dto;
+
+    this.logger.log(
+      `[Streaming/File] Iniciando job para ${quantidade} questões.`,
+    );
+
+    this._processFileStreamGeneration(
+      dto,
+      uploadedFiles,
+      avaliador,
+      paiId,
+      avaliacaoId,
+    ).catch((err) =>
+      this.logger.error(`[Streaming/File] Erro crítico no job:`, err),
+    );
+  }
+
+  private async _processFileStreamGeneration(
+    dto: GenerateQuestaoFromFileRequestDto,
+    uploadedFiles: Express.Multer.File[],
+    avaliador: AvaliadorModel,
+    paiId?: number | null,
+    avaliacaoId?: number | null,
+  ) {
+    try {
+      const contentSources: { buffer: Buffer; mimeType: string }[] = [];
+      for (const file of uploadedFiles) {
+        contentSources.push({ buffer: file.buffer, mimeType: file.mimetype });
+      }
+
+      if (dto.arquivoIds && dto.arquivoIds.length > 0) {
+        const existingFiles = await this.arquivoService.findByIds(
+          dto.arquivoIds,
+          avaliador.id,
+        );
+        for (const fileDto of existingFiles) {
+          try {
+            const response = await fetch(fileDto.url);
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            let mimeType =
+              response.headers.get('content-type') ||
+              'application/octet-stream';
+            if (mimeType === 'application/octet-stream') {
+              mimeType = this._detectMimeTypeFromBuffer(buffer);
+            }
+            contentSources.push({ buffer, mimeType });
+          } catch (e) {
+            this.logger.error(`Erro ao baixar arquivo ${fileDto.id}`, e);
+          }
+        }
+      }
+
+      const rawTexts = await Promise.all(
+        contentSources.map((src) =>
+          this.textExtractorService.extractTextFromFile(
+            src.buffer,
+            src.mimeType,
+          ),
+        ),
+      );
+
+      const validTexts = rawTexts.filter((t) => t && t.trim() !== '');
+      if (validTexts.length === 0) {
+        throw new BadRequestException(
+          'Não foi possível extrair texto dos arquivos.',
+        );
+      }
+
+      const fullContext = validTexts
+        .map((t) => this._cleanExtractedText(t))
+        .join('\n\n---\n\n');
+
+      const totalLength = fullContext.length;
+      const quantidade = dto.quantidade;
+
+      this.logger.log(
+        '[Streaming/File] Planejando tópicos baseados no texto...',
+      );
+      let topicosPlanejados: string[] = [];
+      try {
+        const contextoPlanejamento =
+          totalLength > 20000 ? fullContext.substring(0, 20000) : fullContext;
+
+        const promptPlanejamento = this._getTopicsExtractionPrompt(
+          contextoPlanejamento,
+          quantidade,
+          true,
+        );
+        topicosPlanejados =
+          await this._callAiAndParseResponse<string>(promptPlanejamento);
+        if (
+          !Array.isArray(topicosPlanejados) ||
+          topicosPlanejados.length === 0
+        ) {
+          topicosPlanejados = [];
+        }
+        this.logger.log(
+          `[Streaming/File] Tópicos extraídos: ${topicosPlanejados.join(', ')}`,
+        );
+      } catch {
+        this.logger.warn(
+          '[Streaming/File] Falha no planejamento. Seguindo apenas com fatiamento.',
+        );
+        topicosPlanejados = [];
+      }
+
+      let startOffset = 0;
+      if (totalLength > 30000) {
+        startOffset = Math.min(Math.floor(totalLength * 0.03), 3000);
+      }
+      const usefulLength = totalLength - startOffset;
+      const chunkSize = Math.ceil(usefulLength / quantidade);
+
+      const tasks = Array.from({ length: quantidade }).map(async (_, index) => {
+        try {
+          const start = startOffset + index * chunkSize;
+          const end = Math.min(start + chunkSize, totalLength);
+          let sliceText = fullContext.substring(start, end);
+
+          if (sliceText.length < 500 && totalLength > 1000) {
+            const expandStart = Math.max(startOffset, start - 1500);
+            sliceText = fullContext.substring(expandStart, end);
+          }
+
+          const topicoEspecifico = topicosPlanejados[index];
+          const focoIndex = index % PERSPECTIVAS_VARIABILIDADE.length;
+          const perspectivaPadrao = PERSPECTIVAS_VARIABILIDADE[focoIndex];
+          const seed = `[SEED: ${Date.now()}-${index}-${Math.random()}]`;
+
+          const contextoParaPrompt = `
+            === TEXTO PRINCIPAL (FONTE DA VERDADE) ===
+            "${sliceText}"
+            === FIM DO TEXTO PRINCIPAL ===
+            `;
+
+          let instrucaoFocada = '';
+
+          if (topicoEspecifico) {
+            instrucaoFocada = `
+                FOCO OBRIGATÓRIO: Sua questão deve abordar o tópico "${topicoEspecifico}".
+                Tente encontrar informações sobre este tópico no fragmento acima.
+                Se o fragmento não contiver informações sobre "${topicoEspecifico}", ignore este tópico e crie uma questão relevante sobre qualquer conteúdo presente no texto.
+                
+                Lente Adicional: ${perspectivaPadrao}`;
+          } else {
+            instrucaoFocada = `${perspectivaPadrao}
+                
+                REGRA DE OURO: Se o texto acima for apenas um SUMÁRIO, ÍNDICE ou REFERÊNCIAS:
+                1. IGNORE a estrutura de lista.
+                2. Escolha um tema mencionado e crie uma questão conceitual sobre ele.`;
+          }
+
+          const singleDto = { ...dto, quantidade: 1 };
+          let prompt = '';
+
+          if (singleDto.tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
+            prompt =
+              this._getDiscursivePromptFromFile(
+                contextoParaPrompt,
+                singleDto,
+                instrucaoFocada,
+              ) + `\n\n${seed}`;
+          } else {
+            prompt =
+              this._getAlternativesPromptFromFile(
+                contextoParaPrompt,
+                singleDto,
+                instrucaoFocada,
+              ) + `\n\n${seed}`;
+          }
+
+          const [generated] =
+            await this._callAiAndParseResponse<GeneratedQuestaoDto>(prompt);
+
+          const createDto: CreateQuestaoRequest = {
+            titulo: generated.titulo,
+            descricao: generated.descricao,
+            dificuldade: generated.dificuldade,
+            tipoQuestao: dto.tipoQuestao,
+            paiId: paiId ?? undefined,
+            isModelo: !avaliacaoId,
+            exemploRespostaIa: generated.exemplo_resposta,
+            alternativas: generated.alternativas?.map((a) => ({
+              descricao: a.descricao,
+              isCorreto: a.isCorreto,
+            })),
+            pontuacao: 1,
+          };
+
+          const questaoResult = await this.create(createDto, avaliador);
+
+          if (avaliacaoId) {
+            const qaRepo = this.dataSource.getRepository(
+              QuestoesAvaliacoesModel,
+            );
+            const lastQ = await qaRepo.findOne({
+              where: { avaliacaoId },
+              order: { ordem: 'DESC' },
+            });
+            const novaOrdem = (lastQ?.ordem || 0) + 1 + index;
+
+            await qaRepo.save(
+              qaRepo.create({
+                avaliacaoId,
+                questaoId: questaoResult.id,
+                ordem: novaOrdem,
+                pontuacao: 1,
+              }),
+            );
+          }
+
+          this.avaliadorGateway.sendMessageToAvaliador(
+            avaliador.id,
+            'nova-questao-ia-gerada',
+            {
+              questao: questaoResult,
+              contextoAvaliacaoId: avaliacaoId,
+              tempId: index,
+            },
+          );
+
+          this.logger.log(
+            `[Streaming/File] Questão ${questaoResult.id} gerada (Tópico: ${topicoEspecifico || 'Slice'}).`,
+          );
+        } catch (err) {
+          this.logger.error(`[Streaming/File] Falha na questão ${index}`, err);
+          this.avaliadorGateway.sendMessageToAvaliador(
+            avaliador.id,
+            'erro-geracao-ia',
+            {
+              message: 'Falha ao gerar uma questão.',
+              tempId: index,
+            },
+          );
+        }
+      });
+
+      await Promise.all(tasks);
+      this.logger.log('[Streaming/File] Job finalizado.');
+    } catch (error) {
+      this.logger.error('[Streaming/File] Falha geral no job:', error);
+      this.avaliadorGateway.sendMessageToAvaliador(
+        avaliador.id,
+        'erro-geracao-ia',
+        { message: 'Falha crítica ao processar arquivo: ' + error.message },
+      );
+    }
+  }
+
+  private _getTopicsExtractionPrompt(
+    contextoOuAssunto: string,
+    quantidade: number,
+    isArquivo: boolean,
+  ): string {
+    const base = isArquivo
+      ? `Analise o TEXTO abaixo`
+      : `Analise o assunto "${contextoOuAssunto}"`;
+
+    return `${base} e liste EXATAMENTE ${quantidade} sub-temas ou ângulos COMPLETAMENTE DISTINTOS para criar questões.
+    
+    REGRAS DE NÃO-REPETIÇÃO (CRÍTICO):
+    1. É PROIBIDO retornar tópicos sinônimos (ex: "O que é X" e "Definição de X").
+    2. Se o texto for curto, explore: 1 Conceito, 1 Exemplo Prático, 1 Exceção à regra.
+    3. Varie o nível cognitivo: Uma de memória, uma de análise, uma de aplicação.
+    
+    Retorne APENAS um Array JSON de strings.
+    Exemplo: ["Origem histórica", "Fórmula matemática", "Aplicação na engenharia"]
+
+    ${isArquivo ? 'TEXTO:' : ''}
+    ${isArquivo ? `"""${contextoOuAssunto}"""` : ''}`;
   }
 
   generateAndStreamByAi(
@@ -732,23 +886,81 @@ export class QuestaoService {
     pastaId?: number | null,
     contextoAvaliacaoId?: number,
   ) {
+    this.logger.log('[Streaming/Topic] Planejando tópicos distintos...');
+    let subTemas: string[] = [];
+
+    try {
+      const promptPlanejamento = this._getTopicsExtractionPrompt(
+        dto.assunto,
+        dto.quantidade,
+        false,
+      );
+      subTemas = await this._callAiAndParseResponse<string>(promptPlanejamento);
+
+      if (!Array.isArray(subTemas) || subTemas.length === 0) {
+        subTemas = [];
+      }
+      this.logger.log(
+        `[Streaming/Topic] Tópicos definidos: ${subTemas.join(', ')}`,
+      );
+    } catch {
+      this.logger.warn(
+        '[Streaming/Topic] Falha no planejamento. Usando estratégia padrão de focos.',
+      );
+      subTemas = [];
+    }
+
     const tasks = Array.from({ length: dto.quantidade }).map(
       async (_, index) => {
         try {
-          const [generatedDto] = await this.createByAi({
-            ...dto,
-            quantidade: 1,
-          });
+          const topicoEspecifico = subTemas[index];
+
+          const focoIndex = index % PERSPECTIVAS_VARIABILIDADE.length;
+          const perspectivaPadrao = PERSPECTIVAS_VARIABILIDADE[focoIndex];
+
+          let instrucaoFoco = '';
+
+          if (topicoEspecifico) {
+            instrucaoFoco = `FOCO OBRIGATÓRIO: A questão deve ser EXCLUSIVAMENTE sobre o sub-tema "${topicoEspecifico}".\nAdicionalmente, tente aplicar esta lente: ${perspectivaPadrao}`;
+          } else {
+            instrucaoFoco = perspectivaPadrao;
+          }
+
+          const seed = `[SEED: ${Date.now()}-${index}-${Math.random()}]`;
+          let prompt = '';
+
+          if (dto.tipoQuestao === TipoQuestaoEnum.DISCURSIVA) {
+            prompt =
+              this._getDiscursivePrompt(
+                dto.assunto,
+                dto.dificuldade,
+                1,
+                instrucaoFoco,
+              ) + `\n\n${seed}`;
+          } else {
+            prompt =
+              this._getAlternativesPrompt(
+                dto.assunto,
+                dto.dificuldade,
+                dto.tipoQuestao,
+                1,
+                instrucaoFoco,
+              ) + `\n\n${seed}`;
+          }
+
+          const resultDocs: GeneratedQuestaoDto[] =
+            await this._callAiAndParseResponse<GeneratedQuestaoDto>(prompt);
+          const generated = resultDocs[0];
 
           const createDto: CreateQuestaoRequest = {
-            titulo: generatedDto.titulo,
-            descricao: generatedDto.descricao,
-            dificuldade: generatedDto.dificuldade,
+            titulo: generated.titulo,
+            descricao: generated.descricao,
+            dificuldade: generated.dificuldade,
             tipoQuestao: dto.tipoQuestao,
             paiId: pastaId ?? undefined,
             isModelo: !contextoAvaliacaoId,
-            exemploRespostaIa: generatedDto.exemplo_resposta,
-            alternativas: generatedDto.alternativas?.map((a) => ({
+            exemploRespostaIa: generated.exemplo_resposta,
+            alternativas: generated.alternativas?.map((a) => ({
               descricao: a.descricao,
               isCorreto: a.isCorreto,
             })),
@@ -794,7 +1006,7 @@ export class QuestaoService {
           );
 
           this.logger.log(
-            `[Streaming] Questão ${questaoResult.id} gerada e enviada via socket.`,
+            `[Streaming] Questão ${questaoResult.id} gerada (Tópico: ${topicoEspecifico || 'Genérico'}).`,
           );
         } catch (error) {
           this.logger.error(
@@ -814,5 +1026,189 @@ export class QuestaoService {
 
     await Promise.all(tasks);
     this.logger.log('[Streaming] Processo de geração em lote finalizado.');
+  }
+
+  private _getDiscursivePrompt(
+    assunto: string,
+    dificuldade: DificuldadeQuestaoEnum,
+    quantidade: number,
+    focoExtra: string = '',
+  ): string {
+    return `TAREFA CRÍTICA: Crie ${quantidade} questão(ões) discursiva(s) com ALTA VARIABILIDADE.
+    
+    >>> DIRETRIZ OBRIGATÓRIA DE FOCO <<<
+    ${focoExtra}
+    (Se você ignorar esta diretriz e criar uma questão genérica, a resposta será considerada falha).
+
+    METADADOS:
+    - Assunto: "${assunto}"
+    - Dificuldade: "${dificuldade}"
+    
+    FORMATO DE SAÍDA (JSON PURO):
+    Retorne APENAS um Array JSON. Não use markdown.
+    Estrutura:
+    [
+      {
+        "titulo": "Título curto e temático",
+        "descricao": "Enunciado da questão seguindo estritamente o FOCO",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Gabarito detalhado"
+      }
+    ]`;
+  }
+
+  private _getAlternativesPrompt(
+    assunto: string,
+    dificuldade: DificuldadeQuestaoEnum,
+    tipoQuestao: TipoQuestaoEnum,
+    quantidade: number,
+    focoExtra: string = '',
+  ): string {
+    const isObjetiva = tipoQuestao === TipoQuestaoEnum.OBJETIVA;
+
+    const regraCorretas = isObjetiva
+      ? 'EXATAMENTE UMA alternativa deve ser correta (isCorreto: true).'
+      : 'PELO MENOS DUAS alternativas devem ser corretas (isCorreto: true). Se não houver duas verdades óbvias, crie "distratores plausíveis" que sejam parcialmente verdadeiros mas tecnicamente falsos.';
+
+    return `TAREFA: Crie ${quantidade} questão(ões) do tipo "${tipoQuestao}" sobre "${assunto}".
+
+    >>> DIRETRIZ DE FOCO (OBRIGATÓRIA) <<<
+    ${focoExtra}
+    (A questão deve ser ÚNICA e não repetir conceitos de questões anteriores geradas).
+
+    METADADOS:
+    - Dificuldade: "${dificuldade}"
+
+    REGRAS TÉCNICAS RÍGIDAS:
+    1. Crie exatamente 5 alternativas.
+    2. ${regraCorretas}
+    3. As alternativas incorretas devem ser plausíveis (não use absurdos óbvios).
+
+    FORMATO DE SAÍDA (JSON PURO):
+    Retorne APENAS um Array JSON.
+    [
+      {
+        "titulo": "Título curto",
+        "descricao": "Enunciado completo",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Justificativa curta do gabarito",
+        "alternativas": [
+          { "descricao": "Texto da alternativa", "isCorreto": boolean }
+        ]
+      }
+    ]`;
+  }
+
+  private _getAlternativesPromptFromFile(
+    contexto: string,
+    dto: GenerateQuestaoFromFileRequestDto,
+    focoExtra: string = '',
+  ): string {
+    const { dificuldade, quantidade, tipoQuestao, assunto } = dto;
+    const focoAssunto = assunto ? `Foco Temático: "${assunto}"` : '';
+    const isObjetiva = tipoQuestao === TipoQuestaoEnum.OBJETIVA;
+
+    const regraCorretas = isObjetiva
+      ? 'EXATAMENTE UMA alternativa deve ser correta.'
+      : 'PELO MENOS DUAS alternativas devem ser corretas. Questões de múltipla escolha com apenas uma resposta certa serão consideradas ERRO.';
+
+    return `ATENÇÃO: Crie ${quantidade} questão(ões) do tipo "${tipoQuestao}" baseada(s) no texto abaixo.
+
+    >>> DIRETRIZ DE FOCO <<<
+    ${focoExtra}
+
+    CONFIGURAÇÃO:
+    - Dificuldade: "${dificuldade}"
+    - ${focoAssunto}
+
+    REGRAS DE ENGENHARIA:
+    1. 5 alternativas obrigatórias.
+    2. ${regraCorretas}
+    3. A questão deve ser autossuficiente (sem citar "o texto").
+    4. EVITE criar questões sobre o mesmo tópico central repetidamente. Busque detalhes periféricos se necessário.
+
+    FORMATO JSON (Obrigatório):
+    Retorne APENAS um Array JSON puro no nível raiz.
+    [
+      {
+        "titulo": "Título",
+        "descricao": "Enunciado",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Justificativa",
+        "alternativas": [
+          { "descricao": "Texto", "isCorreto": boolean }
+        ]
+      }
+    ]
+
+    TEXTO BASE:
+    """
+    ${contexto}
+    """`;
+  }
+
+  private _getDiscursivePromptFromFile(
+    contexto: string,
+    dto: GenerateQuestaoFromFileRequestDto,
+    focoExtra: string = '',
+  ): string {
+    const { dificuldade, quantidade, assunto } = dto;
+    const focoAssunto = assunto ? `Foco Temático: "${assunto}"` : '';
+
+    return `ATENÇÃO: Você deve criar ${quantidade} questão(ões) baseada(s) no texto abaixo, mas seguindo UMA LENTE ESPECÍFICA.
+
+    >>> SUA LENTE DE FOCO <<<
+    ${focoExtra}
+    (Siga isso estritamente. Se o foco for "Detalhe", não pergunte sobre o conceito geral. Se for "Aplicação", não pergunte definição).
+
+    CONFIGURAÇÃO:
+    - Dificuldade: "${dificuldade}"
+    - Tipo: Discursiva
+    - ${focoAssunto}
+
+    REGRAS DE ESTILO:
+    - A questão deve ser autossuficiente (respondível sem ler o texto na hora).
+    - JAMAIS escreva "segundo o texto", "no fragmento acima" ou similar.
+
+    FORMATO JSON (Obrigatório):
+    [
+      {
+        "titulo": "Título",
+        "descricao": "Enunciado",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Gabarito"
+      }
+    ]
+
+    TEXTO BASE:
+    """
+    ${contexto}
+    """`;
+  }
+
+  private _getEvaluationPrompt(
+    questao: QuestaoModel,
+    resposta: string,
+  ): string {
+    return `Avalie a resposta do aluno para a questão discursiva.
+    
+    Questão: "${questao.item.titulo}"
+    Enunciado: "${questao.descricao}"
+    Gabarito Esperado: "${questao.exemploRespostaIa}"
+    Pontuação Máxima: ${questao.pontuacao}
+    
+    Resposta do Aluno: "${resposta}"
+
+    Retorne um OBJETO JSON único:
+    {
+      "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" | "${EstadoQuestaoCorrigida.INCORRETA}" | "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
+      "pontuacao": number,
+      "textoRevisao": "Feedback curto e direto para o aluno"
+    }
+    
+    Regras:
+    - Se "estadoCorrecao" for "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", "pontuacao" deve ser menor que a máxima e maior que 0.
+    - Se for "${EstadoQuestaoCorrigida.CORRETA}", "pontuacao" deve ser igual a máxima.
+    - Se for "${EstadoQuestaoCorrigida.INCORRETA}", "pontuacao" deve ser 0.`;
   }
 }

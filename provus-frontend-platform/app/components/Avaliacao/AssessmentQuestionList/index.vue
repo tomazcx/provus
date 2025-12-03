@@ -3,6 +3,7 @@ import AssessmentQuestionItem from "@/components/Avaliacao/AssessmentQuestionIte
 import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 import type { RandomizationRuleEntity } from "~/types/entities/Configuracoes.entity";
 import TipoRandomizacaoEnum from "~/enums/TipoRandomizacaoEnum";
+import { useAssessmentStore } from "~/store/assessmentStore";
 
 const questoes = defineModel<QuestaoEntity[]>("questoes", { required: true });
 
@@ -18,6 +19,8 @@ const emit = defineEmits([
   "save-to-bank",
   "gerar-ia",
 ]);
+
+const assessmentStore = useAssessmentStore();
 
 const isDynamicRandomization = computed(() => {
   if (!props.randomizationRules || props.randomizationRules.length === 0)
@@ -84,7 +87,10 @@ const totalDynamicQuestions = computed(() => {
     </div>
 
     <div
-      v-else-if="!questoes || questoes.length === 0"
+      v-else-if="
+        (!questoes || questoes.length === 0) &&
+        assessmentStore.pendingAiQuestions === 0
+      "
       class="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center"
     >
       <div
@@ -129,7 +135,7 @@ const totalDynamicQuestions = computed(() => {
       </div>
     </div>
 
-    <template v-else>
+    <div v-else>
       <draggable
         v-model="questoes"
         item-key="id"
@@ -147,7 +153,33 @@ const totalDynamicQuestions = computed(() => {
           />
         </template>
       </draggable>
-      <div class="flex flex-col sm:flex-row gap-3">
+
+      <div v-if="assessmentStore.pendingAiQuestions > 0" class="space-y-4 mt-4">
+        <div
+          v-for="i in assessmentStore.pendingAiQuestions"
+          :key="`skeleton-${i}`"
+          class="border border-gray-200 rounded-lg p-6 bg-white animate-pulse space-y-4"
+        >
+          <div class="flex justify-between">
+            <div class="h-6 bg-gray-200 rounded w-1/4" />
+            <div class="h-6 bg-gray-200 rounded w-8" />
+          </div>
+          <div class="h-4 bg-gray-200 rounded w-3/4" />
+          <div class="h-4 bg-gray-200 rounded w-1/2" />
+          <div class="pt-4 space-y-2">
+            <div class="h-10 bg-gray-100 rounded w-full" />
+            <div class="h-10 bg-gray-100 rounded w-full" />
+          </div>
+          <div
+            class="flex justify-center items-center text-primary text-sm font-medium pt-2"
+          >
+            <Icon name="i-lucide-sparkles" class="animate-spin mr-2" />
+            Criando questão com Inteligência Artificial...
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 mt-4">
         <UButton
           block
           label="Adicionar Nova Questão"
@@ -164,8 +196,6 @@ const totalDynamicQuestions = computed(() => {
           color="secondary"
           @click="emit('adicionarDoBanco')"
         />
-      </div>
-      <div class="flex flex-col sm:flex-row gap-3">
         <UButton
           block
           label="Gerar com I.A."
@@ -175,6 +205,6 @@ const totalDynamicQuestions = computed(() => {
           @click="emit('gerar-ia')"
         />
       </div>
-    </template>
+    </div>
   </div>
 </template>

@@ -103,4 +103,45 @@ export class GenerateByAiController {
       jobStarted: true,
     };
   }
+
+  @Post('stream-from-file')
+  @ApiOperation({ summary: 'Geração via Arquivo em background (Streaming)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'files', maxCount: 2 }]))
+  @HttpCode(HttpStatus.ACCEPTED)
+  generateAndStreamFromFile(
+    @Body() dto: GenerateQuestaoFromFileRequestDto & { avaliacaoId?: string },
+    @LoggedAvaliador() avaliador: AvaliadorModel,
+    @UploadedFiles() uploadedContent?: { files?: Express.Multer.File[] },
+  ): { message: string } {
+    const files = uploadedContent?.files || [];
+
+    let paiIdParsed: number | null = null;
+    if (dto.paiId) paiIdParsed = Number(dto.paiId);
+
+    let avaliacaoIdParsed: number | null = null;
+    if (dto.avaliacaoId) avaliacaoIdParsed = Number(dto.avaliacaoId);
+
+    const arquivoIdsParsed = dto.arquivoIds
+      ? Array.isArray(dto.arquivoIds)
+        ? dto.arquivoIds.map(Number)
+        : [Number(dto.arquivoIds)]
+      : [];
+
+    const cleanDto = {
+      ...dto,
+      arquivoIds: arquivoIdsParsed,
+      quantidade: Number(dto.quantidade),
+    };
+
+    this.questaoService.generateAndStreamByFile(
+      cleanDto,
+      files,
+      avaliador,
+      paiIdParsed,
+      avaliacaoIdParsed,
+    );
+
+    return { message: 'Processamento de arquivo iniciado.' };
+  }
 }

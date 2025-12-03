@@ -118,13 +118,14 @@ export const getBlankAssessment = (): AvaliacaoEntity => ({
 });
 
 export const useAssessmentStore = defineStore("assessment", () => {
-  const { $api } = useNuxtApp();
+  const nuxtApp = useNuxtApp();
   const toast = useToast();
   const router = useRouter();
   const assessmentState = ref<AvaliacaoEntity | null>(null);
   const isLoading = ref(false);
   const isSaving = ref(false);
   const isSettingsDialogOpen = ref(false);
+  const pendingAiQuestions = ref(0);
 
   const assessment = computed(() => {
     if (!assessmentState.value) return null;
@@ -134,6 +135,143 @@ export const useAssessmentStore = defineStore("assessment", () => {
     );
     return { ...assessmentState.value, pontuacao: calculatedPoints };
   });
+
+  function initializeWebSocket() {
+    const $websocket = nuxtApp.$websocket as
+      | ReturnType<typeof useWebSocket>
+      | undefined;
+
+    if (!$websocket) {
+      console.error(
+        "AssessmentStore: $websocket não foi injetado corretamente pelo plugin."
+      );
+      return;
+    }
+
+    if (!$websocket.socket.value) {
+      console.warn(
+        "AssessmentStore: WebSocket não está conectado. Aguardando conexão..."
+      );
+      return;
+    }
+
+    const socket = $websocket.socket.value;
+
+    socket.off("nova-questao-ia-gerada");
+    socket.off("erro-geracao-ia");
+
+    socket.on("nova-questao-ia-gerada", (data: any) => {
+      if (!assessmentState.value) return;
+
+      const newQuestion: QuestaoEntity = {
+        id: data.questao.id,
+        titulo: data.questao.titulo,
+        tipo: TipoItemEnum.QUESTAO,
+        paiId: data.questao.paiId,
+        criadoEm: data.questao.criadoEm,
+        atualizadoEm: data.questao.atualizadoEm,
+        dificuldade: data.questao.dificuldade,
+        tipoQuestao: data.questao.tipoQuestao,
+        descricao: data.questao.descricao,
+        pontuacao: data.questao.pontuacao,
+        isModelo: data.questao.isModelo,
+        alternativas: data.questao.alternativas || [],
+        exemploRespostaIa: data.questao.exemploRespostaIa,
+        textoRevisao: data.questao.textoRevisao,
+        path: data.questao.path,
+      };
+
+      assessmentState.value.questoes.push(newQuestion);
+
+      if (pendingAiQuestions.value > 0) {
+        pendingAiQuestions.value--;
+      }
+
+      toast.add({
+        title: "Questão gerada!",
+        description: "Adicionada à lista com sucesso.",
+        color: "success",
+        icon: "i-lucide-sparkles",
+      });
+    });
+
+    socket.on("erro-geracao-ia", (data: any) => {
+      if (pendingAiQuestions.value > 0) {
+        pendingAiQuestions.value--;
+      }
+      toast.add({
+        title: "Falha na geração",
+        description: data.message || "A I.A. não conseguiu gerar uma questão.",
+        color: "error",
+      });
+    });
+  }
+
+  async function generateQuestionsStreamFromFile(
+    payload: FormData,
+    quantidade: number
+  ) {
+    if (!assessmentState.value) return;
+
+    pendingAiQuestions.value += quantidade;
+    initializeWebSocket();
+
+    try {
+      if (assessmentState.value.paiId) {
+        payload.append("paiId", String(assessmentState.value.paiId));
+      }
+      if (assessmentState.value.id) {
+        payload.append("avaliacaoId", String(assessmentState.value.id));
+      }
+
+      await nuxtApp.$api(
+        "/backoffice/questao/generate-by-ai/stream-from-file",
+        {
+          method: "POST",
+          body: payload,
+        }
+      );
+
+      toast.add({
+        title: "Processamento iniciado",
+        description: "Lendo arquivos...",
+        color: "info",
+      });
+    } catch (error) {
+      console.error(error);
+      pendingAiQuestions.value -= quantidade;
+      toast.add({ title: "Erro ao iniciar", color: "error" });
+    }
+  }
+
+  async function generateQuestionsStream(payload: any) {
+    if (!assessmentState.value) return;
+
+    pendingAiQuestions.value += payload.quantidade;
+
+    initializeWebSocket();
+
+    try {
+      await nuxtApp.$api("/backoffice/questao/generate-by-ai/stream", {
+        method: "POST",
+        body: {
+          ...payload,
+          paiId: assessmentState.value.paiId ?? undefined,
+          avaliacaoId: assessmentState.value.id,
+        },
+      });
+
+      toast.add({
+        title: "Geração Iniciada",
+        description: "As questões aparecerão em instantes...",
+        color: "info",
+      });
+    } catch (error) {
+      console.error("Erro ao iniciar stream:", error);
+      pendingAiQuestions.value -= payload.quantidade;
+      toast.add({ title: "Erro ao iniciar geração", color: "error" });
+    }
+  }
 
   function createNew(paiId: number | null = null) {
     const blankAssessment = getBlankAssessment();
@@ -156,7 +294,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
   async function fetchAssessmentForEdit(id: number) {
     isLoading.value = true;
     try {
-      const response = await $api<AvaliacaoApiResponse>(
+      const response = await nuxtApp.$api<AvaliacaoApiResponse>(
         `/backoffice/avaliacao/${id}`
       );
       assessmentState.value = mapAvaliacaoApiResponseToEntity(response);
@@ -204,7 +342,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
       let savedAssessment: AvaliacaoApiResponse;
 
       if (assessmentState.value.id && assessmentState.value.id !== 0) {
-        savedAssessment = await $api<AvaliacaoApiResponse>(
+        savedAssessment = await nuxtApp.$api<AvaliacaoApiResponse>(
           `/backoffice/avaliacao/${assessmentState.value.id}`,
           {
             method: "PUT",
@@ -216,7 +354,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
           color: "secondary",
         });
       } else {
-        savedAssessment = await $api<AvaliacaoApiResponse>(
+        savedAssessment = await nuxtApp.$api<AvaliacaoApiResponse>(
           "/backoffice/avaliacao",
           {
             method: "POST",
@@ -295,7 +433,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
         quantidade: regra.quantidade,
       };
 
-      const generatedQuestions = await $api<GeneratedQuestaoDto[]>(
+      const generatedQuestions = await nuxtApp.$api<GeneratedQuestaoDto[]>(
         "/backoffice/questao/generate-by-ai",
         {
           method: "POST",
@@ -332,7 +470,13 @@ export const useAssessmentStore = defineStore("assessment", () => {
         }
       );
 
-      assessmentState.value.questoes.push(...novasQuestoes);
+      assessmentState.value.questoes = [
+        ...assessmentState.value.questoes,
+        ...novasQuestoes,
+      ];
+
+      console.log("Questão adicionada à lista de avaliação:", newQuestion.id);
+
       toast.add({
         title: `${novasQuestoes.length} questão(ões) gerada(s) por I.A.`,
         color: "secondary",
@@ -379,7 +523,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
           formData.append("arquivoIds", id.toString());
         });
 
-        const generatedQuestions = await $api<GeneratedQuestaoDto[]>(
+        const generatedQuestions = await nuxtApp.$api<GeneratedQuestaoDto[]>(
           "/backoffice/questao/generate-by-ai/gerar-por-arquivo",
           {
             method: "POST",
@@ -468,6 +612,7 @@ export const useAssessmentStore = defineStore("assessment", () => {
     isLoading,
     isSaving,
     isSettingsDialogOpen,
+    pendingAiQuestions,
     openSettingsDialog,
     createNew,
     loadFromModelo,
@@ -479,5 +624,8 @@ export const useAssessmentStore = defineStore("assessment", () => {
     updateSettings,
     generateQuestionsByTopic,
     generateQuestionsByFile,
+    generateQuestionsStream,
+    initializeWebSocket,
+    generateQuestionsStreamFromFile,
   };
 });
