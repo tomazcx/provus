@@ -475,138 +475,6 @@ export class QuestaoService {
     };
   }
 
-  private _getDiscursivePrompt(
-    assunto: string,
-    dificuldade: DificuldadeQuestaoEnum,
-    quantidade: number,
-  ): string {
-    return `Aja como um especialista em criar questões para avaliações educacionais.
-  Sua tarefa é criar ${quantidade} questão(ões) discursiva(s) sobre o assunto '${assunto}' com dificuldade '${dificuldade}'.
-  A sua resposta deve ser APENAS um array JSON, mesmo que a quantidade seja 1. O array JSON deve conter ${quantidade} objeto(s), onde cada objeto segue estritamente a seguinte estrutura:
-  [
-    {
-      "titulo": "Um título curto e informativo para a questão",
-      "descricao": "O texto completo da questão discursiva, de forma clara e objetiva.",
-      "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Um exemplo detalhado de uma resposta que seria considerada 100% correta e bem fundamentada."
-    }
-  ]`;
-  }
-
-  private _getAlternativesPrompt(
-    assunto: string,
-    dificuldade: DificuldadeQuestaoEnum,
-    tipoQuestao: TipoQuestaoEnum,
-    quantidade: number,
-  ): string {
-    let instrucaoCorretas = '';
-    if (tipoQuestao === TipoQuestaoEnum.OBJETIVA) {
-      instrucaoCorretas =
-        "Apenas UMA das alternativas deve ter o campo 'isCorreto' como true.";
-    } else {
-      instrucaoCorretas =
-        "UMA OU MAIS alternativas podem ter o campo 'isCorreto' como true.";
-    }
-
-    return `Aja como um especialista em criar questões para avaliações educacionais.
-  Sua tarefa é criar ${quantidade} questão(ões) do tipo '${tipoQuestao}' sobre o assunto '${assunto}' com dificuldade '${dificuldade}'.
-  Regras importantes para as alternativas:
-  - Crie um total de 5 alternativas para cada questão.
-  - ${instrucaoCorretas}
-  A sua resposta deve ser APENAS um array JSON, mesmo que a quantidade seja 1. O array JSON deve conter ${quantidade} objeto(s), onde cada objeto segue estritamente a seguinte estrutura, incluindo a chave "alternativas":
-  [
-    {
-      "titulo": "Um título curto e informativo para a questão",
-      "descricao": "O texto completo da questão, de forma clara e objetiva.",
-      "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Uma justificativa explicando qual(is) alternativa(s) está(ão) correta(s) e por quê. Priorizar objetividade para não ser longo. Priorizar objetividade para não ser longo.",
-      "alternativas": [
-        {
-          "descricao": "Texto da primeira alternativa.",
-          "isCorreto": true
-        },
-        {
-          "descricao": "Texto da segunda alternativa.",
-          "isCorreto": false
-        }
-      ]
-    }
-  ]`;
-  }
-
-  private _getDiscursivePromptFromFile(
-    contexto: string,
-    dto: GenerateQuestaoFromFileRequestDto,
-  ): string {
-    const { dificuldade, quantidade, assunto } = dto;
-    const assuntoClause = assunto
-      ? `A questão deve ser especificamente sobre '${assunto}'.`
-      : 'A questão deve ser sobre o tema geral do conteúdo.';
-
-    return `Com base exclusivamente no CONTEÚDO fornecido abaixo, sua tarefa é criar ${quantidade} questão(ões) discursiva(s) com dificuldade '${dificuldade}'.
-  ${assuntoClause}. Não deve haver referência direta ao conteúdo, como "conforme o texto" ou "de acordo com o conteúdo", muito menos "De acordo com a seção X". A questão deve ser autossuficiente e o conteúdo deve servir apenas como base para a criação da questão, porém, deve ser possível responder com base no conteúdo fornecido.
-  A sua resposta deve ser APENAS um array JSON com ${quantidade} objeto(s), seguindo a estrutura:
-  [
-    {
-      "titulo": "Um título curto e informativo para a questão",
-      "descricao": "O texto completo da questão discursiva.",
-      "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Um exemplo detalhado de uma resposta que seria considerada 100% correta com base no conteúdo. Priorizar objetividade para não ser longo."
-    }
-  ]
-  CONTEÚDO:
-  """
-  ${contexto}
-  """`;
-  }
-
-  private _getAlternativesPromptFromFile(
-    contexto: string,
-    dto: GenerateQuestaoFromFileRequestDto,
-  ): string {
-    const { dificuldade, quantidade, tipoQuestao, assunto } = dto;
-    let instrucaoCorretas = '';
-    if (tipoQuestao === TipoQuestaoEnum.OBJETIVA) {
-      instrucaoCorretas =
-        "Apenas UMA das alternativas deve ter o campo 'isCorreto' como true.";
-    } else {
-      instrucaoCorretas =
-        "UMA OU MAIS alternativas podem ter o campo 'isCorreto' como true.";
-    }
-    const assuntoClause = assunto
-      ? `A questão deve ser especificamente sobre '${assunto}'.`
-      : 'A questão deve ser sobre o tema geral do conteúdo.';
-
-    return `Com base exclusivamente no CONTEÚDO fornecido abaixo, sua tarefa é criar ${quantidade} questão(ões) do tipo '${tipoQuestao}' com dificuldade '${dificuldade}'. 
-  ${assuntoClause}. Não deve haver referência direta ao conteúdo, como "conforme o texto" ou "de acordo com o conteúdo", muito menos "De acordo com a seção X". A questão deve ser autossuficiente e o conteúdo deve servir apenas como base para a criação da questão, porém, deve ser possível responder com base no conteúdo fornecido.
-  Regras para as alternativas:
-  - Crie 5 alternativas.
-  - ${instrucaoCorretas}
-  A sua resposta deve ser APENAS um array JSON com ${quantidade} objeto(s), seguindo a estrutura, incluindo "alternativas":
-  [
-    {
-      "titulo": "Um título curto e informativo para a questão",
-      "descricao": "O texto completo da questão.",
-      "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Uma justificativa explicando qual(is) alternativa(s) está(ão) correta(s) e por quê. Priorizar objetividade para não ser longo.",
-      "alternativas": [
-        {
-          "descricao": "Texto da primeira alternativa.",
-          "isCorreto": true
-        },
-        {
-          "descricao": "Texto da segunda alternativa.",
-          "isCorreto": false
-        }
-      ]
-    }
-  ]
-  CONTEÚDO:
-  """
-  ${contexto}
-  """`;
-  }
-
   private _detectMimeTypeFromBuffer(buffer: Buffer): string {
     if (
       buffer.length >= 4 &&
@@ -655,29 +523,11 @@ export class QuestaoService {
     }
   }
 
-  private _getEvaluationPrompt(
-    questao: QuestaoModel,
-    resposta: string,
-  ): string {
-    return `Aja como um especialista em avaliar questões para avaliações educacionais.
-    Sua tarefa é avaliar a questão discursiva '${questao.item.titulo}' com a resposta '${resposta}' e pontuação '${questao.pontuacao}'.
-    A sua resposta deve ser APENAS um objeto JSON, seguindo a estrutura:
-    {
-      "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" ou "${EstadoQuestaoCorrigida.INCORRETA}" ou "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
-      "pontuacao": ${questao.pontuacao},
-      "textoRevisao": "Um texto de revisão da resposta do aluno, de forma clara e objetiva."
-    }
-    O valor do campo "estadoCorrecao" deve ser "${EstadoQuestaoCorrigida.CORRETA}" se a resposta estiver correta, "${EstadoQuestaoCorrigida.INCORRETA}" se a resposta estiver incorreta e "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}" se a resposta estiver parcialmente correta.
-    Caso o "estadoCorrecao" seja "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", o valor do campo "pontuacao" deve ser a pontuação parcial da questão de acordo com a resposta do aluno.
-    Considere o seguinte gabarito da questão para avaliar a resposta:
-    ${questao.exemploRespostaIa}
-    `;
-  }
-
   private async _callAiAndParseResponse<T>(prompt: string): Promise<T[]> {
     try {
-      this.logger.log('Enviando prompt para IA...');
-      const rawResponse = await this.aiProvider.generateText(prompt);
+      this.logger.log('Enviando prompt para IA (Modo JSON)...');
+
+      const rawResponse = await this.aiProvider.generateText(prompt, true);
 
       this.logger.log('Resposta bruta da IA:', rawResponse);
 
@@ -685,24 +535,161 @@ export class QuestaoService {
         .replace(/```json/g, '')
         .replace(/```/g, '');
 
-      const jsonMatch = cleanResponse.match(/(\[|\{)[\s\S]*(\]|\})/);
-
-      if (!jsonMatch) {
-        throw new Error('JSON não encontrado na resposta da IA.');
-      }
-
-      const jsonString = jsonMatch[0];
-
-      const generatedData = JSON.parse(jsonString) as T[] | T;
+      const generatedData = JSON.parse(cleanResponse) as T[] | T;
 
       return Array.isArray(generatedData) ? generatedData : [generatedData];
     } catch (error) {
       this.logger.error('FALHA AO PROCESSAR RESPOSTA DA IA:', error);
-
       throw new UnprocessableEntityException(
         'A IA não retornou um formato válido. Tente novamente.',
       );
     }
+  }
+
+  private _getDiscursivePrompt(
+    assunto: string,
+    dificuldade: DificuldadeQuestaoEnum,
+    quantidade: number,
+  ): string {
+    return `Crie ${quantidade} questão(ões) discursiva(s).
+    Assunto: "${assunto}"
+    Dificuldade: "${dificuldade}"
+    
+    Retorne um ARRAY JSON com esta estrutura exata:
+    [
+      {
+        "titulo": "Título curto",
+        "descricao": "Enunciado completo da questão",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Gabarito/Resposta esperada detalhada"
+      }
+    ]`;
+  }
+
+  private _getAlternativesPrompt(
+    assunto: string,
+    dificuldade: DificuldadeQuestaoEnum,
+    tipoQuestao: TipoQuestaoEnum,
+    quantidade: number,
+  ): string {
+    const isObjetiva = tipoQuestao === TipoQuestaoEnum.OBJETIVA;
+
+    return `Crie ${quantidade} questão(ões) do tipo "${tipoQuestao}".
+    Assunto: "${assunto}"
+    Dificuldade: "${dificuldade}"
+    
+    Requisitos:
+    - 5 alternativas por questão.
+    - ${isObjetiva ? 'Apenas 1 correta (isCorreto: true).' : 'Pelo menos 1 correta.'}
+
+    Retorne um ARRAY JSON com esta estrutura exata:
+    [
+      {
+        "titulo": "Título curto",
+        "descricao": "Enunciado completo",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Justificativa curta do gabarito",
+        "alternativas": [
+          { "descricao": "Texto da alternativa", "isCorreto": boolean }
+        ]
+      }
+    ]`;
+  }
+
+  private _getDiscursivePromptFromFile(
+    contexto: string,
+    dto: GenerateQuestaoFromFileRequestDto,
+  ): string {
+    const { dificuldade, quantidade, assunto } = dto;
+    const foco = assunto
+      ? `Foco específico: "${assunto}"`
+      : 'Foco: Tema geral do texto';
+
+    return `Baseado no CONTEÚDO abaixo, crie ${quantidade} questão(ões) discursiva(s).
+    Dificuldade: "${dificuldade}"
+    ${foco}
+    
+    Regras de Estilo:
+    - A questão deve ser autossuficiente (o aluno deve conseguir responder com base no conhecimento do tema, sem precisar ler o texto de apoio na hora).
+    - NÃO faça referências diretas como "conforme o texto", "de acordo com o conteúdo" ou "na seção X".
+    
+    Retorne um ARRAY JSON:
+    [
+      {
+        "titulo": "Título curto",
+        "descricao": "Enunciado da questão (claro e sem citar 'o texto')",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Gabarito esperado baseado no conteúdo"
+      }
+    ]
+
+    CONTEÚDO:
+    ${contexto}`;
+  }
+
+  private _getAlternativesPromptFromFile(
+    contexto: string,
+    dto: GenerateQuestaoFromFileRequestDto,
+  ): string {
+    const { dificuldade, quantidade, tipoQuestao, assunto } = dto;
+    const foco = assunto
+      ? `Foco específico: "${assunto}"`
+      : 'Foco: Tema geral do texto';
+    const isObjetiva = tipoQuestao === TipoQuestaoEnum.OBJETIVA;
+
+    return `Baseado no CONTEÚDO abaixo, crie ${quantidade} questão(ões) do tipo "${tipoQuestao}".
+    Dificuldade: "${dificuldade}"
+    ${foco}
+
+    Regras de Estilo:
+    - A questão deve ser autossuficiente.
+    - NÃO faça referências diretas como "conforme o texto", "de acordo com o conteúdo" ou "na seção X".
+
+    Requisitos Técnicos:
+    - 5 alternativas por questão.
+    - ${isObjetiva ? 'Apenas 1 correta.' : 'Pelo menos 1 correta.'}
+
+    Retorne um ARRAY JSON:
+    [
+      {
+        "titulo": "Título curto",
+        "descricao": "Enunciado (claro e sem citar 'o texto')",
+        "dificuldade": "${dificuldade}",
+        "exemplo_resposta": "Justificativa do gabarito",
+        "alternativas": [
+          { "descricao": "Alternativa", "isCorreto": boolean }
+        ]
+      }
+    ]
+
+    CONTEÚDO:
+    ${contexto}`;
+  }
+  
+  private _getEvaluationPrompt(
+    questao: QuestaoModel,
+    resposta: string,
+  ): string {
+    return `Avalie a resposta do aluno para a questão discursiva.
+    
+    Questão: "${questao.item.titulo}"
+    Enunciado: "${questao.descricao}"
+    Gabarito Esperado: "${questao.exemploRespostaIa}"
+    Pontuação Máxima: ${questao.pontuacao}
+    
+    Resposta do Aluno: "${resposta}"
+
+    Retorne um OBJETO JSON único:
+    {
+      "estadoCorrecao": "${EstadoQuestaoCorrigida.CORRETA}" | "${EstadoQuestaoCorrigida.INCORRETA}" | "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}",
+      "pontuacao": number,
+      "textoRevisao": "Feedback curto e direto para o aluno"
+    }
+    
+    Regras:
+    - Se "estadoCorrecao" for "${EstadoQuestaoCorrigida.PARCIALMENTE_CORRETA}", "pontuacao" deve ser menor que a máxima e maior que 0.
+    - Se for "${EstadoQuestaoCorrigida.CORRETA}", "pontuacao" deve ser igual a máxima.
+    - Se for "${EstadoQuestaoCorrigida.INCORRETA}", "pontuacao" deve ser 0.`;
   }
 
   private _cleanExtractedText(text: string): string {

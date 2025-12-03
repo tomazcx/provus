@@ -10,13 +10,19 @@ export default class GeminiProvider extends AbstractAiProvider {
 
   constructor() {
     super();
-    this.ai = new GoogleGenAI({});
+    this.ai = new GoogleGenAI({ apiKey: Env.GEMINI_API_KEY });
   }
 
-  async generateText(prompt: string): Promise<string> {
+  async generateText(
+    prompt: string,
+    jsonMode: boolean = false,
+  ): Promise<string> {
     const response = await this.ai.models.generateContent({
       model: this.model,
       contents: prompt,
+      config: {
+        responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+      },
     });
 
     const text = response.text;
