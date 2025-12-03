@@ -93,13 +93,12 @@ async function handleSave(action: { key: string }) {
   if (!assessmentStore.assessmentState) return;
 
   const isApply = action.key.includes("apply");
-  const isSchedule = action.key.includes("schedule"); 
+  const isSchedule = action.key.includes("schedule");
   const shouldSaveAsModel = action.key.startsWith("save");
 
   if (isSchedule) {
     const configGerais =
       assessmentStore.assessmentState.configuracao.configuracoesGerais;
-
     if (!configGerais.dataAgendamento) {
       toast.add({
         title: "Data não definida",
@@ -111,7 +110,6 @@ async function handleSave(action: { key: string }) {
       assessmentStore.openSettingsDialog();
       return;
     }
-
     const agendamentoDate = new Date(configGerais.dataAgendamento);
     if (agendamentoDate <= new Date()) {
       toast.add({
@@ -126,13 +124,17 @@ async function handleSave(action: { key: string }) {
   }
 
   assessmentStore.assessmentState.isModelo = shouldSaveAsModel;
-
   const savedAssessment = await assessmentStore.saveOrUpdateAssessment();
 
   if (savedAssessment) {
+    if (examBankStore.rootFolderId) {
+      const targetFolderId =
+        savedAssessment.paiId ?? examBankStore.rootFolderId;
+      await examBankStore.fetchFolderContent(targetFolderId);
+    }
+
     if (isApply || isSchedule) {
       const newApp = await applicationsStore.createApplication(savedAssessment);
-
       if (newApp) {
         if (isApply) {
           applicationToStart.value = newApp;
@@ -154,11 +156,7 @@ async function handleSave(action: { key: string }) {
         description: "Avaliação salva com sucesso.",
         color: "secondary",
       });
-
       if (editorBridgeStore.context.from === "bank") {
-        if (examBankStore.currentFolderId) {
-          await examBankStore.fetchFolderContent(examBankStore.currentFolderId);
-        }
         router.push("/banco-de-avaliacoes");
       } else {
         router.push("/home");

@@ -23,6 +23,10 @@ export const AI_PROVIDER = 'AI_PROVIDER';
       provide: NotificationProvider,
       useFactory: () => {
         return new NotificationProvider({
+          pool: true,
+          maxConnections: 3,
+          maxMessages: 100,
+          rateLimit: 5,
           host: Env.SMTP_HOST,
           port: Env.SMTP_PORT,
           auth: {

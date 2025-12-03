@@ -3,6 +3,11 @@ import * as nodemailer from 'nodemailer';
 import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
 
 interface SmtpConfig {
+  pool?: boolean;
+  maxConnections?: number;
+  maxMessages?: number;
+  rateLimit?: number;
+  secure?: boolean;
   host: string;
   port: number;
   auth: {
