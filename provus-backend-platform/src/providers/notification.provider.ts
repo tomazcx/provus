@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
+import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
 
 interface SmtpConfig {
   pool?: boolean;
@@ -21,9 +22,14 @@ export class NotificationProvider {
   private readonly logger = new Logger(NotificationProvider.name);
   private transporter: nodemailer.Transporter;
   private avaliadorGateway: AvaliadorGateway | null = null;
+  private submissaoGateway: SubmissaoGateway | null = null;
 
   constructor(smtpConfig: SmtpConfig) {
     this.transporter = nodemailer.createTransport(smtpConfig);
+  }
+
+  setSubmissaoGateway(gateway: SubmissaoGateway) {
+    this.submissaoGateway = gateway;
   }
 
   setAvaliadorGateway(gateway: AvaliadorGateway) {
@@ -43,6 +49,12 @@ export class NotificationProvider {
     } catch (error) {
       this.logger.error(`Erro ao enviar email para ${to}:`, error);
       throw error;
+    }
+  }
+
+  sendNotificationToStudent(hashSubmissao: string, event: string, data: any) {
+    if (this.submissaoGateway) {
+      this.submissaoGateway.notifyStudent(hashSubmissao, event, data);
     }
   }
 

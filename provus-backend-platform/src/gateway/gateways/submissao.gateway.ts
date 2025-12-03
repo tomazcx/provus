@@ -14,6 +14,7 @@ import {
   InternalServerErrorException,
   Inject,
   forwardRef,
+  OnModuleInit,
 } from '@nestjs/common';
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
@@ -55,7 +56,7 @@ interface SubmissaoConnectionData {
   },
 })
 export class SubmissaoGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
 {
   @WebSocketServer()
   server: Server;
@@ -73,6 +74,10 @@ export class SubmissaoGateway
     private readonly submissaoRepository: Repository<SubmissaoModel>,
     private readonly notificationProvider: NotificationProvider,
   ) {}
+
+  onModuleInit() {
+    this.notificationProvider.setSubmissaoGateway(this);
+  }
 
   async handleConnection(client: Socket) {
     this.logger.log(`Aluno tentando se conectar para avaliação: ${client.id}`);
@@ -525,6 +530,18 @@ export class SubmissaoGateway
       this.logger.error(
         `Erro ao emitir 'reduzir-pontos-aluno' para aluno ${client.id}:`,
         error,
+      );
+    }
+  }
+
+  notifyStudent(hash: string, event: string, data: any) {
+    const connections = this.connectedClients.get(hash);
+    if (connections) {
+      connections.forEach((conn) => {
+        this.server.to(conn.clientId).emit(event, data);
+      });
+      this.logger.log(
+        `Notificação '${event}' enviada para aluno (Hash: ${hash})`,
       );
     }
   }
