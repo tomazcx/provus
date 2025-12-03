@@ -189,9 +189,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     try {
       const payload: CreateQuestaoRequest = {
         ...formData,
-        ...(currentFolderId.value !== null
-          ? { paiId: currentFolderId.value }
-          : {}),
+        paiId: currentFolderId.value ?? undefined,
       };
 
       await $api("/backoffice/questao/nova", { method: "POST", body: payload });
