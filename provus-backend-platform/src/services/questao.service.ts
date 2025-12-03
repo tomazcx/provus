@@ -502,14 +502,14 @@ export class QuestaoService {
       : 'A questão deve ser sobre o tema geral do conteúdo.';
 
     return `Com base exclusivamente no CONTEÚDO fornecido abaixo, sua tarefa é criar ${quantidade} questão(ões) discursiva(s) com dificuldade '${dificuldade}'.
-  ${assuntoClause}
+  ${assuntoClause}. Não deve haver referência direta ao conteúdo, como "conforme o texto" ou "de acordo com o conteúdo", muito menos "De acordo com a seção X". A questão deve ser autossuficiente e o conteúdo deve servir apenas como base para a criação da questão, porém, deve ser possível responder com base no conteúdo fornecido.
   A sua resposta deve ser APENAS um array JSON com ${quantidade} objeto(s), seguindo a estrutura:
   [
     {
       "titulo": "Um título curto e informativo para a questão",
       "descricao": "O texto completo da questão discursiva.",
       "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Um exemplo detalhado de uma resposta que seria considerada 100% correta com base no conteúdo."
+      "exemplo_resposta": "Um exemplo detalhado de uma resposta que seria considerada 100% correta com base no conteúdo. Priorizar objetividade para não ser longo."
     }
   ]
   CONTEÚDO:
@@ -535,8 +535,8 @@ export class QuestaoService {
       ? `A questão deve ser especificamente sobre '${assunto}'.`
       : 'A questão deve ser sobre o tema geral do conteúdo.';
 
-    return `Com base exclusivamente no CONTEÚDO fornecido abaixo, sua tarefa é criar ${quantidade} questão(ões) do tipo '${tipoQuestao}' com dificuldade '${dificuldade}'.
-  ${assuntoClause}
+    return `Com base exclusivamente no CONTEÚDO fornecido abaixo, sua tarefa é criar ${quantidade} questão(ões) do tipo '${tipoQuestao}' com dificuldade '${dificuldade}'. 
+  ${assuntoClause}. Não deve haver referência direta ao conteúdo, como "conforme o texto" ou "de acordo com o conteúdo", muito menos "De acordo com a seção X". A questão deve ser autossuficiente e o conteúdo deve servir apenas como base para a criação da questão, porém, deve ser possível responder com base no conteúdo fornecido.
   Regras para as alternativas:
   - Crie 5 alternativas.
   - ${instrucaoCorretas}
@@ -546,7 +546,7 @@ export class QuestaoService {
       "titulo": "Um título curto e informativo para a questão",
       "descricao": "O texto completo da questão.",
       "dificuldade": "${dificuldade}",
-      "exemplo_resposta": "Uma justificativa explicando qual(is) alternativa(s) está(ão) correta(s) e por quê. Priorizar objetividade para não ser longo. Priorizar objetividade para não ser longo.",
+      "exemplo_resposta": "Uma justificativa explicando qual(is) alternativa(s) está(ão) correta(s) e por quê. Priorizar objetividade para não ser longo.",
       "alternativas": [
         {
           "descricao": "Texto da primeira alternativa.",
