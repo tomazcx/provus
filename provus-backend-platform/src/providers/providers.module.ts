@@ -9,6 +9,8 @@ import GeminiProvider from './ai/gemini.provider';
 import { GatewayModule } from 'src/gateway/gateway.module';
 import { AbstractAiProvider } from './ai/interface/ai-provider.abstract';
 import { FileConverterProvider } from './file-converter.provider';
+import { OpenAiProvider } from './ai/openai.provider';
+import { ResilientAiProvider } from './ai/resilient-ai.provider';
 
 export const AI_PROVIDER = 'AI_PROVIDER';
 
@@ -36,9 +38,11 @@ export const AI_PROVIDER = 'AI_PROVIDER';
         });
       },
     },
+    GeminiProvider,
+    OpenAiProvider,
     {
       provide: AbstractAiProvider,
-      useClass: GeminiProvider,
+      useClass: ResilientAiProvider,
     },
   ],
   exports: [
