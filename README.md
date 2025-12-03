@@ -76,10 +76,7 @@ npm install
 8. Rode o projeto mobile
 
 ```bash
-# No diretório provus-mobile-platform
-npm start
-# Abra outro terminal e rode
-npx react-native run-android
+npx expo start -c
 ```
 
 Após seguir estes passos, a aplicação estará disponível em:
