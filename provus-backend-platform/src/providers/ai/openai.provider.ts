@@ -36,7 +36,7 @@ export class OpenAiProvider extends AbstractAiProvider {
           { role: 'user', content: prompt },
         ],
         model: Env.OPENAI_MODEL || 'gpt-4o-mini',
-        temperature: 0.5,
+        temperature: 0.7,
         response_format: jsonMode ? { type: 'json_object' } : { type: 'text' },
       });
 
