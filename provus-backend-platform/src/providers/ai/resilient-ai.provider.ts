@@ -2,14 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AbstractAiProvider } from './interface/ai-provider.abstract';
 import GeminiProvider from './gemini.provider';
 import { OpenAiProvider } from './openai.provider';
-
+import { GroqProvider } from './groq.provider';
 @Injectable()
 export class ResilientAiProvider extends AbstractAiProvider {
   private readonly logger = new Logger(ResilientAiProvider.name);
 
   constructor(
     private readonly primary: GeminiProvider,
-    private readonly secondary: OpenAiProvider,
+    private readonly secondary: GroqProvider,
+    private readonly terciary: OpenAiProvider,
   ) {
     super();
   }
@@ -28,11 +29,23 @@ export class ResilientAiProvider extends AbstractAiProvider {
       try {
         return await this.secondary.generateText(prompt, jsonMode);
       } catch (secondaryError) {
-        this.logger.error(
-          `Falha crítica: Ambos os provedores falharam.`,
-          secondaryError,
+        this.logger.warn(
+          `Falha no provedor secundário (Groq). Tentando fallback... Erro: ${secondaryError.message}`,
         );
-        throw secondaryError;
+
+        try {
+          return await this.terciary.generateText(prompt, jsonMode);
+        } catch (terciaryError) {
+          this.logger.warn(
+            `Falha no provedor terciário (OpenAI). Tentando fallback... Erro: ${terciaryError.message}`,
+          );
+
+          this.logger.error(
+            `Falha crítica: Ambos os provedores falharam.`,
+            terciaryError,
+          );
+          throw terciaryError;
+        }
       }
     }
   }

@@ -97,6 +97,18 @@ export class Env {
     return process.env.OPENAI_API_KEY || '';
   }
 
+  static get OPENAI_MODEL(): string {
+    return process.env.OPENAI_MODEL || '';
+  }
+
+  static get GROQ_API_KEY(): string {
+    return process.env.GROQ_API_KEY || '';
+  }
+
+  static get GROQ_MODEL(): string {
+    return process.env.GROQ_MODEL || '';
+  }
+
   static get GEMINI_MODEL(): string {
     return process.env.GEMINI_MODEL || '';
   }

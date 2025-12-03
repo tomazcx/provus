@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  HttpCode,
+  HttpStatus,
   Post,
   UploadedFiles,
   UseGuards,
@@ -80,5 +82,25 @@ export class GenerateByAiController {
       dto.paiId = parseInt(dto.paiId, 10);
     }
     return this.questaoService.generateAndSaveByFile(dto, files, avaliador);
+  }
+
+  @Post('stream')
+  @ApiOperation({ summary: 'Inicia geração em background (Streaming via WS)' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  generateAndStream(
+    @Body() body: GenerateAiQuestaoRequestDto,
+    @LoggedAvaliador() avaliador: AvaliadorModel,
+  ): { message: string; jobStarted: boolean } {
+    this.questaoService.generateAndStreamByAi(
+      body,
+      avaliador,
+      body.paiId,
+      body.avaliacaoId || null,
+    );
+
+    return {
+      message: `Iniciando geração de ${body.quantidade} questões...`,
+      jobStarted: true,
+    };
   }
 }

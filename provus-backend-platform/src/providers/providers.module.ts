@@ -11,6 +11,7 @@ import { AbstractAiProvider } from './ai/interface/ai-provider.abstract';
 import { FileConverterProvider } from './file-converter.provider';
 import { OpenAiProvider } from './ai/openai.provider';
 import { ResilientAiProvider } from './ai/resilient-ai.provider';
+import { GroqProvider } from './ai/groq.provider';
 
 export const AI_PROVIDER = 'AI_PROVIDER';
 
@@ -40,6 +41,7 @@ export const AI_PROVIDER = 'AI_PROVIDER';
     },
     GeminiProvider,
     OpenAiProvider,
+    GroqProvider,
     {
       provide: AbstractAiProvider,
       useClass: ResilientAiProvider,

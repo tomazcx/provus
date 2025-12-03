@@ -55,4 +55,12 @@ export class GenerateAiQuestaoRequestDto {
   @IsOptional()
   @IsNumber()
   paiId?: number;
+
+  @ApiProperty({
+    description: 'ID da avaliação para vincular automaticamente (opcional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  avaliacaoId?: number;
 }

@@ -4,6 +4,8 @@ import {
   NotFoundException,
   UnprocessableEntityException,
   Logger,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { QuestaoModel } from 'src/database/config/models/questao.model';
 import { QuestaoResultDto } from 'src/dto/result/questao/questao.result';
@@ -27,6 +29,8 @@ import { AbstractAiProvider } from 'src/providers/ai/interface/ai-provider.abstr
 import { EvaluateByAiResultDto } from 'src/dto/result/questao/evaluate-by-ai.result';
 import { EvaluateByAiRequestDto } from 'src/dto/request/questao/evaluate-by-ai.dto';
 import EstadoQuestaoCorrigida from 'src/enums/estado-questao-corrigida.enum';
+import { QuestoesAvaliacoesModel } from 'src/database/config/models/questoes-avaliacoes.model';
+import { AvaliadorGateway } from 'src/gateway/gateways/avaliador.gateway';
 
 @Injectable()
 export class QuestaoService {
@@ -39,6 +43,8 @@ export class QuestaoService {
     private readonly arquivoService: ArquivoService,
     private readonly textExtractorService: TextExtractorService,
     private readonly aiProvider: AbstractAiProvider,
+    @Inject(forwardRef(() => AvaliadorGateway))
+    private readonly avaliadorGateway: AvaliadorGateway,
   ) {}
 
   async findById(
@@ -665,7 +671,7 @@ export class QuestaoService {
     CONTEÚDO:
     ${contexto}`;
   }
-  
+
   private _getEvaluationPrompt(
     questao: QuestaoModel,
     resposta: string,
@@ -698,5 +704,115 @@ export class QuestaoService {
       '',
     );
     return cleanedText.replace(/\s+/g, ' ').trim();
+  }
+
+  generateAndStreamByAi(
+    dto: CreateAiQuestaoDto,
+    avaliador: AvaliadorModel,
+    pastaId?: number | null,
+    contextoAvaliacaoId?: number,
+  ): void {
+    const { quantidade } = dto;
+
+    this.logger.log(
+      `[Streaming] Iniciando geração de ${quantidade} questões para Avaliador ${avaliador.id}`,
+    );
+
+    this._processStreamGeneration(
+      dto,
+      avaliador,
+      pastaId,
+      contextoAvaliacaoId,
+    ).catch((err) => this.logger.error(`Erro no streaming de questões`, err));
+  }
+
+  private async _processStreamGeneration(
+    dto: CreateAiQuestaoDto,
+    avaliador: AvaliadorModel,
+    pastaId?: number | null,
+    contextoAvaliacaoId?: number,
+  ) {
+    const tasks = Array.from({ length: dto.quantidade }).map(
+      async (_, index) => {
+        try {
+          const [generatedDto] = await this.createByAi({
+            ...dto,
+            quantidade: 1,
+          });
+
+          const createDto: CreateQuestaoRequest = {
+            titulo: generatedDto.titulo,
+            descricao: generatedDto.descricao,
+            dificuldade: generatedDto.dificuldade,
+            tipoQuestao: dto.tipoQuestao,
+            paiId: pastaId ?? undefined,
+            isModelo: !contextoAvaliacaoId,
+            exemploRespostaIa: generatedDto.exemplo_resposta,
+            alternativas: generatedDto.alternativas?.map((a) => ({
+              descricao: a.descricao,
+              isCorreto: a.isCorreto,
+            })),
+            pontuacao: 1,
+          };
+
+          const questaoResult = await this.create(createDto, avaliador);
+
+          if (contextoAvaliacaoId) {
+            const qaRepo = this.dataSource.getRepository(
+              QuestoesAvaliacoesModel,
+            );
+
+            const lastQ = await qaRepo.findOne({
+              where: { avaliacaoId: contextoAvaliacaoId },
+              order: { ordem: 'DESC' },
+            });
+
+            const novaOrdem = (lastQ?.ordem || 0) + 1 + index;
+
+            const novoVinculo = qaRepo.create({
+              avaliacaoId: contextoAvaliacaoId,
+              questaoId: questaoResult.id,
+              ordem: novaOrdem,
+              pontuacao: createDto.pontuacao,
+            });
+
+            await qaRepo.save(novoVinculo);
+
+            this.logger.log(
+              `[Streaming] Questão ${questaoResult.id} vinculada à avaliação ${contextoAvaliacaoId}`,
+            );
+          }
+
+          this.avaliadorGateway.sendMessageToAvaliador(
+            avaliador.id,
+            'nova-questao-ia-gerada',
+            {
+              questao: questaoResult,
+              contextoAvaliacaoId,
+              tempId: index,
+            },
+          );
+
+          this.logger.log(
+            `[Streaming] Questão ${questaoResult.id} gerada e enviada via socket.`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `[Streaming] Erro ao gerar uma das questões: ${error.message}`,
+          );
+          this.avaliadorGateway.sendMessageToAvaliador(
+            avaliador.id,
+            'erro-geracao-ia',
+            {
+              message: 'Falha ao gerar uma questão.',
+              tempId: index,
+            },
+          );
+        }
+      },
+    );
+
+    await Promise.all(tasks);
+    this.logger.log('[Streaming] Processo de geração em lote finalizado.');
   }
 }
