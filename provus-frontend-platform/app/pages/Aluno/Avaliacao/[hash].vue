@@ -231,7 +231,7 @@ const pontuacaoTotalPossivel = computed(() => {
   );
 });
 
-const questionsPerPage = 1;
+const questionsPerPage = 5;
 const currentPage = ref(1);
 
 const paginatedQuestions = computed(() => {
@@ -305,7 +305,7 @@ async function submit() {
     if (decorridoMinutos < tempoMinimoAvaliacao.value) {
       const falta = Math.ceil(tempoMinimoAvaliacao.value - decorridoMinutos);
       const faltaFormatado = falta <= 0 ? "alguns segundos" : `${falta} min`;
-      
+
       toast.add({
         title: "Tempo Mínimo Não Atingido",
         description: `Você deveria aguardar ${tempoMinimoAvaliacao.value} min. Faltam ${faltaFormatado} no seu relógio. Se enviar agora, o servidor pode rejeitar.`,
@@ -324,7 +324,9 @@ async function onConfirmSubmit() {
   if (document.fullscreenElement) {
     try {
       await document.exitFullscreen();
-    } catch {}
+    } catch (e) {
+      console.error("Erro ao sair do modo fullscreen:", e);
+    }
   }
 
   const success = await studentAssessmentStore.submitStudentAnswers(respostas);
