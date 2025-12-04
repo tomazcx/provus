@@ -231,7 +231,7 @@ const pontuacaoTotalPossivel = computed(() => {
   );
 });
 
-const questionsPerPage = 5;
+const questionsPerPage = 1;
 const currentPage = ref(1);
 
 const paginatedQuestions = computed(() => {
@@ -304,13 +304,14 @@ async function submit() {
 
     if (decorridoMinutos < tempoMinimoAvaliacao.value) {
       const falta = Math.ceil(tempoMinimoAvaliacao.value - decorridoMinutos);
+      const faltaFormatado = falta <= 0 ? "alguns segundos" : `${falta} min`;
+      
       toast.add({
         title: "Tempo Mínimo Não Atingido",
-        description: `Você precisa permanecer na prova por pelo menos ${tempoMinimoAvaliacao.value} minutos. Faltam ${falta} min.`,
+        description: `Você deveria aguardar ${tempoMinimoAvaliacao.value} min. Faltam ${faltaFormatado} no seu relógio. Se enviar agora, o servidor pode rejeitar.`,
         color: "warning",
         icon: "i-lucide-clock-alert",
       });
-      return;
     }
   }
 
@@ -640,8 +641,8 @@ onUnmounted(() => {
               >
                 <UPagination
                   v-if="totalQuestoes > questionsPerPage"
-                  v-model="currentPage"
-                  :page-count="questionsPerPage"
+                  v-model:page="currentPage"
+                  :items-per-page="questionsPerPage"
                   :total="totalQuestoes"
                   :active-button="{ variant: 'solid', color: 'primary' }"
                   size="xl"

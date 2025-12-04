@@ -162,7 +162,7 @@ export default {
 
     {
       path: "/",
-      redirect: "/banco-de-questoes",
+      redirect: "/home",
     },
   ],
 } satisfies RouterConfig;

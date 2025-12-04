@@ -182,6 +182,8 @@ export class SubmissaoService {
               await this._generateUniqueSubmissionCode(manager);
             const hash = this._createShortHash(body.codigoAcesso + body.email);
 
+            const now = new Date();
+
             const novaSubmissao = manager.create(SubmissaoModel, {
               aplicacao: aplicacao,
               codigoEntrega: codigoEntrega,
@@ -189,8 +191,9 @@ export class SubmissaoService {
               hash: hash,
               estado: EstadoSubmissaoEnum.INICIADA,
               pontuacaoTotal: 0,
+              criadoEm: now,
+              atualizadoEm: now,
             });
-
             const submissaoFinal = await manager.save(novaSubmissao);
 
             if (questoesParaAluno.length > 0) {

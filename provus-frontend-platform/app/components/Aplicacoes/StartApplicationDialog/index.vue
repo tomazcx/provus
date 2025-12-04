@@ -8,7 +8,7 @@ defineProps<{
 
 const emit = defineEmits(["update:modelValue", "start-now"]);
 
-const studentUrl = "https://provus.com.br/aluno/entrar";
+const studentUrl = "https://provus.vercel.app/aluno/entrar";
 
 function handleStart() {
   emit("start-now");

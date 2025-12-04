@@ -58,7 +58,7 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
       );
 
       const novoItem = manager.create(ItemSistemaArquivosModel, {
-        titulo: `${modeloOriginal.item.titulo} (Snapshot ${new Date().toISOString()})`,
+        titulo: `${modeloOriginal.item.titulo}`,
         tipo: TipoItemEnum.AVALIACAO,
         avaliador: avaliador,
         pai: null,

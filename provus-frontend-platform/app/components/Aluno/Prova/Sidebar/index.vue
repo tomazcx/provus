@@ -20,6 +20,7 @@ const studentAssessmentStore = useStudentAssessmentStore();
 const pontosPerdidos = computed(() => studentAssessmentStore.pontosPerdidos);
 const totalQuestoes = computed(() => props.questoes?.length ?? 0);
 const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
+const currentView = ref("paginated");
 </script>
 
 <template>
@@ -100,8 +101,18 @@ const permitirConsulta = computed(() => (props.arquivos?.length ?? 0) > 0);
           color="primary"
           variant="outline"
           icon="i-lucide-file"
-          label="Visão Paginada"
-          @click="emit('toggleView')"
+          :label="
+            currentView === 'paginated'
+              ? 'Ver Questões Paginadas'
+              : 'Ver Todas as Questões'
+          "
+          @click="
+            () => {
+              currentView =
+                currentView === 'paginated' ? 'listing' : 'paginated';
+              emit('toggleView');
+            }
+          "
         />
         <UButton
           v-if="permitirConsulta"
