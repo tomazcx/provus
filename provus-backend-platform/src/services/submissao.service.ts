@@ -50,14 +50,6 @@ import { EvaluateSubmissaoRespostaDto } from 'src/dto/result/submissao/evaluate-
 import { FindSubmissaoByHashResponse } from 'src/http/controllers/backoffice/submissao/find-submissao-by-hash/response';
 import { SubmissaoGateway } from 'src/gateway/gateways/submissao.gateway';
 
-interface SubmissaoFinalizadaPayload {
-  submissaoId: number;
-  aplicacaoId: number;
-  estado: EstadoSubmissaoEnum;
-  alunoNome: string;
-  timestamp: string;
-}
-
 @Injectable()
 export class SubmissaoService {
   private readonly logger = new Logger(SubmissaoService.name);
@@ -73,8 +65,6 @@ export class SubmissaoService {
     private readonly submissaoRepository: Repository<SubmissaoModel>,
     @InjectRepository(SubmissaoRespostasModel)
     private readonly submissaoRespostasRepository: Repository<SubmissaoRespostasModel>,
-    @InjectRepository(EstudanteModel)
-    private readonly estudanteRepository: Repository<EstudanteModel>,
     @InjectRepository(RegistroPunicaoPorOcorrenciaModel)
     private readonly registroPunicaoPorOcorrenciaRepository: Repository<RegistroPunicaoPorOcorrenciaModel>,
     @InjectRepository(QuestaoModel)
@@ -976,10 +966,10 @@ export class SubmissaoService {
       avaliacao.configuracaoAvaliacao.configuracoesGerais
         .configuracoesRandomizacao;
 
-    if (configuracoesRandomizacao.length === 0) {
-      return avaliacao.questoes
+    if (!configuracoesRandomizacao || configuracoesRandomizacao.length === 0) {
+      return (avaliacao.questoes || [])
         .sort((a, b) => a.ordem - b.ordem)
-        .map((questao) => questao.questao);
+        .map((q) => q.questao);
     }
 
     if (
@@ -987,9 +977,8 @@ export class SubmissaoService {
         (config) => config.tipo === TipoRandomizacaoEnum.SIMPLES,
       )
     ) {
-      return avaliacao.questoes
-        .map((questao) => questao.questao)
-        .sort(() => Math.random() - 0.5);
+      const questoesFixas = (avaliacao.questoes || []).map((q) => q.questao);
+      return this._shuffleArray(questoesFixas);
     }
 
     if (
@@ -997,37 +986,54 @@ export class SubmissaoService {
         (config) => config.tipo === TipoRandomizacaoEnum.BANCO_SIMPLES,
       )
     ) {
-      const questoes = configuracoesRandomizacao[0].poolDeQuestoes.sort(
-        () => Math.random() - 0.5,
-      );
-      return questoes.slice(0, configuracoesRandomizacao[0].quantidade);
+      const config = configuracoesRandomizacao[0];
+      if (!config.poolDeQuestoes || config.poolDeQuestoes.length === 0) {
+        return [];
+      }
+
+      const poolEmbaralhado = this._shuffleArray(config.poolDeQuestoes);
+
+      return poolEmbaralhado.slice(0, config.quantidade);
     }
 
-    const questoes = [];
+    const questoesSelecionadas: QuestaoModel[] = [];
+
     for (const configuracao of configuracoesRandomizacao) {
       if (configuracao.tipo !== TipoRandomizacaoEnum.BANCO_CONFIGURAVEL) {
         continue;
       }
 
-      let pool: QuestaoModel[];
+      let poolFiltrado: QuestaoModel[];
+
       if (configuracao.dificuldade === DificuldadeRandomizacaoEnum.QUALQUER) {
-        pool = configuracao.poolDeQuestoes;
+        poolFiltrado = configuracao.poolDeQuestoes;
       } else {
-        pool = configuracao.poolDeQuestoes.filter(
+        poolFiltrado = configuracao.poolDeQuestoes.filter(
           (questao) =>
             this._mapDificuldadeQuestaoToRandomizacao(questao.dificuldade) ===
             configuracao.dificuldade,
         );
       }
 
-      questoes.push(
-        ...pool
-          .sort(() => Math.random() - 0.5)
-          .slice(0, configuracao.quantidade),
-      );
+      if (poolFiltrado && poolFiltrado.length > 0) {
+        const poolEmbaralhado = this._shuffleArray(poolFiltrado);
+
+        questoesSelecionadas.push(
+          ...poolEmbaralhado.slice(0, configuracao.quantidade),
+        );
+      }
     }
 
-    return questoes.sort((a, b) => a.ordem - b.ordem);
+    return this._shuffleArray(questoesSelecionadas);
+  }
+
+  private _shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
 
   async processarPunicaoPorOcorrencia(

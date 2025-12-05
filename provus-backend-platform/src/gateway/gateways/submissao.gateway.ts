@@ -149,32 +149,34 @@ export class SubmissaoGateway
           'Erro ao verificar configurações da avaliação.',
         );
       }
+
       const connections = this.connectedClients.get(hash) || [];
       const emailAluno = submissaoData.estudante.email;
 
-      const sessaoAnterior = connections.find(
+      const sessaoAnteriorIndex = connections.findIndex(
         (c) => c.estudanteEmail === emailAluno,
       );
 
-      if (sessaoAnterior) {
-        this.logger.warn(
-          `[BLOQUEIO] Aluno ${emailAluno} tentou entrar novamente em outro dispositivo. Bloqueando nova conexão.`,
-        );
-        client.emit('erro-validacao', {
-          message:
-            'Você já está com a prova aberta em outro dispositivo ou aba. Feche a outra sessão para entrar aqui.',
-        });
-        client.disconnect();
-        return;
-      }
+      if (sessaoAnteriorIndex !== -1) {
+        const sessaoAnterior = connections[sessaoAnteriorIndex];
 
-      if (connections.length >= 1) {
-        this.logger.warn(`[BLOQUEIO] Limite de conexões para o hash atingido.`);
-        client.emit('erro-validacao', {
-          message: 'Limite de acessos simultâneos atingido.',
-        });
-        client.disconnect();
-        return;
+        this.logger.warn(
+          `[CONEXÃO SUBSTITUÍDA] Aluno ${emailAluno} conectou novamente. Derrubando socket anterior: ${sessaoAnterior.clientId}`,
+        );
+
+        const oldSocket = this.server.sockets.sockets.get(
+          sessaoAnterior.clientId,
+        );
+        if (oldSocket) {
+          oldSocket.emit('erro-validacao', {
+            message:
+              'Você abriu a prova em outra aba ou dispositivo. Esta sessão foi encerrada.',
+          });
+          oldSocket.disconnect();
+        }
+
+        // Remove a sessão antiga da lista
+        connections.splice(sessaoAnteriorIndex, 1);
       }
 
       const connectionData: SubmissaoConnectionData = {
@@ -236,9 +238,6 @@ export class SubmissaoGateway
           avaliadorId,
           'nova-submissao',
           payload,
-        );
-        this.logger.log(
-          `Notificação 'nova-submissao' enviada para o avaliador ${avaliadorId}`,
         );
       }
     } catch (error) {

@@ -2,14 +2,80 @@ import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
 import type { AplicacaoApiResponse } from "~/types/api/response/Aplicacao.response";
 import EstadoAplicacaoEnum from "~/enums/EstadoAplicacaoEnum";
-import type {
-  CreateAplicacaoRequest,
-  UpdateAplicacaoRequest,
-} from "~/types/api/request/Aplicacao.request";
+import type { UpdateAplicacaoRequest } from "~/types/api/request/Aplicacao.request";
 import { mapAvaliacaoApiResponseToEntity } from "~/mappers/assessment.mapper";
 import TipoAplicacaoEnum from "~/enums/TipoAplicacaoEnum";
 import type { ConfiguracoesEntity } from "~/types/entities/Configuracoes.entity";
 import TipoItemEnum from "~/enums/TipoItemEnum";
+import TipoQuestaoEnum from "~/enums/TipoQuestaoEnum";
+import type {
+  CreateAvaliacaoRequest,
+  CreateQuestaoAvaliacaoRequest,
+} from "~/types/api/request/Avaliacao.request";
+
+function mapEntityToRequest(entity: AvaliacaoEntity): CreateAvaliacaoRequest {
+  return {
+    titulo: entity.titulo,
+    descricao: entity.descricao,
+    isModelo: entity.isModelo,
+    paiId: entity.paiId ?? undefined,
+    questoes: entity.questoes.map((q, index) => {
+      const payload: CreateQuestaoAvaliacaoRequest = {
+        questaoId: undefined,
+        ordem: index + 1,
+        pontuacao: q.pontuacao,
+        titulo: q.titulo,
+        descricao: q.descricao,
+        tipoQuestao: q.tipoQuestao,
+        dificuldade: q.dificuldade,
+        exemploRespostaIa: q.exemploRespostaIa,
+        textoRevisao: q.textoRevisao,
+        alternativas: [],
+      };
+
+      if (q.tipoQuestao !== TipoQuestaoEnum.DISCURSIVA) {
+        payload.alternativas = q.alternativas.map((alt) => ({
+          descricao: alt.descricao,
+          isCorreto: alt.isCorreto,
+        }));
+      }
+
+      if (!payload.alternativas) {
+        payload.alternativas = [];
+      }
+
+      return payload;
+    }),
+    arquivos: entity.arquivos.map((a) => ({
+      arquivoId: a.arquivo.id,
+      permitirConsultaPorEstudante: a.permitirConsultaPorEstudante,
+    })),
+    configuracoesAvaliacao: {
+      configuracoesGerais: {
+        ...entity.configuracao.configuracoesGerais,
+        permitirRevisao:
+          entity.configuracao.configuracoesGerais.permitirRevisao ?? false,
+        dataAgendamento: entity.configuracao.configuracoesGerais.dataAgendamento
+          ? new Date(
+              entity.configuracao.configuracoesGerais.dataAgendamento
+            ).toISOString()
+          : null,
+        configuracoesRandomizacao:
+          entity.configuracao.configuracoesGerais.configuracoesRandomizacao.map(
+            (rule) => ({
+              tipo: rule.tipo,
+              dificuldade: rule.dificuldade,
+              quantidade: rule.quantidade,
+              questoes: rule.questoes.map((q) => q.id),
+            })
+          ),
+      },
+      configuracoesSeguranca: {
+        ...entity.configuracao.configuracoesSeguranca,
+      },
+    },
+  };
+}
 
 function mapConfiguracaoResponseToEntity(
   configResponse: any
@@ -196,7 +262,8 @@ export const useApplicationsStore = defineStore("applications", () => {
   }
 
   async function createApplication(
-    modelo: AvaliacaoEntity
+    modelo: AvaliacaoEntity,
+    useTemporaryData: boolean = false
   ): Promise<AplicacaoEntity | null> {
     try {
       const configGerais = modelo.configuracao.configuracoesGerais;
@@ -204,8 +271,7 @@ export const useApplicationsStore = defineStore("applications", () => {
         configGerais.tipoAplicacao === TipoAplicacaoEnum.AGENDADA &&
         configGerais.dataAgendamento;
 
-      const payload: CreateAplicacaoRequest = {
-        avaliacaoId: modelo.id,
+      const payload: any = {
         estado: isAgendada
           ? EstadoAplicacaoEnum.AGENDADA
           : EstadoAplicacaoEnum.CRIADA,
@@ -214,6 +280,12 @@ export const useApplicationsStore = defineStore("applications", () => {
             ? configGerais.dataAgendamento.toISOString()
             : undefined,
       };
+
+      if (useTemporaryData) {
+        payload.avaliacaoTemporaria = mapEntityToRequest(modelo);
+      } else {
+        payload.avaliacaoId = modelo.id;
+      }
 
       const newApplicationResponse = await $api<AplicacaoApiResponse>(
         "/backoffice/aplicacao",
@@ -378,6 +450,6 @@ export const useApplicationsStore = defineStore("applications", () => {
     addOrUpdateApplication,
     updateApplicationData,
     deleteApplication,
-    updateReleaseConfig
+    updateReleaseConfig,
   };
 });

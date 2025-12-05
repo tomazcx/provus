@@ -92,13 +92,14 @@ onMounted(() => {
 async function handleSave(action: { key: string }) {
   if (!assessmentStore.assessmentState) return;
 
-  const isApply = action.key.includes("apply");
-  const isSchedule = action.key.includes("schedule");
-  const shouldSaveAsModel = action.key.startsWith("save");
+  const isScheduling = action.key.includes("schedule");
+  const isApplying = action.key.includes("apply");
+  const shouldSaveToBank = action.key.startsWith("save");
 
-  if (isSchedule) {
+  if (isScheduling) {
     const configGerais =
       assessmentStore.assessmentState.configuracao.configuracoesGerais;
+
     if (!configGerais.dataAgendamento) {
       toast.add({
         title: "Data não definida",
@@ -110,6 +111,7 @@ async function handleSave(action: { key: string }) {
       assessmentStore.openSettingsDialog();
       return;
     }
+
     const agendamentoDate = new Date(configGerais.dataAgendamento);
     if (agendamentoDate <= new Date()) {
       toast.add({
@@ -123,43 +125,62 @@ async function handleSave(action: { key: string }) {
     }
   }
 
-  assessmentStore.assessmentState.isModelo = shouldSaveAsModel;
-  const savedAssessment = await assessmentStore.saveOrUpdateAssessment();
+  if (shouldSaveToBank) {
+    assessmentStore.assessmentState.isModelo = true;
 
-  if (savedAssessment) {
-    if (examBankStore.rootFolderId) {
-      const targetFolderId =
-        savedAssessment.paiId ?? examBankStore.rootFolderId;
-      await examBankStore.fetchFolderContent(targetFolderId);
-    }
+    const savedAssessment = await assessmentStore.saveOrUpdateAssessment();
 
-    if (isApply || isSchedule) {
-      const newApp = await applicationsStore.createApplication(savedAssessment);
-      if (newApp) {
-        if (isApply) {
-          applicationToStart.value = newApp;
-        } else {
-          toast.add({
-            title: "Agendamento Realizado",
-            description: `A avaliação foi agendada para ${new Date(
-              newApp.dataInicio
-            ).toLocaleString("pt-BR")}.`,
-            color: "success",
-            icon: "i-lucide-calendar-check",
-          });
-          router.push("/aplicacoes");
-        }
+    if (savedAssessment) {
+      if (examBankStore.rootFolderId) {
+        const targetFolderId =
+          savedAssessment.paiId ?? examBankStore.rootFolderId;
+        await examBankStore.fetchFolderContent(targetFolderId);
       }
-    } else {
-      toast.add({
-        title: "Sucesso",
-        description: "Avaliação salva com sucesso.",
-        color: "secondary",
-      });
-      if (editorBridgeStore.context.from === "bank") {
-        router.push("/banco-de-avaliacoes");
+
+      if (isApplying || isScheduling) {
+        const newApp = await applicationsStore.createApplication(
+          savedAssessment,
+          false
+        );
+
+        if (newApp) {
+          if (isApplying) {
+            applicationToStart.value = newApp;
+          } else {
+            toast.add({
+              title: "Agendamento Realizado",
+              description: `Avaliação salva e agendada.`,
+              color: "success",
+              icon: "i-lucide-calendar-check",
+            });
+            router.push("/aplicacoes");
+          }
+        }
       } else {
-        router.push("/home");
+        toast.add({
+          title: "Sucesso",
+          description: "Modelo de avaliação salvo com sucesso.",
+          color: "secondary",
+        });
+      }
+    }
+  } else {
+    const newApp = await applicationsStore.createApplication(
+      assessmentStore.assessmentState,
+      true
+    );
+
+    if (newApp) {
+      if (isApplying) {
+        applicationToStart.value = newApp;
+      } else {
+        toast.add({
+          title: "Agendamento Realizado",
+          description: "Avaliação agendada (versão única).",
+          color: "success",
+          icon: "i-lucide-calendar-check",
+        });
+        router.push("/aplicacoes");
       }
     }
   }

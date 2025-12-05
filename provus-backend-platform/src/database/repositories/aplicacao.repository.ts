@@ -15,6 +15,9 @@ import TipoItemEnum from 'src/enums/tipo-item.enum';
 import { ArquivosAvaliacoesModel } from '../config/models/arquivos-avaliacoes.model';
 import { ItemSistemaArquivosModel } from '../config/models/item-sistema-arquivos.model';
 import { QuestoesAvaliacoesModel } from '../config/models/questoes-avaliacoes.model';
+import { AlternativaModel } from '../config/models/alternativa.model';
+import { QuestaoModel } from '../config/models/questao.model';
+import { CreateAvaliacaoRequest } from 'src/http/models/request/avaliacao.request';
 
 @Injectable()
 export class AplicacaoRepository extends Repository<AplicacaoModel> {
@@ -28,73 +31,166 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
     avaliador: AvaliadorModel,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
-      const modeloOriginal = await manager.findOne(AvaliacaoModel, {
-        where: {
-          id: dto.avaliacaoId,
-          item: { avaliador: { id: avaliador.id } },
-        },
-        relations: [
-          'item',
-          'questoes',
-          'arquivos',
-          'configuracaoAvaliacao',
-          'configuracaoAvaliacao.configuracoesGerais',
-          'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
-          'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
-          'configuracaoAvaliacao.configuracoesSeguranca',
-          'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
-        ],
-      });
+      let novaAvaliacaoSnapshot: AvaliacaoModel;
+      let snapshotConfig: ConfiguracaoAvaliacaoModel;
 
-      if (!modeloOriginal) {
+      if (dto.avaliacaoId) {
+        const modeloOriginal = await manager.findOne(AvaliacaoModel, {
+          where: {
+            id: dto.avaliacaoId,
+            item: { avaliador: { id: avaliador.id } },
+          },
+          relations: [
+            'item',
+            'questoes',
+            'arquivos',
+            'configuracaoAvaliacao',
+            'configuracaoAvaliacao.configuracoesGerais',
+            'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao',
+            'configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+            'configuracaoAvaliacao.configuracoesSeguranca',
+            'configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+          ],
+        });
+
+        if (!modeloOriginal) {
+          throw new BadRequestException(
+            `Avaliação modelo com ID ${dto.avaliacaoId} não encontrada.`,
+          );
+        }
+
+        snapshotConfig = await this._snapshotConfiguration(
+          manager,
+          modeloOriginal.configuracaoAvaliacao,
+        );
+
+        const novoItem = manager.create(ItemSistemaArquivosModel, {
+          titulo: modeloOriginal.item.titulo,
+          tipo: TipoItemEnum.AVALIACAO,
+          avaliador: avaliador,
+          pai: null,
+        });
+        await manager.save(novoItem);
+
+        novaAvaliacaoSnapshot = manager.create(AvaliacaoModel, {
+          id: novoItem.id,
+          item: novoItem,
+          descricao: modeloOriginal.descricao,
+          isModelo: false,
+          configuracaoAvaliacao: snapshotConfig,
+        });
+        await manager.save(novaAvaliacaoSnapshot);
+
+        if (modeloOriginal.questoes && modeloOriginal.questoes.length > 0) {
+          const novasQuestoes = modeloOriginal.questoes.map((qa) =>
+            manager.create(QuestoesAvaliacoesModel, {
+              avaliacaoId: novaAvaliacaoSnapshot.id,
+              questaoId: qa.questaoId,
+              ordem: qa.ordem,
+              pontuacao: qa.pontuacao,
+            }),
+          );
+          await manager.save(novasQuestoes);
+        }
+
+        if (modeloOriginal.arquivos && modeloOriginal.arquivos.length > 0) {
+          const novosArquivos = modeloOriginal.arquivos.map((aa) =>
+            manager.create(ArquivosAvaliacoesModel, {
+              avaliacaoId: novaAvaliacaoSnapshot.id,
+              arquivoId: aa.arquivoId,
+              permitirConsultaPorEstudante: aa.permitirConsultaPorEstudante,
+            }),
+          );
+          await manager.save(novosArquivos);
+        }
+      } else if (dto.avaliacaoTemporaria) {
+        snapshotConfig = await this._createConfigurationFromDto(
+          manager,
+          dto.avaliacaoTemporaria,
+        );
+
+        const novoItem = manager.create(ItemSistemaArquivosModel, {
+          titulo: dto.avaliacaoTemporaria.titulo,
+          tipo: TipoItemEnum.AVALIACAO,
+          avaliador: avaliador,
+          pai: null,
+        });
+        await manager.save(novoItem);
+
+        novaAvaliacaoSnapshot = manager.create(AvaliacaoModel, {
+          id: novoItem.id,
+          item: novoItem,
+          descricao: dto.avaliacaoTemporaria.descricao,
+          isModelo: false,
+          configuracaoAvaliacao: snapshotConfig,
+        });
+        await manager.save(novaAvaliacaoSnapshot);
+
+        if (
+          dto.avaliacaoTemporaria.questoes &&
+          dto.avaliacaoTemporaria.questoes.length > 0
+        ) {
+          for (const qDto of dto.avaliacaoTemporaria.questoes) {
+            let questaoIdFinal: number;
+
+            if (qDto.questaoId) {
+              questaoIdFinal = qDto.questaoId;
+            } else {
+              const itemQ = manager.create(ItemSistemaArquivosModel, {
+                titulo: qDto.titulo,
+                tipo: TipoItemEnum.QUESTAO,
+                avaliador: avaliador,
+                pai: null,
+              });
+              await manager.save(itemQ);
+
+              const novaQ = manager.create(QuestaoModel, {
+                id: itemQ.id,
+                item: itemQ,
+                dificuldade: qDto.dificuldade,
+                tipoQuestao: qDto.tipoQuestao,
+                descricao: qDto.descricao,
+                pontuacao: qDto.pontuacao,
+                isModelo: false,
+                exemploRespostaIa: qDto.exemploRespostaIa,
+                textoRevisao: qDto.textoRevisao,
+              });
+              await manager.save(novaQ);
+
+              if (qDto.alternativas) {
+                const alts = qDto.alternativas.map((a) =>
+                  manager.create(AlternativaModel, { ...a, questao: novaQ }),
+                );
+                await manager.save(alts);
+              }
+              questaoIdFinal = novaQ.id;
+            }
+
+            await manager.save(
+              manager.create(QuestoesAvaliacoesModel, {
+                avaliacaoId: novaAvaliacaoSnapshot.id,
+                questaoId: questaoIdFinal,
+                ordem: qDto.ordem,
+                pontuacao: qDto.pontuacao,
+              }),
+            );
+          }
+        }
+
+        if (dto.avaliacaoTemporaria.arquivos) {
+          const arqs = dto.avaliacaoTemporaria.arquivos.map((a) =>
+            manager.create(ArquivosAvaliacoesModel, {
+              avaliacaoId: novaAvaliacaoSnapshot.id,
+              arquivoId: a.arquivoId,
+              permitirConsultaPorEstudante: a.permitirConsultaPorEstudante,
+            }),
+          );
+          await manager.save(arqs);
+        }
+      } else {
         throw new BadRequestException(
-          `Avaliação modelo com ID ${dto.avaliacaoId} não encontrada.`,
+          'É necessário fornecer um ID ou dados da avaliação.',
         );
-      }
-
-      const snapshotConfig = await this._snapshotConfiguration(
-        manager,
-        modeloOriginal.configuracaoAvaliacao,
-      );
-
-      const novoItem = manager.create(ItemSistemaArquivosModel, {
-        titulo: `${modeloOriginal.item.titulo}`,
-        tipo: TipoItemEnum.AVALIACAO,
-        avaliador: avaliador,
-        pai: null,
-      });
-      await manager.save(novoItem);
-
-      const novaAvaliacaoSnapshot = manager.create(AvaliacaoModel, {
-        id: novoItem.id,
-        item: novoItem,
-        descricao: modeloOriginal.descricao,
-        isModelo: false,
-        configuracaoAvaliacao: snapshotConfig,
-      });
-      await manager.save(novaAvaliacaoSnapshot);
-
-      if (modeloOriginal.questoes && modeloOriginal.questoes.length > 0) {
-        const novasQuestoes = modeloOriginal.questoes.map((qa) =>
-          manager.create(QuestoesAvaliacoesModel, {
-            avaliacaoId: novaAvaliacaoSnapshot.id,
-            questaoId: qa.questaoId,
-            ordem: qa.ordem,
-            pontuacao: qa.pontuacao,
-          }),
-        );
-        await manager.save(novasQuestoes);
-      }
-
-      if (modeloOriginal.arquivos && modeloOriginal.arquivos.length > 0) {
-        const novosArquivos = modeloOriginal.arquivos.map((aa) =>
-          manager.create(ArquivosAvaliacoesModel, {
-            avaliacaoId: novaAvaliacaoSnapshot.id,
-            arquivoId: aa.arquivoId,
-            permitirConsultaPorEstudante: aa.permitirConsultaPorEstudante,
-          }),
-        );
-        await manager.save(novosArquivos);
       }
 
       const aplicacao = new AplicacaoModel();
@@ -375,5 +471,61 @@ export class AplicacaoRepository extends Repository<AplicacaoModel> {
         }
       }
     });
+  }
+
+  private async _createConfigurationFromDto(
+    manager: EntityManager,
+    dto: CreateAvaliacaoRequest,
+  ): Promise<ConfiguracaoAvaliacaoModel> {
+    const g = dto.configuracoesAvaliacao.configuracoesGerais;
+    const s = dto.configuracoesAvaliacao.configuracoesSeguranca;
+
+    const novasGerais = manager.create(ConfiguracoesGeraisModel, {
+      tempoMaximo: g.tempoMaximo,
+      tempoMinimo: g.tempoMinimo,
+      tipoAplicacao: g.tipoAplicacao,
+      dataAgendamento: g.dataAgendamento ? new Date(g.dataAgendamento) : null,
+      mostrarPontuacao: g.mostrarPontuacao,
+      permitirRevisao: g.permitirRevisao,
+      exibirPontuacaoQuestoes: g.exibirPontuacaoQuestoes,
+    });
+    await manager.save(novasGerais);
+
+    if (g.configuracoesRandomizacao) {
+      const rules = g.configuracoesRandomizacao.map((r) => {
+        const rule = manager.create(ConfiguracoesRandomizacaoModel, {
+          tipo: r.tipo,
+          dificuldade: r.dificuldade,
+          quantidade: r.quantidade,
+          configuracoesGerais: novasGerais,
+        });
+        return rule;
+      });
+      await manager.save(rules);
+    }
+
+    const novasSeguranca = manager.create(ConfiguracoesSegurancaModel, {
+      proibirTrocarAbas: s.proibirTrocarAbas,
+      proibirCopiarColar: s.proibirCopiarColar,
+      quantidadeTentativas: s.quantidadeTentativas,
+      ativarCorrecaoDiscursivaViaIa: s.ativarCorrecaoDiscursivaViaIa,
+    });
+    await manager.save(novasSeguranca);
+
+    if (s.punicoes) {
+      const puns = s.punicoes.map((p) =>
+        manager.create(PunicaoPorOcorrenciaModel, {
+          ...p,
+          configuracaoSeguranca: novasSeguranca,
+        }),
+      );
+      await manager.save(puns);
+    }
+
+    const config = manager.create(ConfiguracaoAvaliacaoModel, {
+      configuracoesGerais: novasGerais,
+      configuracoesSeguranca: novasSeguranca,
+    });
+    return await manager.save(config);
   }
 }

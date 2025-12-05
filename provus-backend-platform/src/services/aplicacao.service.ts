@@ -72,6 +72,12 @@ export class AplicacaoService {
         'avaliacao.configuracaoAvaliacao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes.alternativas',
         'avaliacao.configuracaoAvaliacao.configuracoesSeguranca',
         'avaliacao.configuracaoAvaliacao.configuracoesSeguranca.punicoes',
+        'configuracao',
+        'configuracao.configuracoesGerais',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao.poolDeQuestoes',
+        'configuracao.configuracoesSeguranca',
+        'configuracao.configuracoesSeguranca.punicoes',
       ],
     });
 
@@ -79,11 +85,8 @@ export class AplicacaoService {
       throw new NotFoundException('Aplicação não encontrada');
     }
 
-    const pontuacaoTotalAvaliacao =
-      aplicacao.avaliacao.questoes?.reduce(
-        (sum, qa) => sum + Number(qa.pontuacao || 0),
-        0,
-      ) ?? 0;
+    const { totalPontos: pontuacaoTotalAvaliacao } =
+      this._calculateTotalStats(aplicacao);
 
     const finalStates = [
       EstadoSubmissaoEnum.ENVIADA,
@@ -319,11 +322,8 @@ export class AplicacaoService {
         mediaPontuacaoBruta: null,
       };
 
-      const pontuacaoTotalAvaliacao =
-        aplicacao.avaliacao.questoes?.reduce(
-          (sum, qa) => sum + Number(qa.pontuacao || 0),
-          0,
-        ) ?? 0;
+      const { totalPontos: pontuacaoTotalAvaliacao } =
+        this._calculateTotalStats(aplicacao);
 
       let mediaPercentual: number | null = null;
       if (
@@ -651,12 +651,21 @@ export class AplicacaoService {
         id: aplicacaoId,
         avaliacao: { item: { avaliador: { id: avaliadorId } } },
       },
-      relations: ['avaliacao', 'avaliacao.questoes'],
+      relations: [
+        'avaliacao',
+        'avaliacao.questoes',
+        'configuracao',
+        'configuracao.configuracoesGerais',
+        'configuracao.configuracoesGerais.configuracoesRandomizacao',
+      ],
     });
 
     if (!aplicacao) {
       return null;
     }
+
+    const { totalQuestoes: totalQuestoesAplicacao } =
+      this._calculateTotalStats(aplicacao);
 
     const estadosRelevantes = [
       EstadoSubmissaoEnum.INICIADA,
@@ -703,10 +712,13 @@ export class AplicacaoService {
       contagemAlertasRaw.map((row) => [row.subId, parseInt(row.total, 10)]),
     );
 
-    const totalQuestoesAplicacao = aplicacao.avaliacao?.questoes?.length ?? 0;
-
     const alunosProgresso = await Promise.all(
       submissoes.map((sub) => {
+        const totalQuestoesAluno =
+          sub.respostas?.length > 0
+            ? sub.respostas.length
+            : totalQuestoesAplicacao;
+
         const questoesRespondidas =
           sub.respostas?.filter(
             (r) =>
@@ -729,8 +741,8 @@ export class AplicacaoService {
           ).length ?? 0;
 
         const progresso =
-          totalQuestoesAplicacao > 0
-            ? Math.round((questoesRespondidas / totalQuestoesAplicacao) * 100)
+          totalQuestoesAluno > 0
+            ? Math.round((questoesRespondidas / totalQuestoesAluno) * 100)
             : 0;
 
         const alertasCount = alertasMap.get(sub.id) || 0;
@@ -744,7 +756,7 @@ export class AplicacaoService {
           estado: sub.estado,
           progresso: progresso,
           questoesRespondidas: questoesRespondidas,
-          totalQuestoes: totalQuestoesAplicacao,
+          totalQuestoes: totalQuestoesAluno,
           horaInicio: sub.criadoEm.toISOString(),
           alertas: alertasCount,
           tempoPenalidadeEmSegundos: 0,
@@ -863,5 +875,45 @@ export class AplicacaoService {
     await this.aplicacaoRepository.save(aplicacao);
 
     return aplicacao;
+  }
+
+  private _calculateTotalStats(aplicacao: AplicacaoModel): {
+    totalPontos: number;
+    totalQuestoes: number;
+  } {
+    let totalPontos = 0;
+    let totalQuestoes = 0;
+
+    if (aplicacao.avaliacao?.questoes) {
+      totalQuestoes += aplicacao.avaliacao.questoes.length;
+      totalPontos += aplicacao.avaliacao.questoes.reduce(
+        (sum, qa) => sum + Number(qa.pontuacao || 0),
+        0,
+      );
+    }
+
+    const config =
+      aplicacao.configuracao || aplicacao.avaliacao?.configuracaoAvaliacao;
+
+    if (config?.configuracoesGerais?.configuracoesRandomizacao) {
+      for (const rule of config.configuracoesGerais.configuracoesRandomizacao) {
+        const qtd = rule.quantidade || 0;
+        totalQuestoes += qtd;
+
+        if (rule.poolDeQuestoes && rule.poolDeQuestoes.length > 0) {
+          const totalPoolPoints = rule.poolDeQuestoes.reduce(
+            (sum, q) => sum + Number(q.pontuacao || 0),
+            0,
+          );
+          const avgPoints = totalPoolPoints / rule.poolDeQuestoes.length;
+          totalPontos += avgPoints * qtd;
+        }
+      }
+    }
+
+    return {
+      totalPontos: Math.round(totalPontos * 100) / 100,
+      totalQuestoes,
+    };
   }
 }

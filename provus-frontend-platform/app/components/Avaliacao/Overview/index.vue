@@ -1,26 +1,50 @@
 <script setup lang="ts">
 import type { AvaliacaoEntity } from "~/types/entities/Avaliacao.entity";
-import type { QuestaoEntity } from "~/types/entities/Questao.entity";
 
 const props = defineProps<{
   prova: AvaliacaoEntity | null;
 }>();
 
-const totalPontos = computed(() => {
-  if (!props.prova || !props.prova.questoes) return 0;
-  return props.prova.questoes.reduce(
-    (soma: number, q: QuestaoEntity) => soma + (Number(q.pontuacao) || 0),
-    0
-  );
+const totalQuestoes = computed(() => {
+  if (!props.prova) return 0;
+
+  let count = props.prova.questoes?.length || 0;
+
+  const regras =
+    props.prova.configuracao?.configuracoesGerais?.configuracoesRandomizacao;
+
+  if (regras) {
+    const questoesRandomicas = regras.reduce(
+      (acc, rule) => acc + (Number(rule.quantidade) || 0),
+      0
+    );
+    count += questoesRandomicas;
+  }
+
+  return count;
 });
 
 const contagemTipos = computed(() => {
   if (!props.prova || !props.prova.questoes) return {};
   const contagem: { [key: string]: number } = {};
+
   for (const questao of props.prova.questoes) {
     const tipoLabel = questao.tipoQuestao;
     contagem[tipoLabel] = (contagem[tipoLabel] || 0) + 1;
   }
+
+  const regras =
+    props.prova.configuracao?.configuracoesGerais?.configuracoesRandomizacao;
+  if (regras && regras.length > 0) {
+    const totalRandom = regras.reduce(
+      (acc, r) => acc + (Number(r.quantidade) || 0),
+      0
+    );
+    if (totalRandom > 0) {
+      contagem["Aleatórias (Banco)"] = totalRandom;
+    }
+  }
+
   return contagem;
 });
 </script>
@@ -33,11 +57,11 @@ const contagemTipos = computed(() => {
     <div class="space-y-4">
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Questões</span>
-        <span class="font-medium">{{ prova.questoes.length }}</span>
+        <span class="font-medium">{{ totalQuestoes }}</span>
       </div>
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Pontos Totais</span>
-        <span class="font-medium">{{ totalPontos }}</span>
+        <span class="font-medium">{{ prova.pontuacao }}</span>
       </div>
       <div class="flex justify-between text-sm">
         <span class="text-gray-600">Duração</span>

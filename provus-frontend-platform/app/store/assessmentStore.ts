@@ -129,10 +129,30 @@ export const useAssessmentStore = defineStore("assessment", () => {
 
   const assessment = computed(() => {
     if (!assessmentState.value) return null;
-    const calculatedPoints = (assessmentState.value.questoes || []).reduce(
+
+    let calculatedPoints = (assessmentState.value.questoes || []).reduce(
       (sum, q) => sum + (Number(q.pontuacao) || 0),
       0
     );
+
+    const configGerais =
+      assessmentState.value.configuracao?.configuracoesGerais;
+    if (configGerais?.configuracoesRandomizacao) {
+      configGerais.configuracoesRandomizacao.forEach((rule) => {
+        const qtd = Number(rule.quantidade) || 0;
+        if (rule.questoes && rule.questoes.length > 0) {
+          const totalPool = rule.questoes.reduce(
+            (sum, q) => sum + (Number(q.pontuacao) || 0),
+            0
+          );
+          const avgScore = totalPool / rule.questoes.length;
+          calculatedPoints += avgScore * qtd;
+        }
+      });
+    }
+
+    calculatedPoints = Math.round(calculatedPoints * 100) / 100;
+
     return { ...assessmentState.value, pontuacao: calculatedPoints };
   });
 
