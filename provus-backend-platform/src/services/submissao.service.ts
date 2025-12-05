@@ -913,6 +913,33 @@ export class SubmissaoService {
 
     const responseDto = FindSubmissaoByHashResponse.fromModel(submissao);
 
+    if (submissao.respostas && submissao.respostas.length > 0) {
+      const totalPontosReais = submissao.respostas.reduce((acc, resp) => {
+        return acc + (Number(resp.questao.pontuacao) || 0);
+      }, 0);
+
+      responseDto.pontuacaoMaxima = totalPontosReais;
+
+      responseDto.questoes = submissao.respostas
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((resp) => ({
+          id: resp.questao.id,
+          titulo: resp.questao.item.titulo,
+          descricao: resp.questao.descricao,
+          pontuacao: resp.questao.pontuacao,
+          dificuldade: resp.questao.dificuldade,
+          tipo: resp.questao.tipoQuestao,
+          alternativas: resp.questao.alternativas.map((alt) => ({
+            id: alt.id,
+            descricao: alt.descricao,
+          })),
+          dadosResposta: resp.dadosResposta,
+          pontuacaoObtida: resp.pontuacao,
+          estadoCorrecao: resp.estadoCorrecao,
+          textoRevisao: resp.textoRevisao,
+        }));
+    }
+
     const estadosAtivos = [
       EstadoSubmissaoEnum.INICIADA,
       EstadoSubmissaoEnum.REABERTA,
