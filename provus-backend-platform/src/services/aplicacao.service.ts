@@ -584,6 +584,7 @@ export class AplicacaoService {
           { id: avaliacaoIdToDelete },
           { configuracaoAvaliacao: null },
         );
+
         await manager.update(
           AplicacaoModel,
           { id: id },
