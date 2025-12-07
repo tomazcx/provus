@@ -531,7 +531,7 @@ export class AplicacaoService {
   async delete(id: number, avaliador: AvaliadorModel): Promise<void> {
     const aplicacao = await this.aplicacaoRepository.findOne({
       where: { id, avaliacao: { item: { avaliador: { id: avaliador.id } } } },
-      relations: ['avaliacao'], // Importante para checar se é snapshot
+      relations: ['avaliacao'],
     });
 
     if (!aplicacao) {
@@ -548,19 +548,15 @@ export class AplicacaoService {
 
       if (submissoes.length > 0) {
         const submissaoIds = submissoes.map((s) => s.id);
-
         await manager.delete(RegistroPunicaoPorOcorrenciaModel, {
           submissao: { id: In(submissaoIds) },
         });
-
         await manager.delete(SubmissaoRespostasModel, {
           submissaoId: In(submissaoIds),
         });
-
         await manager.delete(EstudanteModel, {
           id: In(submissaoIds),
         });
-
         await manager.delete(SubmissaoModel, { id: In(submissaoIds) });
       }
 
@@ -585,24 +581,53 @@ export class AplicacaoService {
 
         if (avaliacaoCompleta?.configuracaoAvaliacao) {
           const config = avaliacaoCompleta.configuracaoAvaliacao;
-          if (config.configuracoesGerais) {
-            // Limpa randomização
+          const configGeraisId = config.configuracoesGerais?.id;
+          const configSegurancaId = config.configuracoesSeguranca?.id;
+
+          if (configGeraisId) {
+            const configuracoesRandomizacao = await manager.find(
+              ConfiguracoesRandomizacaoModel,
+              {
+                where: { configuracoesGerais: { id: configGeraisId } },
+                relations: ['poolDeQuestoes'],
+              },
+            );
+
+            for (const configRandomizacao of configuracoesRandomizacao) {
+              if (
+                configRandomizacao.poolDeQuestoes &&
+                configRandomizacao.poolDeQuestoes.length > 0
+              ) {
+                configRandomizacao.poolDeQuestoes = [];
+                await manager.save(configRandomizacao);
+              }
+            }
             await manager.delete(ConfiguracoesRandomizacaoModel, {
-              configuracoesGerais: { id: config.configuracoesGerais.id },
-            });
-            await manager.delete(ConfiguracoesGeraisModel, {
-              id: config.configuracoesGerais.id,
+              configuracoesGerais: { id: configGeraisId },
             });
           }
-          if (config.configuracoesSeguranca) {
+
+          if (configSegurancaId) {
             await manager.delete(PunicaoPorOcorrenciaModel, {
-              configuracoesSegurancaId: config.configuracoesSeguranca.id,
-            });
-            await manager.delete(ConfiguracoesSegurancaModel, {
-              id: config.configuracoesSeguranca.id,
+              configuracoesSegurancaId: configSegurancaId,
             });
           }
-          await manager.delete(ConfiguracaoAvaliacaoModel, { id: config.id });
+
+          await manager.delete(ConfiguracaoAvaliacaoModel, {
+            id: config.id,
+          });
+
+          if (configGeraisId) {
+            await manager.delete(ConfiguracoesGeraisModel, {
+              id: configGeraisId,
+            });
+          }
+
+          if (configSegurancaId) {
+            await manager.delete(ConfiguracoesSegurancaModel, {
+              id: configSegurancaId,
+            });
+          }
         }
 
         await manager.delete(ItemSistemaArquivosModel, { id: avaliacaoId });
