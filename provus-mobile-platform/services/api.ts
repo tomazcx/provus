@@ -6,15 +6,15 @@ import {
   clearTokens,
 } from "../utils/token";
 import { setServerTimeOffset } from "@/utils/serverTime";
-import Constants from "expo-constants";
+// import Constants from "expo-constants";
 
-const debuggerHost = Constants.expoConfig?.hostUri;
-const localhost = debuggerHost?.split(":")[0];
-const EXPO_IP = localhost
-  ? `http://${localhost}:8000/api`
-  : "http://192.168.100.15:8000/api";
+// const debuggerHost = Constants.expoConfig?.hostUri;
+// const localhost = debuggerHost?.split(":")[0];
+// const EXPO_IP = localhost
+//   ? `http://${localhost}:8000/api`
+//   : "http://192.168.100.15:8000/api";
 
-export const API_URL = EXPO_IP;
+export const API_URL = "https://provus.onrender.com/api";
 
 const api = axios.create({
   baseURL: API_URL,
