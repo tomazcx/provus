@@ -26,7 +26,6 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const nuxtApp = useNuxtApp();
-
 const isConfirmOpen = ref(false);
 const confirmAction = ref<"finalizar" | "deletar" | null>(null);
 const confirmTitle = ref("");
@@ -38,16 +37,15 @@ const $websocket = nuxtApp.$websocket as
   | undefined;
 
 const aplicacao = ref<AplicacaoEntity | null>(null);
+
 const modeloDaAplicacao = computed<AvaliacaoEntity | null>(
   () => aplicacao.value?.avaliacao ?? null
 );
 
 const configuracaoParaExibir = computed<AvaliacaoEntity | null>(() => {
   if (!aplicacao.value || !modeloDaAplicacao.value) return null;
-
   const configUsada =
     aplicacao.value.configuracao || modeloDaAplicacao.value.configuracao;
-
   return {
     ...modeloDaAplicacao.value,
     configuracao: configUsada,
@@ -69,7 +67,6 @@ async function fetchApplicationDetails() {
   isLoadingData.value = true;
   aplicacao.value = null;
   const applicationId = parseInt(route.params.id as string, 10);
-
   if (isNaN(applicationId)) {
     toast.add({ title: "ID da Aplicação inválido.", color: "error" });
     router.push("/aplicacoes");
@@ -165,27 +162,35 @@ const podeIniciar = computed(
     aplicacao.value?.estado === EstadoAplicacaoEnum.CRIADA ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.AGENDADA
 );
+
 const podeMonitorar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podePausar = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
+
 const podeRetomar = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podeFinalizar = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
     aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podeVerResultados = computed(
   () =>
     aplicacao.value?.estado === EstadoAplicacaoEnum.FINALIZADA ||
-    aplicacao.value?.estado === EstadoAplicacaoEnum.CONCLUIDA
+    aplicacao.value?.estado === EstadoAplicacaoEnum.CONCLUIDA ||
+    aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO ||
+    aplicacao.value?.estado === EstadoAplicacaoEnum.PAUSADA
 );
+
 const podeDeletar = computed(
   () =>
     aplicacao.value?.estado !== EstadoAplicacaoEnum.EM_ANDAMENTO &&
@@ -274,10 +279,9 @@ async function handleDelete() {
 
 async function onConfirmDialog() {
   if (!aplicacao.value) return;
+
   if (confirmAction.value === "deletar") {
-    isLoadingData.value = true;
     await applicationsStore.deleteApplication(aplicacao.value.id);
-    isLoadingData.value = false;
     router.push("/aplicacoes");
   } else if (confirmAction.value === "finalizar") {
     if (!$websocket || !$websocket.isConnected.value) {
@@ -286,6 +290,7 @@ async function onConfirmDialog() {
     }
     $websocket.emit("finalizar-aplicacao", { aplicacaoId: aplicacao.value.id });
   }
+
   isConfirmOpen.value = false;
   confirmAction.value = null;
 }
@@ -409,7 +414,6 @@ async function onConfirmDialog() {
       v-if="aplicacao.violations && aplicacao.violations.length > 0"
       :violations="aplicacao.violations"
     />
-
     <UAlert
       v-else-if="
         !isLoadingData &&
@@ -425,7 +429,6 @@ async function onConfirmDialog() {
       v-model="isConfigDialogOpen"
       :configuracao="configuracaoParaExibir"
     />
-
     <ConfirmationDialog
       v-model="isConfirmOpen"
       :title="confirmTitle"

@@ -3,6 +3,7 @@ import api from "../services/api";
 import { AplicacaoEntity } from "../types/entities/Aplicacao.entity";
 import { EstadoAplicacaoEnum } from "../enums/EstadoAplicacaoEnum";
 import { mapAplicacaoApiResponseToEntity } from "@/utils/mappers";
+import Toast from "react-native-toast-message";
 
 interface ApplicationsState {
   applications: AplicacaoEntity[];
@@ -17,17 +18,30 @@ interface ApplicationsState {
     applicationId: number,
     updatedFields: Partial<Pick<AplicacaoEntity, "estado" | "dataFim">>
   ) => void;
+  updateReleaseConfig: (
+    applicationId: number,
+    config: { mostrarPontuacao?: boolean; permitirRevisao?: boolean }
+  ) => Promise<boolean>;
+  updateLocalConfig: (
+    applicationId: number,
+    config: { mostrarPontuacao?: boolean; permitirRevisao?: boolean }
+  ) => void;
+  // NOVA AÇÃO
+  updateApplicationStatus: (
+    applicationId: number,
+    status: EstadoAplicacaoEnum
+  ) => Promise<boolean>;
 }
 
 export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
   applications: [],
   isLoading: false,
   error: null,
+
   fetchApplications: async () => {
     set({ isLoading: true, error: null });
     try {
       const response = await api.get("/backoffice/aplicacoes");
-
       if (!Array.isArray(response.data)) {
         set({ applications: [] });
         return;
@@ -48,6 +62,7 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
             descricao: item.avaliacao.descricao,
             pontuacao: item.avaliacao.pontuacao || 0,
           },
+          configuracao: item.configuracao || undefined,
         })
       );
 
@@ -58,8 +73,7 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       set({ applications: mappedApplications, error: null });
     } catch (error) {
       console.error("Erro ao buscar aplicações:", error);
-      const msg = "Erro ao carregar aplicações.";
-      set({ error: msg });
+      set({ error: "Erro ao carregar aplicações." });
     } finally {
       set({ isLoading: false });
     }
@@ -91,20 +105,19 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       set({ isLoading: false });
     }
   },
+
   getApplicationById: (id: number) => {
     return get().applications.find((app) => app.id === id);
   },
+
   reopenApplication: async (applicationId: number) => {
     set({ isLoading: true });
     try {
       const payload = { estado: EstadoAplicacaoEnum.CRIADA };
-
       await api.put(`/backoffice/aplicacao/${applicationId}`, payload);
-
       get().updateApplicationData(applicationId, {
         estado: EstadoAplicacaoEnum.CRIADA,
       });
-
       return true;
     } catch (error) {
       console.error("Erro ao reabrir aplicação:", error);
@@ -113,17 +126,16 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       set({ isLoading: false });
     }
   },
+
   deleteApplication: async (applicationId: number) => {
     set({ isLoading: true });
     try {
       await api.delete(`/backoffice/aplicacao/${applicationId}`);
-
       set((state) => ({
         applications: state.applications.filter(
           (app) => app.id !== applicationId
         ),
       }));
-
       return true;
     } catch (error) {
       console.error("Erro ao deletar aplicação:", error);
@@ -132,6 +144,7 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       set({ isLoading: false });
     }
   },
+
   updateApplicationData: (applicationId, updatedFields) => {
     set((state) => ({
       applications: state.applications.map((app) => {
@@ -147,5 +160,95 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
         return app;
       }),
     }));
+  },
+
+  updateReleaseConfig: async (applicationId, config) => {
+    try {
+      await api.patch(
+        `/backoffice/aplicacao/${applicationId}/configuracoes-liberacao`,
+        config
+      );
+      get().updateLocalConfig(applicationId, config);
+
+      Toast.show({
+        type: "success",
+        text1: "Sucesso",
+        text2: "Configuração atualizada!",
+      });
+      return true;
+    } catch (error) {
+      console.error("Erro ao atualizar configuração de liberação:", error);
+      Toast.show({
+        type: "error",
+        text1: "Erro",
+        text2: "Não foi possível atualizar a configuração.",
+      });
+      return false;
+    }
+  },
+
+  updateLocalConfig: (applicationId, config) => {
+    set((state) => ({
+      applications: state.applications.map((app) => {
+        if (app.id === applicationId) {
+          const currentConfig = app.configuracao || {
+            configuracoesGerais: {
+              mostrarPontuacao: false,
+              permitirRevisao: false,
+              tempoMaximo: 0,
+              tempoMinimo: 0,
+              tipoAplicacao: null,
+              dataAgendamento: null,
+              exibirPontuacaoQuestoes: false,
+            } as any,
+            configuracoesSeguranca: {} as any,
+          };
+
+          return {
+            ...app,
+            configuracao: {
+              ...currentConfig,
+              configuracoesGerais: {
+                ...currentConfig.configuracoesGerais,
+                ...config,
+              },
+            },
+          };
+        }
+        return app;
+      }),
+    }));
+  },
+
+  // NOVA IMPLEMENTAÇÃO: Atualizar Status via API
+  updateApplicationStatus: async (applicationId, status) => {
+    set({ isLoading: true });
+    try {
+      // Chama a API (PUT)
+      const response = await api.put(`/backoffice/aplicacao/${applicationId}`, {
+        estado: status,
+      });
+
+      // Mapeia a resposta para garantir que temos os dados atualizados (como dataFim que muda ao iniciar)
+      const updatedApp = mapAplicacaoApiResponseToEntity(response.data);
+
+      set((state) => ({
+        applications: state.applications.map((app) =>
+          app.id === applicationId ? updatedApp : app
+        ),
+      }));
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao atualizar status da aplicação:", error);
+      Toast.show({
+        type: "error",
+        text1: "Erro",
+        text2: "Não foi possível iniciar a aplicação.",
+      });
+      return false;
+    } finally {
+      set({ isLoading: false });
+    }
   },
 }));

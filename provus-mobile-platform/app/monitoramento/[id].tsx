@@ -10,18 +10,16 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft } from "lucide-react-native";
-
 import { useApplicationsStore } from "../../stores/applicationsStore";
 import { useMonitoringStore } from "../../stores/monitoringStore";
 import { useTimer } from "../../hooks/useTimer";
 import { getToken } from "../../utils/token";
 import { IProgressoAluno } from "../../types/IMonitoring";
-
 import MonitoringHeader from "../../components/MonitoringHeader";
 import StudentListItem from "../../components/StudentListItem";
 import ActivityFeed from "../../components/ActivityFeed";
 import MonitoringTabs from "../../components/MonitoringTabs";
-
+import ReleaseControl from "../../components/ReleaseControl";
 import { EstadoAplicacaoEnum } from "../../enums/EstadoAplicacaoEnum";
 import { EstadoSubmissaoEnum } from "../../enums/EstadoSubmissaoEnum";
 import { TipoAtividadeEnum } from "../../enums/TipoAtividadeEnum";
@@ -32,13 +30,14 @@ import { stripHtml } from "@/utils/stripHtml";
 export default function MonitoringScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-
   const idString = Array.isArray(id) ? id[0] : id;
   const applicationId = parseInt(idString || "0", 10);
-
   const toast = useToast();
 
-  const { getApplicationById, updateApplicationData } = useApplicationsStore();
+  // Destruct do updateApplicationStatus adicionado
+  const { getApplicationById, updateApplicationData, updateApplicationStatus } =
+    useApplicationsStore();
+
   const {
     fetchMonitoringData,
     studentProgress,
@@ -48,15 +47,17 @@ export default function MonitoringScreen() {
     updateStudentStatus,
     incrementStudentAlerts,
     addActivityLog,
+    initializeWebSocketListeners,
+    clearWebSocketListeners,
   } = useMonitoringStore();
 
   const { connect, disconnect, socket, isConnected } = useWebSocket();
+
   const [activeTab, setActiveTab] = useState<"students" | "activity">(
     "students"
   );
 
   const aplicacao = getApplicationById(applicationId);
-
   const dataFimISO = aplicacao?.dataFim?.toISOString();
   const isAppActive = aplicacao?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO;
 
@@ -94,6 +95,7 @@ export default function MonitoringScreen() {
       if (estadosFinaisOuInativos.includes(aluno.estado)) {
         return "00:00:00";
       }
+
       const penalidade = aluno.tempoPenalidadeEmSegundos || 0;
       const tempoRestanteIndividual = Math.max(
         0,
@@ -123,13 +125,9 @@ export default function MonitoringScreen() {
     const init = async () => {
       if (isConnecting.current) return;
       isConnecting.current = true;
-
       const token = await getToken();
-
       connect("/avaliador", { token: `Bearer ${token}` });
-
       await fetchMonitoringData(applicationId);
-
       isConnecting.current = false;
     };
 
@@ -139,15 +137,20 @@ export default function MonitoringScreen() {
       disconnect();
       isConnecting.current = false;
     };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId]);
+
+  // Configuração dos Listeners do WebSocket
   useEffect(() => {
     const socketInstance = socket.current;
+
     if (isConnected && socketInstance) {
+      initializeWebSocketListeners(socketInstance);
+
       socketInstance.on("nova-submissao", () => {
         fetchMonitoringData(applicationId);
       });
+
       socketInstance.on("progresso-atualizado", (data: any) => {
         if (data.aplicacaoId === applicationId)
           updateStudentProgress(
@@ -156,6 +159,7 @@ export default function MonitoringScreen() {
             data.questoesRespondidas
           );
       });
+
       socketInstance.on("submissao-finalizada", (data: any) => {
         if (data.aplicacaoId === applicationId) {
           updateStudentStatus(data.submissaoId, data.estado);
@@ -166,13 +170,11 @@ export default function MonitoringScreen() {
       socketInstance.on("codigo-confirmado", (data: any) => {
         if (data.aplicacaoId === applicationId) {
           updateStudentStatus(data.submissaoId, data.estado);
-
           addActivityLog(
             TipoAtividadeEnum.FINALIZOU,
             data.alunoNome,
             "teve o código de entrega confirmado."
           );
-
           toast.add({
             title: "Confirmado!",
             description: `Entrega de ${data.alunoNome} confirmada.`,
@@ -187,15 +189,16 @@ export default function MonitoringScreen() {
           addActivityLog(data.tipo, data.alunoNome, "saiu da avaliação.");
         }
       });
+
       socketInstance.on("punicao-por-ocorrencia", (data: any) => {
         toast.add({
           title: "Infração Detectada",
           description: `${data.nomeEstudante}: ${data.tipoInfracao}`,
           color: "error",
         });
-        const alunoAlvo = studentProgress.find(
-          (s) => s.aluno.email === data.estudanteEmail
-        );
+        const alunoAlvo = useMonitoringStore
+          .getState()
+          .studentProgress.find((s) => s.aluno.email === data.estudanteEmail);
         if (alunoAlvo) {
           incrementStudentAlerts(alunoAlvo.submissaoId);
           addActivityLog(
@@ -207,6 +210,7 @@ export default function MonitoringScreen() {
           fetchMonitoringData(applicationId);
         }
       });
+
       socketInstance.on(
         "tempo-ajustado",
         (data: { aplicacaoId: number; novaDataFimISO: string }) => {
@@ -216,12 +220,14 @@ export default function MonitoringScreen() {
             });
         }
       );
+
       socketInstance.on("estado-aplicacao-atualizado", (data: any) => {
         if (data.aplicacaoId === applicationId) {
           updateApplicationData(applicationId, {
             estado: data.novoEstado,
             dataFim: new Date(data.novaDataFimISO),
           });
+
           if (
             ["Finalizada", "Concluída", "Cancelada"].includes(data.novoEstado)
           ) {
@@ -230,14 +236,15 @@ export default function MonitoringScreen() {
               description: `Aplicação finalizada`,
               color: "success",
             });
-
             router.replace("/home");
           }
         }
       });
     }
+
     return () => {
       if (socketInstance) {
+        clearWebSocketListeners(socketInstance);
         socketInstance.off("nova-submissao");
         socketInstance.off("progresso-atualizado");
         socketInstance.off("submissao-finalizada");
@@ -248,20 +255,7 @@ export default function MonitoringScreen() {
         socketInstance.off("codigo-confirmado");
       }
     };
-  }, [
-    isConnected,
-    applicationId,
-    fetchMonitoringData,
-    updateApplicationData,
-    router,
-    socket,
-    studentProgress,
-    updateStudentProgress,
-    updateStudentStatus,
-    incrementStudentAlerts,
-    addActivityLog,
-    toast,
-  ]);
+  }, [isConnected, applicationId]);
 
   const handleAdjustTime = (seconds: number) => {
     if (!socket.current) return;
@@ -269,6 +263,7 @@ export default function MonitoringScreen() {
       aplicacaoId: applicationId,
       segundos: seconds,
     });
+
     const appLocal = getApplicationById(applicationId);
     if (appLocal && appLocal.dataFim) {
       const novaData = new Date(appLocal.dataFim.getTime() + seconds * 1000);
@@ -276,20 +271,19 @@ export default function MonitoringScreen() {
     }
   };
 
-  const handleStart = () => {
-    if (!socket.current) return;
-
-    socket.current.emit("iniciar-aplicacao", { aplicacaoId: applicationId });
-
-    updateApplicationData(applicationId, {
-      estado: EstadoAplicacaoEnum.EM_ANDAMENTO,
-    });
+  // --- MUDANÇA AQUI: Inicia via API REST ---
+  const handleStart = async () => {
+    await updateApplicationStatus(
+      applicationId,
+      EstadoAplicacaoEnum.EM_ANDAMENTO
+    );
   };
+  // -----------------------------------------
 
   const handleTogglePause = () => {
     if (!socket.current) return;
-    const currentApp = getApplicationById(applicationId);
 
+    const currentApp = getApplicationById(applicationId);
     if (currentApp?.estado === EstadoAplicacaoEnum.CRIADA) {
       return;
     }
@@ -342,7 +336,7 @@ export default function MonitoringScreen() {
     router.push({
       pathname: "/resultado/[submissionId]",
       params: { submissionId: aluno.submissaoId, applicationId: applicationId },
-    });
+    } as any);
   };
 
   if (!aplicacao || isLoading) {
@@ -383,6 +377,13 @@ export default function MonitoringScreen() {
           onStart={handleStart}
         />
 
+        <View className="mb-4">
+          <Text className="text-gray-500 text-xs font-bold uppercase mb-2">
+            Controle de Acesso
+          </Text>
+          <ReleaseControl aplicacao={aplicacao} />
+        </View>
+
         <MonitoringTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -409,7 +410,6 @@ export default function MonitoringScreen() {
         ) : (
           <ActivityFeed atividades={activityFeed} />
         )}
-
         <View className="h-8" />
       </ScrollView>
     </SafeAreaView>

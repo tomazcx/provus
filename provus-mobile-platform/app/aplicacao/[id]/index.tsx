@@ -16,10 +16,13 @@ import {
   BarChart3,
   Settings,
   Trash2,
+  Info,
 } from "lucide-react-native";
-
 import { useApplicationsStore } from "../../../stores/applicationsStore";
 import OverviewStats from "../../../components/OverviewStats";
+import ReleaseControl from "../../../components/ReleaseControl";
+import ViolationsList from "../../../components/ViolationsList";
+import ConfigDetailsModal from "../../../components/ConfigDetailsModal";
 import { stripHtml } from "../../../utils/stripHtml";
 import { useToast } from "../../../hooks/useToast";
 import { EstadoAplicacaoEnum } from "../../../enums/EstadoAplicacaoEnum";
@@ -28,9 +31,7 @@ export default function ApplicationDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const toast = useToast();
-
   const appId = parseInt(Array.isArray(id) ? id[0] : id || "0", 10);
-
   const {
     getApplicationById,
     reopenApplication,
@@ -42,12 +43,12 @@ export default function ApplicationDetailsScreen() {
 
   const application = getApplicationById(appId);
   const [refreshing, setRefreshing] = useState(false);
+  const [isConfigModalVisible, setConfigModalVisible] = useState(false);
 
   const isFinished =
     application?.estado === EstadoAplicacaoEnum.FINALIZADA ||
     application?.estado === EstadoAplicacaoEnum.CONCLUIDA;
   const isCanceled = application?.estado === EstadoAplicacaoEnum.CANCELADA;
-
   const isInitialLoad = !application;
 
   useEffect(() => {
@@ -155,13 +156,12 @@ export default function ApplicationDetailsScreen() {
       </View>
     );
   }
+
   if (!application) return null;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
-
-      {/* Header Navegação */}
       <View className="px-4 py-3 flex-row items-center bg-white border-b border-gray-200">
         <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2">
           <ArrowLeft size={24} color="#374151" />
@@ -193,19 +193,30 @@ export default function ApplicationDetailsScreen() {
           >
             {stripHtml(application.avaliacao.titulo)}
           </Text>
-          <View className="flex-row items-center gap-2">
-            <Text className="text-xs text-gray-500">Status:</Text>
-            <Text
-              className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                isFinished || isCanceled
-                  ? "bg-red-100 text-red-600"
-                  : "bg-green-100 text-green-600"
-              }`}
+          <View className="flex-row items-center justify-between mt-2">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-xs text-gray-500">Status:</Text>
+              <Text
+                className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  isFinished || isCanceled
+                    ? "bg-red-100 text-red-600"
+                    : "bg-green-100 text-green-600"
+                }`}
+              >
+                {application.estado}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setConfigModalVisible(true)}
+              className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full"
             >
-              {application.estado}
-            </Text>
+              <Info size={14} color="#004e8c" className="mr-1" />
+              <Text className="text-xs font-bold text-primary">Ver Regras</Text>
+            </TouchableOpacity>
           </View>
         </View>
+
+        <ReleaseControl aplicacao={application} />
 
         <View className="flex-row gap-3 mb-6">
           {isFinished || isCanceled ? (
@@ -253,11 +264,13 @@ export default function ApplicationDetailsScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Estatísticas */}
+        <Text className="text-lg font-bold text-gray-900 mb-3">
+          Resumo da Aplicação
+        </Text>
         {application.stats ? (
           <OverviewStats stats={application.stats} />
         ) : (
-          <View className="py-6 items-center justify-center bg-white rounded-xl border border-gray-200 border-dashed">
+          <View className="py-6 items-center justify-center bg-white rounded-xl border border-gray-200 border-dashed mb-6">
             {isLoading && !refreshing ? (
               <ActivityIndicator size="small" color="#9ca3af" />
             ) : (
@@ -268,6 +281,20 @@ export default function ApplicationDetailsScreen() {
               </Text>
             )}
           </View>
+        )}
+
+        {application.violations && (
+          <ViolationsList violations={application.violations} />
+        )}
+
+        <View className="h-10" />
+
+        {application.configuracao && (
+          <ConfigDetailsModal
+            visible={isConfigModalVisible}
+            onClose={() => setConfigModalVisible(false)}
+            config={application.configuracao}
+          />
         )}
       </ScrollView>
     </SafeAreaView>

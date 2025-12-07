@@ -5,6 +5,14 @@ import { MonitoramentoInicialResponseDto } from "../types/api/response/Monitoram
 import { EstadoSubmissaoEnum } from "../enums/EstadoSubmissaoEnum";
 import { TipoAtividadeEnum } from "../enums/TipoAtividadeEnum";
 import Toast from "react-native-toast-message";
+import { useApplicationsStore } from "./applicationsStore";
+
+// Interface do Payload do WebSocket
+interface ConfiguracaoLiberacaoPayload {
+  aplicacaoId: number;
+  mostrarPontuacao: boolean;
+  permitirRevisao: boolean;
+}
 
 interface MonitoringState {
   studentProgress: IProgressoAluno[];
@@ -12,13 +20,11 @@ interface MonitoringState {
   isLoading: boolean;
   currentApplicationId: number | null;
   listenersInitialized: boolean;
-
   fetchMonitoringData: (applicationId: number) => Promise<void>;
   confirmarCodigo: (
     submissaoId: number,
     codigoEntrega: number
   ) => Promise<boolean>;
-
   addActivityLog: (
     tipo: TipoAtividadeEnum,
     alunoNome: string,
@@ -36,9 +42,8 @@ interface MonitoringState {
   ) => void;
   incrementStudentAlerts: (submissaoId: number) => void;
   resetState: () => void;
-
-  initializeWebSocketListeners: () => void;
-  clearWebSocketListeners: () => void;
+  initializeWebSocketListeners: (socketInstance: any) => void;
+  clearWebSocketListeners: (socketInstance: any) => void;
 }
 
 export const useMonitoringStore = create<MonitoringState>((set, get) => ({
@@ -54,9 +59,7 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
       const response = await api.get<MonitoramentoInicialResponseDto>(
         `/backoffice/aplicacao/${applicationId}/monitoramento-inicial`
       );
-
       const data = response.data;
-
       const mappedAlunos: IProgressoAluno[] = data.alunos.map((dto) => ({
         submissaoId: dto.submissaoId,
         aluno: {
@@ -86,7 +89,6 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
 
   confirmarCodigo: async (submissaoId, codigoEntrega) => {
     const { currentApplicationId } = get();
-
     if (!currentApplicationId) return false;
 
     try {
@@ -107,16 +109,10 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
         position: "top",
         topOffset: 60,
       });
-
       return true;
     } catch (error: any) {
       const status = error.response?.status;
-      if (status !== 400 && status !== 422) {
-        console.error("Erro crítico ao confirmar código:", error);
-      }
-
       let mensagemErro = "Não foi possível confirmar o código.";
-
       if (status === 400 || status === 422) {
         mensagemErro = "Código incorreto. Verifique e tente novamente.";
       }
@@ -128,7 +124,6 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
         position: "top",
         topOffset: 60,
       });
-
       return false;
     }
   },
@@ -190,6 +185,37 @@ export const useMonitoringStore = create<MonitoringState>((set, get) => ({
       listenersInitialized: false,
     }),
 
-  initializeWebSocketListeners: () => {},
-  clearWebSocketListeners: () => {},
+  initializeWebSocketListeners: (socketInstance: any) => {
+    if (!socketInstance) return;
+
+    socketInstance.off("configuracao-liberacao-atualizada");
+
+    socketInstance.on(
+      "configuracao-liberacao-atualizada",
+      (data: ConfiguracaoLiberacaoPayload) => {
+        const { currentApplicationId } = get();
+        if (currentApplicationId === data.aplicacaoId) {
+          useApplicationsStore.getState().updateLocalConfig(data.aplicacaoId, {
+            mostrarPontuacao: data.mostrarPontuacao,
+            permitirRevisao: data.permitirRevisao,
+          });
+
+          Toast.show({
+            type: "info",
+            text1: "Configuração Atualizada",
+            text2: "Permissões de visualização alteradas.",
+          });
+        }
+      }
+    );
+
+    set({ listenersInitialized: true });
+  },
+
+  clearWebSocketListeners: (socketInstance: any) => {
+    if (socketInstance) {
+      socketInstance.off("configuracao-liberacao-atualizada");
+    }
+    set({ listenersInitialized: false });
+  },
 }));

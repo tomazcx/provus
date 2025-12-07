@@ -1,6 +1,7 @@
 import { EstadoAplicacaoEnum } from "../../enums/EstadoAplicacaoEnum";
 import { TipoInfracaoEnum } from "../../enums/TipoInfracaoEnum";
 import { AvaliacaoEntity } from "./Avaliacao.entity";
+import { ConfiguracoesEntity } from "./Configuracoes.entity";
 
 export interface AplicacaoStatsEntity {
   totalSubmissoes: number;
@@ -29,10 +30,9 @@ export interface AplicacaoEntity {
   dataInicio: Date;
   dataFim: Date;
   avaliacao: AvaliacaoEntity;
-
   stats?: AplicacaoStatsEntity;
   violations?: AplicacaoViolationEntity[];
-
   totalSubmissoes: number;
   mediaGeralPercentual: number | null;
+  configuracao?: ConfiguracoesEntity;
 }

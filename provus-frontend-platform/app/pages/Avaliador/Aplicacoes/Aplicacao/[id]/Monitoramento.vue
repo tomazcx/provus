@@ -23,7 +23,6 @@ const monitoringStore = useMonitoringStore();
 const applicationsStore = useApplicationsStore();
 const toast = useToast();
 const nuxtApp = useNuxtApp();
-
 const { $api } = nuxtApp;
 const $websocket = nuxtApp.$websocket as
   | ReturnType<typeof useWebSocket>
@@ -47,6 +46,16 @@ const aplicacao = computed(
   () => applicationsStore.getApplicationById(applicationId) ?? null
 );
 
+const mostrarPontuacao = computed(
+  () =>
+    aplicacao.value?.configuracao?.configuracoesGerais?.mostrarPontuacao ??
+    false
+);
+const permitirRevisao = computed(
+  () =>
+    aplicacao.value?.configuracao?.configuracoesGerais?.permitirRevisao ?? false
+);
+
 const breadcrumbs = computed(() => [
   { label: "Aplicações", to: "/aplicacoes" },
   {
@@ -59,6 +68,7 @@ const breadcrumbs = computed(() => [
 const dataFimRef = computed(
   () => aplicacao.value?.dataFim.toISOString() ?? null
 );
+
 const isApplicationActive = computed(
   () => aplicacao.value?.estado === EstadoAplicacaoEnum.EM_ANDAMENTO
 );
@@ -82,9 +92,7 @@ async function fetchApplicationIfNeeded() {
         `/backoffice/aplicacao/${applicationId}`
       );
       const entity = mapAplicacaoApiResponseToEntity(response);
-
       applicationsStore.addOrUpdateApplication(entity);
-
       console.log(
         `Monitoramento.vue: Aplicação ${applicationId} carregada da API e salva na Store.`
       );
@@ -105,6 +113,7 @@ async function fetchApplicationIfNeeded() {
   }
   return true;
 }
+
 async function fetchMonitoringDetails() {
   try {
     await monitoringStore.fetchMonitoringData(applicationId);
@@ -142,19 +151,16 @@ onMounted(async () => {
   error.value = null;
   monitoringStore.clearWebSocketListeners();
   monitoringStore.currentApplicationId = applicationId;
-
   const appLoadSuccess = await fetchApplicationIfNeeded();
   if (appLoadSuccess) {
     await fetchMonitoringDetails();
   }
-
   isLoading.value = false;
 
   if ($websocket) {
     if (!monitoringStore.listenersInitialized) {
       monitoringStore.initializeWebSocketListeners();
     }
-
     watch(
       $websocket.isConnected,
       (connected) => {
@@ -170,7 +176,6 @@ onMounted(async () => {
 onUnmounted(() => {
   console.log("Monitoramento.vue: onUnmounted.");
   monitoringStore.currentApplicationId = null;
-
   monitoringStore.clearWebSocketListeners();
 });
 
@@ -266,9 +271,11 @@ function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
     EstadoSubmissaoEnum.ABANDONADA,
     EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
   ];
+
   if (estadosFinaisOuInativos.includes(aluno.estado)) {
     return "00:00:00";
   }
+
   const penalidade = aluno.tempoPenalidadeEmSegundos || 0;
   const tempoRestanteIndividual = Math.max(
     0,
@@ -280,7 +287,6 @@ function getTempoRestanteAlunoFormatado(aluno: IProgressoAluno): string {
 function onConfirmDialog() {
   if (!aplicacao.value || !$websocket) return;
   const payload = { aplicacaoId: aplicacao.value.id };
-
   if (confirmAction.value === "finalizar") {
     console.log("Emitindo finalizar-aplicacao:", payload);
     $websocket.emit("finalizar-aplicacao", payload);
@@ -297,6 +303,22 @@ function handleViewSubmission(aluno: IProgressoAluno) {
     `/aplicacoes/aplicacao/${applicationId}/resultados/${aluno.submissaoId}`
   );
 }
+
+async function togglePontuacao() {
+  if (!aplicacao.value) return;
+  const novoValor = !mostrarPontuacao.value;
+  await applicationsStore.updateReleaseConfig(applicationId, {
+    mostrarPontuacao: novoValor,
+  });
+}
+
+async function toggleRevisao() {
+  if (!aplicacao.value) return;
+  const novoValor = !permitirRevisao.value;
+  await applicationsStore.updateReleaseConfig(applicationId, {
+    permitirRevisao: novoValor,
+  });
+}
 </script>
 
 <template>
@@ -311,6 +333,7 @@ function handleViewSubmission(aluno: IProgressoAluno) {
       </p>
     </div>
   </div>
+
   <div
     v-else-if="error"
     class="flex flex-col items-center justify-center min-h-[50vh] p-4"
@@ -331,16 +354,61 @@ function handleViewSubmission(aluno: IProgressoAluno) {
   <div v-else-if="aplicacao && modeloDaAplicacao">
     <Breadcrumbs :items="breadcrumbs" />
 
-    <MonitoringHeader
-      :aplicacao="aplicacao"
-      :timer="tempoRestanteFormatado"
-      @ajustar-tempo="ajustarTempo"
-      @finalizar="handleFinalizar"
-      @pausar="handlePausar"
-      @retomar="handleRetomar"
-      @reiniciar="handleReiniciar"
-    />
+    <div
+      class="flex flex-col md:flex-row items-center justify-between gap-4 mb-6"
+    >
+      <MonitoringHeader
+        class="flex-1 w-full !mb-0"
+        :aplicacao="aplicacao"
+        :timer="tempoRestanteFormatado"
+        @ajustar-tempo="ajustarTempo"
+        @finalizar="handleFinalizar"
+        @pausar="handlePausar"
+        @retomar="handleRetomar"
+        @reiniciar="handleReiniciar"
+      />
+
+      <div class="flex gap-3 flex-col shrink-0 w-full md:w-auto">
+        <UTooltip
+          :text="
+            mostrarPontuacao
+              ? 'Ocultar notas dos alunos'
+              : 'Liberar notas para os alunos'
+          "
+        >
+          <UButton
+            :color="mostrarPontuacao ? 'secondary' : 'primary'"
+            :variant="mostrarPontuacao ? 'solid' : 'soft'"
+            :icon="mostrarPontuacao ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+            class="shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 w-full md:w-auto justify-center"
+            @click="togglePontuacao"
+          >
+            {{ mostrarPontuacao ? "Notas Visíveis" : "Notas Ocultas" }}
+          </UButton>
+        </UTooltip>
+
+        <UTooltip
+          :text="
+            permitirRevisao
+              ? 'Bloquear acesso à revisão'
+              : 'Liberar acesso à revisão'
+          "
+        >
+          <UButton
+            :color="permitirRevisao ? 'secondary' : 'primary'"
+            :variant="permitirRevisao ? 'solid' : 'soft'"
+            :icon="permitirRevisao ? 'i-lucide-file-check' : 'i-lucide-lock'"
+            class="shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 w-full md:w-auto justify-center"
+            @click="toggleRevisao"
+          >
+            {{ permitirRevisao ? "Revisão Liberada" : "Revisão Bloqueada" }}
+          </UButton>
+        </UTooltip>
+      </div>
+    </div>
+
     <MonitoringStats :progresso-alunos="studentProgress" />
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2">
         <StudentProgressGrid
@@ -351,6 +419,7 @@ function handleViewSubmission(aluno: IProgressoAluno) {
       </div>
       <div><ActivityFeed :atividades="activityFeed" /></div>
     </div>
+
     <ConfirmationDialog
       v-model="isConfirmOpen"
       :title="confirmTitle"
@@ -360,6 +429,7 @@ function handleViewSubmission(aluno: IProgressoAluno) {
       @confirm="onConfirmDialog"
     />
   </div>
+
   <div v-else class="flex items-center justify-center min-h-[50vh]">
     <UAlert
       icon="i-lucide-search-x"

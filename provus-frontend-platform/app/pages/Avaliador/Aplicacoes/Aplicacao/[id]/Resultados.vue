@@ -85,7 +85,7 @@ async function toggleRevisao() {
     <Breadcrumbs :items="breadcrumbs" />
 
     <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8"
+      class="flex flex-col md:flex-row justify-between items-center md:items-center gap-4 mb-8"
     >
       <div class="flex-1 min-w-0">
         <Header
