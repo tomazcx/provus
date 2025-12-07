@@ -1,3 +1,4 @@
+// FILE: /home/italo/provus/provus-backend-platform/src/gateway/gateways/submissao.gateway.ts
 import {
   WebSocketGateway,
   OnGatewayConnection,
@@ -18,7 +19,8 @@ import {
 import EstadoSubmissaoEnum from 'src/enums/estado-submissao.enum';
 import { SubmissaoModel } from 'src/database/config/models/submissao.model';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+import { In } from 'typeorm';
 import { PunicaoPorOcorrenciaMessage } from '../messages/punicao-por-ocorrencia.message';
 import { SubmissaoService } from 'src/services/submissao.service';
 import { NotificationProvider } from 'src/providers/notification.provider';
@@ -59,6 +61,7 @@ export class SubmissaoGateway
 {
   @WebSocketServer()
   server: Server;
+
   private readonly logger = new Logger(SubmissaoGateway.name);
   private readonly connectedClients = new Map<
     string,
@@ -159,11 +162,9 @@ export class SubmissaoGateway
 
       if (sessaoAnteriorIndex !== -1) {
         const sessaoAnterior = connections[sessaoAnteriorIndex];
-
         this.logger.warn(
           `[CONEXÃO SUBSTITUÍDA] Aluno ${emailAluno} conectou novamente. Derrubando socket anterior: ${sessaoAnterior.clientId}`,
         );
-
         const oldSocket = this.server.sockets.sockets.get(
           sessaoAnterior.clientId,
         );
@@ -174,8 +175,6 @@ export class SubmissaoGateway
           });
           oldSocket.disconnect();
         }
-
-        // Remove a sessão antiga da lista
         connections.splice(sessaoAnteriorIndex, 1);
       }
 
@@ -187,7 +186,6 @@ export class SubmissaoGateway
 
       const aplicacaoId = submissaoData.aplicacao.id;
       const roomName = `aplicacao_${aplicacaoId}`;
-
       await client.join(roomName);
 
       this.logger.log(
@@ -260,7 +258,6 @@ export class SubmissaoGateway
     this.logger.debug(
       `[DEPURAÇÃO] Evento 'registrar-punicao-por-ocorrencia' RECEBIDO. Cliente: ${client.id}, Infração: ${data?.tipoInfracao}`,
     );
-
     if (!data || !data.tipoInfracao) {
       this.logger.warn(
         `[DEPURAÇÃO] Mensagem inválida: ${JSON.stringify(data)} - Aluno: ${
@@ -271,6 +268,7 @@ export class SubmissaoGateway
     }
 
     const hash = this.clientsHash.get(client.id);
+
     if (!hash) {
       this.logger.warn(
         `[DEPURAÇÃO] Hash não encontrado para o aluno: ${client.id}`,
@@ -279,6 +277,7 @@ export class SubmissaoGateway
     }
 
     const connections = this.connectedClients.get(hash);
+
     if (!connections) {
       this.logger.warn(
         `[DEPURAÇÃO] Conexões não encontradas para o hash: ${hash} - Aluno: ${
@@ -308,7 +307,6 @@ export class SubmissaoGateway
             penalidade: registroPunicao.tipoPenalidade,
             pontuacaoPerdida: registroPunicao.pontuacaoPerdida,
           };
-
           this.emitAlertaEstudante(client, payloadAlerta);
 
           switch (registroPunicao.tipoPenalidade) {
@@ -317,13 +315,11 @@ export class SubmissaoGateway
                 pontosPerdidos: registroPunicao.pontuacaoPerdida,
               });
               break;
-
             case TipoPenalidadeEnum.REDUZIR_TEMPO:
               this.emitReduzirTempoAluno(client, {
                 tempoReduzido: registroPunicao.tempoReduzido,
               });
               break;
-
             case TipoPenalidadeEnum.ENCERRAR_AVALIACAO: {
               this.emitSubmissaoCancelada(client, {
                 tipoInfracao: registroPunicao.tipoInfracao,
@@ -349,11 +345,14 @@ export class SubmissaoGateway
                 const avaliadorId =
                   submissaoAtualizada.aplicacao.avaliacao.item.avaliador.id;
 
+                const aplicacaoId = submissaoAtualizada.aplicacao.id;
+                const alunoNome = submissaoAtualizada.estudante.nome;
+
                 const payloadProfessor = {
                   submissaoId: submissaoAtualizada.id,
-                  aplicacaoId: submissaoAtualizada.aplicacao.id,
+                  aplicacaoId,
                   estado: EstadoSubmissaoEnum.CANCELADA,
-                  alunoNome: submissaoAtualizada.estudante.nome,
+                  alunoNome,
                   timestamp: new Date().toISOString(),
                 };
 
@@ -362,7 +361,6 @@ export class SubmissaoGateway
                   'submissao-finalizada',
                   payloadProfessor,
                 );
-
                 this.logger.log(
                   `[FIX] Notificação de cancelamento enviada ao professor ${avaliadorId} para submissão ${submissaoAtualizada.id}`,
                 );
@@ -389,6 +387,7 @@ export class SubmissaoGateway
     this.logger.log(`Aluno desconectado: ${clientId}`);
 
     const hash = this.clientsHash.get(clientId);
+
     if (!hash) {
       this.logger.log(
         `Cliente desconectado ${clientId} não possuía hash associado (provavelmente falhou na conexão inicial).`,
@@ -399,6 +398,7 @@ export class SubmissaoGateway
     this.clientsHash.delete(clientId);
 
     const connections = this.connectedClients.get(hash);
+
     if (!connections) {
       this.logger.warn(
         `Hash ${hash} encontrado para ${clientId}, mas não havia lista de conexões no mapa principal.`,
@@ -440,19 +440,27 @@ export class SubmissaoGateway
               EstadoSubmissaoEnum.AVALIADA,
               EstadoSubmissaoEnum.ENCERRADA,
               EstadoSubmissaoEnum.CANCELADA,
+              EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
+              EstadoSubmissaoEnum.ABANDONADA,
             ];
+
             if (!estadosFinais.includes(submissao.estado)) {
+              submissao.estado = EstadoSubmissaoEnum.ABANDONADA;
+              await this.submissaoRepository.save(submissao);
+
               const avaliadorId =
                 submissao.aplicacao.avaliacao.item.avaliador.id;
               const aplicacaoId = submissao.aplicacao.id;
               const alunoNome =
                 submissao.estudante?.nome ?? connectionData.estudanteEmail;
+
               const payload: AlunoSaiuPayload = {
                 submissaoId: submissao.id,
                 aplicacaoId: aplicacaoId,
                 alunoNome: alunoNome,
                 timestamp: new Date().toISOString(),
               };
+
               this.notificationProvider.sendNotificationViaSocket(
                 avaliadorId,
                 'aluno-saiu',
@@ -496,7 +504,6 @@ export class SubmissaoGateway
       this.server
         .to(roomAplicacao)
         .emit('configuracao-liberacao-atualizada', payload);
-
       this.logger.log(
         `Evento 'configuracao-liberacao-atualizada' emitido para sala ${roomAplicacao}. Pontuação: ${payload.mostrarPontuacao}, Revisão: ${payload.permitirRevisao}`,
       );
@@ -546,13 +553,16 @@ export class SubmissaoGateway
         payload,
       )}`,
     );
+
     const hash = this.clientsHash.get(client.id);
+
     if (!hash) {
       this.logger.warn(
         `Hash não encontrado para o cliente ${client.id} ao atualizar progresso.`,
       );
       return;
     }
+
     try {
       const submissao = await this.submissaoRepository.findOne({
         where: {
@@ -570,20 +580,24 @@ export class SubmissaoGateway
           'respostas',
         ],
       });
+
       if (!submissao || !submissao.aplicacao?.avaliacao?.item?.avaliador?.id) {
         this.logger.warn(
           `Submissão ativa ou avaliador não encontrado para hash ${hash} ao processar progresso.`,
         );
         return;
       }
+
       const aplicacaoId = submissao.aplicacao.id;
       const avaliadorId = submissao.aplicacao.avaliacao.item.avaliador.id;
+
       const progressoPercentual =
         payload.totalQuestoes > 0
           ? Math.round(
               (payload.questoesRespondidas / payload.totalQuestoes) * 100,
             )
           : 0;
+
       const progressoPayloadParaAvaliador = {
         submissaoId: submissao.id,
         progresso: progressoPercentual,
@@ -591,11 +605,13 @@ export class SubmissaoGateway
         timestamp: payload.timestamp,
         aplicacaoId: aplicacaoId,
       };
+
       this.notificationProvider.sendNotificationViaSocket(
         avaliadorId,
         'progresso-atualizado',
         progressoPayloadParaAvaliador,
       );
+
       this.logger.debug(
         `Progresso ${progressoPercentual}% (Questões: ${payload.questoesRespondidas}/${payload.totalQuestoes}) da submissão ${submissao.id} enviado para avaliador ${avaliadorId}`,
       );
@@ -619,6 +635,7 @@ export class SubmissaoGateway
       const result = this.server
         .to(roomAplicacao)
         .emit('tempo-ajustado', payload);
+
       if (result) {
         this.logger.log(
           `Evento 'tempo-ajustado' emitido para sala ${roomAplicacao} no namespace /submissao`,
