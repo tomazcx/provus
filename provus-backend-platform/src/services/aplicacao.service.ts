@@ -560,16 +560,14 @@ export class AplicacaoService {
         await manager.delete(SubmissaoModel, { id: In(submissaoIds) });
       }
 
-      await manager.delete(AplicacaoModel, { id: id });
+      let configAvaliacaoId: number | null = null;
+      let avaliacaoIdToDelete: number | null = null;
 
       if (aplicacao.avaliacao && aplicacao.avaliacao.isModelo === false) {
-        const avaliacaoId = aplicacao.avaliacao.id;
-
-        await manager.delete(QuestoesAvaliacoesModel, { avaliacaoId });
-        await manager.delete(ArquivosAvaliacoesModel, { avaliacaoId });
+        avaliacaoIdToDelete = aplicacao.avaliacao.id;
 
         const avaliacaoCompleta = await manager.findOne(AvaliacaoModel, {
-          where: { id: avaliacaoId },
+          where: { id: avaliacaoIdToDelete },
           relations: [
             'configuracaoAvaliacao',
             'configuracaoAvaliacao.configuracoesGerais',
@@ -577,60 +575,77 @@ export class AplicacaoService {
           ],
         });
 
-        await manager.delete(AvaliacaoModel, { id: avaliacaoId });
-
         if (avaliacaoCompleta?.configuracaoAvaliacao) {
-          const config = avaliacaoCompleta.configuracaoAvaliacao;
-          const configGeraisId = config.configuracoesGerais?.id;
-          const configSegurancaId = config.configuracoesSeguranca?.id;
+          configAvaliacaoId = avaliacaoCompleta.configuracaoAvaliacao.id;
+        }
 
-          if (configGeraisId) {
-            const configuracoesRandomizacao = await manager.find(
-              ConfiguracoesRandomizacaoModel,
+        await manager.update(
+          AvaliacaoModel,
+          { id: avaliacaoIdToDelete },
+          { configuracaoAvaliacao: null },
+        );
+        await manager.update(
+          AplicacaoModel,
+          { id: id },
+          { configuracao: null },
+        );
+      }
+
+      await manager.delete(AplicacaoModel, { id: id });
+
+      if (avaliacaoIdToDelete) {
+        await manager.delete(QuestoesAvaliacoesModel, {
+          avaliacaoId: avaliacaoIdToDelete,
+        });
+        await manager.delete(ArquivosAvaliacoesModel, {
+          avaliacaoId: avaliacaoIdToDelete,
+        });
+
+        await manager.delete(AvaliacaoModel, { id: avaliacaoIdToDelete });
+
+        if (configAvaliacaoId) {
+          const configFull = await manager.findOne(ConfiguracaoAvaliacaoModel, {
+            where: { id: configAvaliacaoId },
+            relations: ['configuracoesGerais', 'configuracoesSeguranca'],
+          });
+
+          if (configFull) {
+            await manager.update(
+              ConfiguracaoAvaliacaoModel,
+              { id: configAvaliacaoId },
               {
-                where: { configuracoesGerais: { id: configGeraisId } },
-                relations: ['poolDeQuestoes'],
+                configuracoesGerais: null,
+                configuracoesSeguranca: null,
               },
             );
 
-            for (const configRandomizacao of configuracoesRandomizacao) {
-              if (
-                configRandomizacao.poolDeQuestoes &&
-                configRandomizacao.poolDeQuestoes.length > 0
-              ) {
-                configRandomizacao.poolDeQuestoes = [];
-                await manager.save(configRandomizacao);
-              }
+            await manager.delete(ConfiguracaoAvaliacaoModel, {
+              id: configAvaliacaoId,
+            });
+
+            if (configFull.configuracoesGerais) {
+              await manager.delete(ConfiguracoesRandomizacaoModel, {
+                configuracoesGerais: { id: configFull.configuracoesGerais.id },
+              });
+              await manager.delete(ConfiguracoesGeraisModel, {
+                id: configFull.configuracoesGerais.id,
+              });
             }
-            await manager.delete(ConfiguracoesRandomizacaoModel, {
-              configuracoesGerais: { id: configGeraisId },
-            });
-          }
 
-          if (configSegurancaId) {
-            await manager.delete(PunicaoPorOcorrenciaModel, {
-              configuracoesSegurancaId: configSegurancaId,
-            });
-          }
-
-          await manager.delete(ConfiguracaoAvaliacaoModel, {
-            id: config.id,
-          });
-
-          if (configGeraisId) {
-            await manager.delete(ConfiguracoesGeraisModel, {
-              id: configGeraisId,
-            });
-          }
-
-          if (configSegurancaId) {
-            await manager.delete(ConfiguracoesSegurancaModel, {
-              id: configSegurancaId,
-            });
+            if (configFull.configuracoesSeguranca) {
+              await manager.delete(PunicaoPorOcorrenciaModel, {
+                configuracoesSegurancaId: configFull.configuracoesSeguranca.id,
+              });
+              await manager.delete(ConfiguracoesSegurancaModel, {
+                id: configFull.configuracoesSeguranca.id,
+              });
+            }
           }
         }
 
-        await manager.delete(ItemSistemaArquivosModel, { id: avaliacaoId });
+        await manager.delete(ItemSistemaArquivosModel, {
+          id: avaliacaoIdToDelete,
+        });
       }
     });
   }
