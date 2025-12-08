@@ -47,7 +47,7 @@ function setRandomizationType(newType: TipoRandomizacaoEnum | null) {
         quantidade:
           newType === TipoRandomizacaoEnum.BANCO_SIMPLES ||
           newType === TipoRandomizacaoEnum.BANCO_CONFIGURAVEL
-            ? 10
+            ? 1
             : 0,
         questoes: [],
       },

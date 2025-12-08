@@ -211,12 +211,17 @@ function toggleCorrect(alternative: AlternativaEntity) {
                       ? `Afirmativa ${index + 1}...`
                       : `Texto da alternativa ${index + 1}...`
                   "
+                  min-height="min-h-[40px]"
                 />
               </div>
 
               <div class="flex flex-col gap-2 pt-1">
                 <UTooltip
-                  :text="alt.isCorreto ? 'Alternativa Correta' : 'Marcar como Correta'"
+                  :text="
+                    alt.isCorreto
+                      ? 'Alternativa Correta'
+                      : 'Marcar como Correta'
+                  "
                 >
                   <UButton
                     icon="i-heroicons-check-circle-20-solid"
@@ -226,7 +231,7 @@ function toggleCorrect(alternative: AlternativaEntity) {
                     @click="toggleCorrect(alt)"
                   />
                 </UTooltip>
-                
+
                 <UTooltip text="Remover Alternativa">
                   <UButton
                     variant="ghost"
@@ -241,7 +246,7 @@ function toggleCorrect(alternative: AlternativaEntity) {
                 </UTooltip>
               </div>
             </div>
-            
+
             <UButton
               variant="link"
               icon="i-lucide-plus"
@@ -285,7 +290,9 @@ function toggleCorrect(alternative: AlternativaEntity) {
           class="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm space-y-4"
         >
           <div class="border-b pb-2 mb-2">
-            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Título</h4>
+            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">
+              Título
+            </h4>
             <div v-if="form.titulo">
               <RichTextEditor :model-value="form.titulo" disabled />
             </div>
@@ -293,13 +300,13 @@ function toggleCorrect(alternative: AlternativaEntity) {
           </div>
 
           <div>
-            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Descrição</h4>
+            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">
+              Descrição
+            </h4>
             <div v-if="form.descricao">
               <RichTextEditor :model-value="form.descricao" disabled />
             </div>
-            <p v-else class="text-gray-400 italic">
-              Sem descrição...
-            </p>
+            <p v-else class="text-gray-400 italic">Sem descrição...</p>
           </div>
 
           <div v-if="isFreeText">
@@ -339,15 +346,17 @@ function toggleCorrect(alternative: AlternativaEntity) {
                   class="w-4 h-4 text-white"
                 />
               </div>
-              
+
               <div class="flex-1 min-w-0">
-                 <RichTextEditor 
-                    v-if="alt.descricao" 
-                    :model-value="alt.descricao" 
-                    disabled 
-                    class="!p-0 !bg-transparent" 
-                  />
-                 <span v-else class="italic text-gray-400">Alternativa vazia...</span>
+                <RichTextEditor
+                  v-if="alt.descricao"
+                  :model-value="alt.descricao"
+                  disabled
+                  class="!p-0 !bg-transparent"
+                />
+                <span v-else class="italic text-gray-400"
+                  >Alternativa vazia...</span
+                >
               </div>
             </label>
           </div>
