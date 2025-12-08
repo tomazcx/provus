@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, FlatList } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { ShieldAlert, AlertTriangle, Copy } from "lucide-react-native";
 import { AplicacaoViolationEntity } from "../types/entities/Aplicacao.entity";
 import { TipoInfracaoEnum } from "../enums/TipoInfracaoEnum";
@@ -38,7 +38,7 @@ export default function ViolationsList({ violations }: Props) {
     }
   };
 
-  const renderItem = ({ item }: { item: AplicacaoViolationEntity }) => {
+  const renderViolation = (item: AplicacaoViolationEntity) => {
     const visuals = getInfractionVisuals(item.tipoInfracao);
     const IconComponent = visuals.icon;
     const time = new Date(item.timestamp).toLocaleTimeString("pt-BR", {
@@ -47,7 +47,10 @@ export default function ViolationsList({ violations }: Props) {
     });
 
     return (
-      <View className="flex-row items-center bg-white p-3 rounded-lg border border-gray-100 mb-2">
+      <View
+        key={item.id}
+        className="flex-row items-center bg-white p-3 rounded-lg border border-gray-100 mb-2"
+      >
         <View
           className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${visuals.bg}`}
         >
@@ -84,15 +87,14 @@ export default function ViolationsList({ violations }: Props) {
           Infrações ({violations.length})
         </Text>
       </View>
-      <View className="max-h-60">
-        <FlatList
-          data={violations}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          nestedScrollEnabled
-          showsVerticalScrollIndicator={true}
-        />
-      </View>
+
+      <ScrollView
+        className="max-h-60"
+        nestedScrollEnabled={true}
+        showsVerticalScrollIndicator={true}
+      >
+        {violations.map((violation) => renderViolation(violation))}
+      </ScrollView>
     </View>
   );
 }
