@@ -312,11 +312,27 @@ async function submit() {
         color: "warning",
         icon: "i-lucide-clock-alert",
       });
+
+      return;
     }
   }
 
   isSubmitConfirmOpen.value = true;
 }
+
+watch(showFullscreenBlocker, (isBlocked) => {
+  if (isBlocked) {
+    if (isSubmitConfirmOpen.value) {
+      console.log(
+        "Fechando modal de entrega devido à perda de foco/tela cheia."
+      );
+      isSubmitConfirmOpen.value = false;
+    }
+    if (isMaterialsOpen.value) {
+      isMaterialsOpen.value = false;
+    }
+  }
+});
 
 async function onConfirmSubmit() {
   isExitingForSubmission.value = true;
