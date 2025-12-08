@@ -92,6 +92,7 @@ export class AplicacaoService {
       EstadoSubmissaoEnum.ENVIADA,
       EstadoSubmissaoEnum.AVALIADA,
       EstadoSubmissaoEnum.ENCERRADA,
+      EstadoSubmissaoEnum.CODIGO_CONFIRMADO,
     ];
 
     const statsQuery = this.submissaoRepository

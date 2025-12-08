@@ -61,7 +61,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
   const rootFolderId = ref<number | null>(null);
   const isInitialized = ref(false);
   const pendingGenerations = ref(0);
-
+  const rootFolderTitle = ref<string>("");
   const isSocketListening = ref(false);
 
   const currentFolderId = computed(
@@ -105,6 +105,7 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
       }
 
       rootFolderId.value = bancoDeQuestoes.pastaId;
+      rootFolderTitle.value = bancoDeQuestoes.titulo;
       breadcrumbs.value = [
         { id: bancoDeQuestoes.pastaId, titulo: bancoDeQuestoes.titulo },
       ];
@@ -118,6 +119,19 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  async function resetNavigation() {
+    if (!rootFolderId.value) return;
+
+    breadcrumbs.value = [
+      {
+        id: rootFolderId.value,
+        titulo: rootFolderTitle.value || "Banco de Questões",
+      },
+    ];
+
+    await fetchFolderContent(rootFolderId.value);
   }
 
   async function startFileGenerationStream(
@@ -432,5 +446,6 @@ export const useQuestionBankStore = defineStore("questionBank", () => {
     initializeWebSocket,
     cleanupWebSocket,
     startFileGenerationStream,
+    resetNavigation
   };
 });

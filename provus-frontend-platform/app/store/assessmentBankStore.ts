@@ -70,6 +70,7 @@ export const useExamBankStore = defineStore("examBank", () => {
   const { $api } = useNuxtApp();
   const toast = useToast();
 
+  const rootFolderTitle = ref<string>("");
   const items = ref<(AvaliacaoEntity | FolderEntity)[]>([]);
   const breadcrumbs = ref<{ id: number; titulo: string }[]>([]);
   const isLoading = ref(false);
@@ -91,7 +92,14 @@ export const useExamBankStore = defineStore("examBank", () => {
       const response = await $api<
         (AvaliacaoListItemApiResponse | ItemSistemaArquivosApiResponse)[]
       >(endpoint);
-      items.value = response.map(mapListApiResponseToEntity);
+
+      const filteredResponse = response.filter(
+        (item) =>
+          item.tipo === TipoItemEnum.AVALIACAO ||
+          item.tipo === TipoItemEnum.PASTA
+      );
+
+      items.value = filteredResponse.map(mapListApiResponseToEntity);
     } catch {
       toast.add({ title: "Erro ao buscar avaliações", color: "error" });
     } finally {
@@ -115,6 +123,7 @@ export const useExamBankStore = defineStore("examBank", () => {
       }
 
       rootFolderId.value = bancoDeAvaliacoes.pastaId;
+      rootFolderTitle.value = bancoDeAvaliacoes.titulo;
       breadcrumbs.value = [
         { id: bancoDeAvaliacoes.pastaId, titulo: bancoDeAvaliacoes.titulo },
       ];
@@ -128,6 +137,17 @@ export const useExamBankStore = defineStore("examBank", () => {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  async function resetNavigation() {
+    if (!rootFolderId.value) return;
+    breadcrumbs.value = [
+      {
+        id: rootFolderId.value,
+        titulo: rootFolderTitle.value || "Banco de Avaliações",
+      },
+    ];
+    await fetchFolderContent(rootFolderId.value);
   }
 
   async function refreshCurrentFolder() {
@@ -322,6 +342,7 @@ export const useExamBankStore = defineStore("examBank", () => {
     updateItem,
     deleteItem,
     getItemById,
-    fetchFolderContent
+    fetchFolderContent,
+    resetNavigation,
   };
 });

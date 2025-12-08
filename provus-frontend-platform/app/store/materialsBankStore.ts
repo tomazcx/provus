@@ -47,6 +47,7 @@ export const useMaterialsBankStore = defineStore("materialsBank", () => {
   const { $api } = useNuxtApp();
   const toast = useToast();
 
+  const rootFolderTitle = ref<string>("");
   const items = ref<(ArquivoEntity | FolderEntity)[]>([]);
   const breadcrumbs = ref<{ id: number; titulo: string }[]>([]);
   const isLoading = ref(false);
@@ -93,6 +94,7 @@ export const useMaterialsBankStore = defineStore("materialsBank", () => {
       }
 
       rootFolderId.value = bancoDeMateriais.pastaId;
+      rootFolderTitle.value = bancoDeMateriais.titulo;
       breadcrumbs.value = [
         { id: bancoDeMateriais.pastaId, titulo: bancoDeMateriais.titulo },
       ];
@@ -106,6 +108,17 @@ export const useMaterialsBankStore = defineStore("materialsBank", () => {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  async function resetNavigation() {
+    if (!rootFolderId.value) return;
+    breadcrumbs.value = [
+      {
+        id: rootFolderId.value,
+        titulo: rootFolderTitle.value || "Banco de Materiais",
+      },
+    ];
+    await fetchFolderContent(rootFolderId.value);
   }
 
   async function refreshCurrentFolder() {
@@ -203,5 +216,6 @@ export const useMaterialsBankStore = defineStore("materialsBank", () => {
     createFile,
     updateItem,
     deleteItem,
+    resetNavigation
   };
 });

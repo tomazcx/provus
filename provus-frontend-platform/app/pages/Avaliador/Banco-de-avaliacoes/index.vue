@@ -1,5 +1,12 @@
 <script setup lang="ts">
 import ExamBankContent from "@/components/BancoDeAvaliacoes/ExamBankContent/index.vue";
+import { useExamBankStore } from "~/store/assessmentBankStore";
+
+const examBankStore = useExamBankStore();
+
+onUnmounted(() => {
+  examBankStore.resetNavigation();
+});
 
 const pageTitle = "Banco de Avaliações";
 </script>

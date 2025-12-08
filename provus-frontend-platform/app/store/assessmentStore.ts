@@ -237,9 +237,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
     initializeWebSocket();
 
     try {
-      if (assessmentState.value.paiId) {
-        payload.append("paiId", String(assessmentState.value.paiId));
-      }
       if (assessmentState.value.id) {
         payload.append("avaliacaoId", String(assessmentState.value.id));
       }
@@ -276,7 +273,6 @@ export const useAssessmentStore = defineStore("assessment", () => {
         method: "POST",
         body: {
           ...payload,
-          paiId: assessmentState.value.paiId ?? undefined,
           avaliacaoId: assessmentState.value.id,
         },
       });

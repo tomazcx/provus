@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import MaterialsBankContent from "@/components/BancoDeMateriais/MaterialsBankContent/index.vue";
-
+import { useMaterialsBankStore } from "~/store/materialsBankStore";
 
 const pageTitle = "Banco de Materiais";
+
+const materialsBankStore = useMaterialsBankStore();
+
+onUnmounted(() => {
+  materialsBankStore.resetNavigation();
+});
 </script>
 
 <template>

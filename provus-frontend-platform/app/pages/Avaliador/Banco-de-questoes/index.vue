@@ -9,6 +9,10 @@ onMounted(() => {
   questionBankStore.initialize();
 });
 
+onUnmounted(() => {
+  questionBankStore.resetNavigation();
+});
+
 const pageTitle = "Banco de Questões";
 </script>
 
