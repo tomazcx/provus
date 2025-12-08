@@ -762,55 +762,38 @@ export class QuestaoService {
           const [generated] =
             await this._callAiAndParseResponse<GeneratedQuestaoDto>(prompt);
 
-          const createDto: CreateQuestaoRequest = {
+          const questaoVolatil = {
+            id: Date.now() + Math.random(),
             titulo: generated.titulo,
             descricao: generated.descricao,
             dificuldade: generated.dificuldade,
             tipoQuestao: dto.tipoQuestao,
-            paiId: paiId ?? undefined,
-            isModelo: !avaliacaoId,
+            paiId: paiId,
+            isModelo: false,
+            pontuacao: 1,
             exemploRespostaIa: generated.exemplo_resposta,
+            textoRevisao: '',
             alternativas: generated.alternativas?.map((a) => ({
+              id: Date.now() + Math.random(),
               descricao: a.descricao,
               isCorreto: a.isCorreto,
             })),
-            pontuacao: 1,
+            tipo: TipoItemEnum.QUESTAO,
+            criadoEm: new Date().toISOString(),
+            atualizadoEm: new Date().toISOString(),
           };
-
-          const questaoResult = await this.create(createDto, avaliador);
-
-          if (avaliacaoId) {
-            const qaRepo = this.dataSource.getRepository(
-              QuestoesAvaliacoesModel,
-            );
-            const lastQ = await qaRepo.findOne({
-              where: { avaliacaoId },
-              order: { ordem: 'DESC' },
-            });
-            const novaOrdem = (lastQ?.ordem || 0) + 1 + index;
-
-            await qaRepo.save(
-              qaRepo.create({
-                avaliacaoId,
-                questaoId: questaoResult.id,
-                ordem: novaOrdem,
-                pontuacao: 1,
-              }),
-            );
-          }
 
           this.avaliadorGateway.sendMessageToAvaliador(
             avaliador.id,
             'nova-questao-ia-gerada',
             {
-              questao: questaoResult,
+              questao: questaoVolatil,
               contextoAvaliacaoId: avaliacaoId,
               tempId: index,
             },
           );
-
           this.logger.log(
-            `[Streaming/File] Questão ${questaoResult.id} gerada (Tópico: ${topicoEspecifico || 'Slice'}).`,
+            `[Streaming/File] Questão ${questaoVolatil.id} gerada (Tópico: ${topicoEspecifico || 'Slice'}).`,
           );
         } catch (err) {
           this.logger.error(`[Streaming/File] Falha na questão ${index}`, err);
@@ -952,61 +935,39 @@ export class QuestaoService {
             await this._callAiAndParseResponse<GeneratedQuestaoDto>(prompt);
           const generated = resultDocs[0];
 
-          const createDto: CreateQuestaoRequest = {
+          const questaoVolatil = {
+            id: Date.now() + Math.random(),
             titulo: generated.titulo,
             descricao: generated.descricao,
             dificuldade: generated.dificuldade,
             tipoQuestao: dto.tipoQuestao,
-            paiId: pastaId ?? undefined,
-            isModelo: !contextoAvaliacaoId,
+            pontuacao: 1,
+            isModelo: false,
+            tipo: TipoItemEnum.QUESTAO,
+            paiId: pastaId,
+            criadoEm: new Date().toISOString(),
+            atualizadoEm: new Date().toISOString(),
             exemploRespostaIa: generated.exemplo_resposta,
+            textoRevisao: '',
             alternativas: generated.alternativas?.map((a) => ({
+              id: Date.now() + Math.random(),
               descricao: a.descricao,
               isCorreto: a.isCorreto,
             })),
-            pontuacao: 1,
           };
-
-          const questaoResult = await this.create(createDto, avaliador);
-
-          if (contextoAvaliacaoId) {
-            const qaRepo = this.dataSource.getRepository(
-              QuestoesAvaliacoesModel,
-            );
-
-            const lastQ = await qaRepo.findOne({
-              where: { avaliacaoId: contextoAvaliacaoId },
-              order: { ordem: 'DESC' },
-            });
-
-            const novaOrdem = (lastQ?.ordem || 0) + 1 + index;
-
-            const novoVinculo = qaRepo.create({
-              avaliacaoId: contextoAvaliacaoId,
-              questaoId: questaoResult.id,
-              ordem: novaOrdem,
-              pontuacao: createDto.pontuacao,
-            });
-
-            await qaRepo.save(novoVinculo);
-
-            this.logger.log(
-              `[Streaming] Questão ${questaoResult.id} vinculada à avaliação ${contextoAvaliacaoId}`,
-            );
-          }
 
           this.avaliadorGateway.sendMessageToAvaliador(
             avaliador.id,
             'nova-questao-ia-gerada',
             {
-              questao: questaoResult,
+              questao: questaoVolatil,
               contextoAvaliacaoId,
               tempId: index,
             },
           );
 
           this.logger.log(
-            `[Streaming] Questão ${questaoResult.id} gerada (Tópico: ${topicoEspecifico || 'Genérico'}).`,
+            `[Streaming] Questão ${questaoVolatil.id} gerada (Tópico: ${topicoEspecifico || 'Genérico'}).`,
           );
         } catch (error) {
           this.logger.error(
