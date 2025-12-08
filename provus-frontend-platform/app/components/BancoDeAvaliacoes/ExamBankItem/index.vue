@@ -31,7 +31,7 @@ const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
       <Icon name="i-lucide-clipboard-list" class="text-purple-600 text-lg" />
     </div>
 
-    <div class="flex-1 min-w-0 overflow-hidden">
+    <div class="min-w-0 mr-auto overflow-hidden">
       <div
         class="font-medium text-gray-900 max-h-[2rem] overflow-hidden leading-snug"
       >
@@ -55,7 +55,7 @@ const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
         />
       </div>
 
-      <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+      <div class="flex w- items-center space-x-4 mt-2 text-xs text-gray-500">
         <div class="flex items-center gap-1">
           <Icon name="i-lucide-file-question" class="h-4 w-4" />
           <span>{{ item.questoes.length }} questões</span>
@@ -67,21 +67,24 @@ const emit = defineEmits(["edit", "delete", "apply", "schedule", "select"]);
       </div>
     </div>
 
-    <div class="ml-4 flex-shrink-0 flex flex-col sm:flex-row gap-2">
+    <div class="ml-auto flex-shrink-0 flex flex-col sm:flex-row gap-2">
       <UTooltip text="Agendar para depois">
         <UButton
           color="primary"
           variant="soft"
           icon="i-lucide-calendar-clock"
           @click.stop="emit('schedule')"
-        />
+        >
+          Agendar</UButton
+        >
       </UTooltip>
       <UTooltip text="Aplicar agora">
         <UButton
           color="secondary"
           icon="i-lucide-send"
           @click.stop="emit('apply')"
-        />
+          >Aplicar agora</UButton
+        >
       </UTooltip>
     </div>
   </Item>
