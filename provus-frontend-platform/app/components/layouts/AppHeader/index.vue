@@ -41,10 +41,13 @@ const userMenuItems = [
       class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16"
     >
       <div class="flex items-center">
-        <div class="bg-primary p-2 rounded-lg">
-          <span class="text-white font-bold text-xl">P</span>
+        <div class="p-2 rounded-lg">
+          <img
+            src="~/assets/img/provus.png"
+            alt="Provus Logo"
+            class="h-16 w-16"
+          >
         </div>
-        <span class="ml-3 text-2xl font-bold text-primary">Provus</span>
       </div>
       <nav class="space-x-8">
         <NuxtLink
