@@ -8,7 +8,6 @@ import type { AplicacaoEntity } from "~/types/entities/Aplicacao.entity";
 import type { AvaliadorSubmissaoDetalheApiResponse } from "~/types/api/response/AvaliadorSubmissaoDetalhe.response";
 import EstadoQuestaoCorrigida from "~/enums/EstadoQuestaoCorrigida";
 import EstadoSubmissaoEnum from "~/enums/EstadoSubmissaoEnum";
-
 const route = useRoute();
 const router = useRouter();
 const { $api } = useNuxtApp();
@@ -75,6 +74,36 @@ async function fetchData() {
     router.push("/aplicacoes");
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function handleAllowRetake() {
+  if (!submissionDetails.value) return;
+
+  try {
+    await $api(
+      `/backoffice/aplicacao/${applicationId}/submissao/${submissionId}/estado`,
+      {
+        method: "PATCH",
+        body: { estado: EstadoSubmissaoEnum.REABERTA },
+      }
+    );
+
+    toast.add({
+      title: "Sucesso",
+      description: "Prova reaberta. O aluno já pode acessar novamente.",
+      color: "success",
+      icon: "i-lucide-unlock",
+    });
+
+    await fetchData();
+  } catch (e) {
+    console.error(e);
+    toast.add({
+      title: "Erro",
+      description: "Não foi possível reabrir a prova.",
+      color: "error",
+    });
   }
 }
 
@@ -225,6 +254,28 @@ async function checkAndFinalizeSubmission() {
 
   <div v-else-if="submissionDetails && aplicacao">
     <Breadcrumbs :items="breadcrumbs" />
+
+    <UAlert
+      v-if="
+        submissionDetails.submissao.estado === EstadoSubmissaoEnum.ABANDONADA
+      "
+      icon="i-lucide-lock"
+      color="warning"
+      variant="soft"
+      title="Prova Abandonada"
+      description="Este aluno saiu da prova, perdeu a conexão ou foi bloqueado pelo sistema de segurança. Ele não consegue acessar a prova neste estado."
+      class="mb-6 shadow-sm border border-orange-200"
+      :actions="[
+        {
+          label: 'Permitir Retomada',
+          onClick: handleAllowRetake,
+          variant: 'solid',
+          color: 'warning',
+          icon: 'i-lucide-unlock',
+        },
+      ]"
+    />
+
     <SubmissionHeader
       :submission="submissionDetails.submissao"
       :student="submissionDetails.estudante"

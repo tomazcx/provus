@@ -702,6 +702,23 @@ export class SubmissaoService {
     this.logger.log(
       `Estado da submissão ${submissaoId} atualizado para ${estado}. Notificação enviada.`,
     );
+
+    if (submissao.aplicacao?.avaliacao?.item?.avaliador?.id) {
+      const payload = {
+        submissaoId: submissao.id,
+        aplicacaoId: aplicacaoId,
+        estado: submissao.estado,
+        alunoNome: submissao.estudante.nome,
+        tipo: 'Retomou',
+        timestamp: new Date().toISOString(),
+      };
+
+      this.notificationProvider.sendNotificationViaSocket(
+        submissao.aplicacao.avaliacao.item.avaliador.id,
+        'submissao-finalizada',
+        payload,
+      );
+    }
   }
 
   private async _generateUniqueSubmissionCode(
